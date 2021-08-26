@@ -239,7 +239,7 @@ k_max_range = Gmean.k[Gmean.mean('x').argmax().data].data* 0.75, Gmean.k[Gmean.m
 font_for_print()
 F = M.figure_axis_xy(6.5, 5.6, container= True, view_scale =1)
 
-plt.suptitle('LS and FFT Slope Spectrograms\n' + track_name, y = 0.95)
+plt.suptitle('LS and FFT Slope Spectrograms\n' + track_name, y = 0.98)
 gs = GridSpec(3,3,  wspace=0.2,  hspace=.4)#figure=fig,
 #clev=np.arange(0, 6, 0.1)*3
 clev = M.clevels( Gmean.data, 31)* 1
@@ -258,7 +258,6 @@ for pos, k, pflag in zip([gs[0, 0],gs[0, 1],gs[0, 2] ], high_beams, [True, False
     if pflag:
         plt.ylabel('Wave length\n(meters)')
         plt.legend()
-
 
 pos, k, pflag = gs[1, 0], 'weighted mean', True
 ax0 = F.fig.add_subplot(pos)
@@ -281,14 +280,13 @@ if pflag:
     plt.legend()
 
 
-G_LS_wmean
 pos = gs[1, 1]
 ax0 = F.fig.add_subplot(pos)
 plt.title('Photons density ($m^{-1}$)', loc='left')
 
 for k,I in G_LS.items():
-    plt.plot(Gplot.x/1e3, I.N_photons/Lmeters, label=k)
-plt.plot(Gplot.x/1e3, G_LS_wmean.N_photons/3/Lmeters , c='black', label='ave Photons')
+    plt.plot(Gplot.x/1e3, I.N_photons/Lmeters, label=k, linewidth=0.8)
+plt.plot(Gplot.x/1e3, G_LS_wmean.N_photons/3/Lmeters , c='black', label='ave Photons' , linewidth=0.8)
 plt.xlim(xlims)
 plt.xlabel('Distance from the Ice Edge (km)')
 
@@ -312,7 +310,6 @@ plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integra
 
 Gplot= G_LS_wmean
 plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k') *1e3 , '.' , markersize=1.5, c='red', label= 'LS')
-
 
 plt.ylabel('1e-3 $(m)^2~m$')
 plt.legend()
