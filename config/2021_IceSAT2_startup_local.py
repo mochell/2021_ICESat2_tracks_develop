@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib
 #matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+import pandas as pd
 
 
 import string
@@ -38,7 +38,7 @@ mconfig=json_load('config_local','/Users/Shared/Projects/2021_IceSAT2_tracks/con
 
 # add project depenent libraries
 sys.path.append(mconfig['paths']['local_script'])
-sys.path.append(mconfig['paths']['code'])
+sys.path.append(mconfig['paths']['local_script'] +'/ICEsat2_SI_tools/')
 
 #import m_colormanager_ph3 as M_color
 import m_tools_ph3 as MT
