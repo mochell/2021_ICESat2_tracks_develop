@@ -59,7 +59,7 @@ def spicke_remover(data, nstd=20.0, spreed=500.0, max_loops=10.0 , verbose=False
     spreed   width of data between wich will be linear interpolated around the spike. width is in units of data points (dt)
     max_loops number of maximum possible loobs until the spike removal is stopped, even it the first creteria is not true
     """
-    datastd=data.std()
+    datastd=np.nanstd(data)
     data2=np.copy(data)
 
     peak_remove=True
