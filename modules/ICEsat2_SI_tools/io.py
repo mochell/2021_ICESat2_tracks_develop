@@ -103,10 +103,15 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
         #--  2: low
         #--  3: medium
         #--  4: high
-    signal_confidence=ATL03[beam+'/heights/signal_conf_ph'][:,2]
+
+    mask_ocean  = ATL03[beam+'/heights/signal_conf_ph'][:, 1] > 2 # ocean points  medium or high quality
+    mask_seaice = ATL03[beam+'/heights/signal_conf_ph'][:, 2] > 2 # sea ice points medium or high quality
+    mask_total  = (mask_seaice | mask_ocean)
+
+    signal_confidence = ATL03[beam+'/heights/signal_conf_ph'][:, 1:3].max(1)
     #print(signal_confidence.shape)
 
-
+    #return signal_confidence
 
     # Add photon rate and background rate to the reader here
     ATL03.close()
@@ -116,14 +121,17 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
         return along_track_dist, elev
 
     else:
-        dF = pd.DataFrame({'heights':heights, 'lons':lons, 'lats':lats, 'signal_confidence':signal_confidence,
+        dF = pd.DataFrame({'heights':heights, 'lons':lons, 'lats':lats, 'signal_confidence':signal_confidence, 'mask_seaice':mask_seaice,
                        'delta_time_granule':delta_time_granule,'delta_time':delta_time, 'along_track_distance':along_track_distance,
                         'year':year, 'month':month, 'day':day, 'hour':hour,'minute':minute , 'second':second})
 
         # Filter out high elevation values
-        #dF = dF[(dF['signal_confidence']>2)]
+        print(dF.shape)
+        dF = dF[mask_total]
+        print(dF.shape)
+
         # Reset row indexing
-        #dF=dF.reset_index(drop=True)
+        dF=dF.reset_index(drop=True)
         return dF
 
 def getATL03_height_correction(fileT, beam='gt1r'):

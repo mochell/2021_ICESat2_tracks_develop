@@ -1,16 +1,15 @@
 {
     "paths":{
-            "work": "/work/mhell_work/2021_IceSAT2_tracks/",
+            "work": "/work/mhell_work/2021_ICESat2_tracks/",
             "downloads": "/project/downloads/",
-            "scratch": "/work/mhell_work/2021_IceSAT2_tracks/scratch/",
+            "scratch": "/scratch/mhell/2021_ICESat2_tracks/",
             "outputs": "/project/output/",
-            "plot": "/home/mhell/2021_IceSAT2_tracks/plots/",
-            "processed": "/work/mhell_work/2021_IceSAT2_tracks/processed/",
-            "analysis": "/home/mhell/2021_IceSAT2_tracks/analysis/",
-            "local_script": "/home/mhell/2021_IceSAT2_tracks/modules/",
-            "config": "/home/mhell/2021_IceSAT2_tracks/config/",
-            "add_data": "/home/mhell/2021_IceSAT2_tracks/other_data",
-            "targets": "/home/mhell/2021_IceSAT2_tracks/targets/"
+            "plot": "/home/mhell/2021_ICESat2_tracks/plots/",
+            "processed": "/work/mhell_work/2021_ICESat2_tracks/processed/",
+            "analysis": "/home/mhell/2021_ICESat2_tracks/analysis/",
+            "local_script": "/home/mhell/2021_ICESat2_tracks/modules/",
+            "config": "/home/mhell/2021_ICESat2_tracks/config/",
+            "targets": "/home/mhell/2021_ICESat2_tracks/targets/"
           },
 
     "server":"lime",
@@ -37,20 +36,14 @@
         "full_page_square":[7.5, 7.5 ]
       }
         },
+    "beams": {
+      "all_beams" :   ["gt1l", "gt1r", "gt2l", "gt2r", "gt3l", "gt3r"],
+      "low_beams" :   ["gt1l",  "gt2l",  "gt3l"],
+      "high_beams" :  ["gt1r",  "gt2r",  "gt3r"]
+    },
     "standard_var_name": {
-              "eddy" : ["E_u1p_qp",
-                       "E_q1_dissp_q1p_fft",
-                       "E_u10_1",
-                       "E_q1_hat",
-                       "E_v1p_qp",
-                       "E_q1",
-                       "E_dissp",
-                       "E_u1_qp_qp",
-                       "E_psi_1",
-                       "E_v1_qp_qp",
-                       "E_v10_1"],
-              "eddy_org" : [ "v1_qp_qp", "v1p_qp", "qp_psi1_psi2", "q1_dissp_q1p_fft", "u1p_qp", "dissp", "psi1_psi2_psiR", "u1_qp_qp" ],
-              "mean" : [ "psi_1","psi_2","u10_1","v10_1","q1", "q2","q1_hat" ]
+              "ALT03_vars" : ["dem_h", "delta_time", "lon_ph", "lat_ph", "h_ph", "dist_ph_along", "atlas_sdp_gps_epoch", "signal_conf_ph"],
+              "ALT07_vars" : [ "1" ]
         },
     "constants": {
               "ocean":{

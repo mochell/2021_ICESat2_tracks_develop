@@ -9,15 +9,15 @@ This is python 3
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
-%matplotlib inline
+#%matplotlib inline
 #from pprint import pprint
 
 import icepyx as ipx
 
 # %%
-downlaod_path = mconfig['paths']['scratch'] +'/SH_batch1/'
+downlaod_path = mconfig['paths']['scratch'] +'/SH_batch01/'
 
-downlaod_path
+MT.mkdirs_r(downlaod_path)
 
 # %%
 date_range =['2019-06-01','2019-06-05']
@@ -40,11 +40,10 @@ region_a.subsetparams(Coverage=region_a.order_vars.wanted)
 #region_a.tracks
 #region_a.file_vars
 
-
 print('check how many granuals are available')
 download_stars=region_a.avail_granules()
 print( download_stars )
 # %%
 
 print('download '+ str(download_stars['Number of available granules']) + ' granules')
-#region_a.download_granules(downlaod_path)
+region_a.download_granules(downlaod_path)
