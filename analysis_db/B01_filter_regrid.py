@@ -28,15 +28,21 @@ import concurrent.futures as futures
 #import s3fs
 #processed_ATL03_20190605061807_10380310_004_01.h5
 
-track_name= '20190605061807_10380310_004_01'
+#imp.reload(io)
+track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
+#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+
+print(track_name, batch_key, test_flag)
+hemis, batch = batch_key.split('_')
+#track_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
 
-load_path   = mconfig['paths']['scratch'] +'/SH_batch01/'
+load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 load_file   = load_path + 'processed_'+ATlevel+'_'+track_name+'.h5'
 
-save_path  = mconfig['paths']['work'] +'/B01_regrid_SH/'
+save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
-plot_path = mconfig['paths']['plot']+ '/SH/tracks/'+track_name +'/B_ov/'
+plot_path = mconfig['paths']['plot']+ '/'+hemis+'/tracks/'+track_name +'/B_ov/'
 MT.mkdirs_r(plot_path)
 MT.mkdirs_r(save_path)
 

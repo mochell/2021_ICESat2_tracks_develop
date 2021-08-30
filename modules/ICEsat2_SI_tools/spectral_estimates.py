@@ -20,8 +20,8 @@ def create_chunk_boundaries(L, dsize, ov= None,  iter_flag=True):
     xright = np.arange(int(L-ov)*2,dsize+1,int(L-ov))
     xcenter_pos = np.arange(int(L-ov),dsize-int(L-ov)+1,int(L-ov))
     max_size = min([xleft.size , xcenter_pos.size, xright.size])
-    if xright[max_size-1] < dsize:
-        print('left out last ' + str(dsize- xright[max_size-1]) + ' data points' )
+    # if xright[max_size-1] < dsize:
+    #     print('left out last ' + str(dsize- xright[max_size-1]) + ' data points' )
     #print([xleft[0:max_size], xcenter_pos[0:max_size], xright[0:max_size]])
     position_stancil = np.vstack([xleft[0:max_size], xcenter_pos[0:max_size], xright[0:max_size]])
 
@@ -50,8 +50,8 @@ def create_chunk_boundaries_unit_lengths(L_unit, data_limits, ov= None,  iter_fl
     xcenter_pos = np.arange(data_limits[0]+ int(L-ov)   ,   data_limits[1]-int(L-ov)+1, int(L-ov) )
 
     max_size = min([xleft.size , xcenter_pos.size, xright.size])
-    if xright[max_size-1] < data_limits[1]:
-        print('left out last ' + str(data_limits[1]- xright[max_size-1]) + ' data points' )
+    # if xright[max_size-1] < data_limits[1]:
+    #     print('left out last ' + str(data_limits[1]- xright[max_size-1]) + ' data points' )
     #print([xleft[0:max_size], xcenter_pos[0:max_size], xright[0:max_size]])
     position_stancil = np.vstack([xleft[0:max_size], xcenter_pos[0:max_size], xright[0:max_size]])
 

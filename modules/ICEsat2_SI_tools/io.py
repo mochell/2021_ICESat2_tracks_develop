@@ -1,5 +1,40 @@
 
 
+def init_from_input(arguments):
+    if (len(arguments) <= 1) | ('-f' in set(arguments) ) :
+
+        track_name='20190605061807_10380310_004_01'
+        batch_key='SH_batch01'
+        test_flag = True
+        print('use standard values')
+
+    else:
+
+        track_name=arguments[1]
+        batch_key =arguments[2]
+        #$(hemisphere) $(coords) $(config)
+
+        print('read vars from file: ' +str(arguments[1]) )
+
+        if (len(arguments) >= 4):
+            if arguments[3] == 'True':
+                test_flag = True
+            elif arguments[3] == 'False':
+                test_flag = False
+            else:
+                test_flag= arguments[3]
+
+            print('test_flag found, test_flag= '+str(test_flag) )
+        else:
+            test_flag=False
+    print(track_name)
+
+
+    print('----- batch ='+ batch_key)
+    print('----- test_flag: ' + str(test_flag))
+    return track_name, batch_key, test_flag
+
+
 def save_pandas_table(table_dict, name , save_path):
     import os
     if not os.path.exists(save_path):
