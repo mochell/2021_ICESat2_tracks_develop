@@ -32,7 +32,7 @@ import concurrent.futures as futures
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 
-print(track_name, batch_key, test_flag)
+#print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 #track_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
@@ -43,7 +43,7 @@ load_file   = load_path + 'processed_'+ATlevel+'_'+track_name+'.h5'
 save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
 plot_path = mconfig['paths']['plot']+ '/'+hemis+'/tracks/'+track_name +'/B_ov/'
-MT.mkdirs_r(plot_path)
+
 MT.mkdirs_r(save_path)
 
 # set pars
@@ -170,9 +170,10 @@ io.save_pandas_table(B3, track_name + '_B01_binned'     , save_path) # regriddin
 
 
 # %% plotting just for checking
+
 key         = 'gt2r'
 if plot_flag:
-
+    MT.mkdirs_r(plot_path)
     Ti2 = B3[key]
     T2  = B2[key]
 
