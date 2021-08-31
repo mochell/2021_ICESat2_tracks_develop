@@ -19,7 +19,7 @@ import ICEsat2_SI_tools.spectral_estimates as spec
 import imp
 import copy
 import spicke_remover
-
+import datetime
 
 #import s3fs
 # %%
@@ -41,6 +41,7 @@ save_name   = 'B02_'+track_name
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/tracks/' + track_name + '/B_spectra/'
 MT.mkdirs_r(plot_path)
 MT.mkdirs_r(save_path)
+bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 # %%
 
 all_beams   = mconfig['beams']['all_beams']
@@ -49,6 +50,18 @@ low_beams   = mconfig['beams']['low_beams']
 Gfilt   = io.load_pandas_table_dict(track_name + '_B01_corrected', load_path) # rhis is the rar photon data
 Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
+
+# %% test amount of nans in the data
+nan_fraction= list()
+for I in Gd.values():
+    nan_fraction.append( np.sum(np.isnan(I['heights_c_std'])) / I['heights_c_std'].shape[0] )
+
+
+if np.array(nan_fraction).mean() > 0.95:
+    print('nan fraction > 95%, pass this track, add to bad tracks')
+    MT.json_save(track_name, bad_track_path, {'nan_fraction': np.array(nan_fraction).mean(), 'date': str(datetime.date.today()) })
+    print('exit.')
+    exit()
 
 # %% test LS with an even grid where missing values are set to 0
 imp.reload(spec)

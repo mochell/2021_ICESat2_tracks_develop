@@ -43,7 +43,7 @@ load_file   = load_path + 'processed_'+ATlevel+'_'+track_name+'.h5'
 save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
 plot_path = mconfig['paths']['plot']+ '/'+hemis+'/tracks/'+track_name +'/B_ov/'
-
+bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
 
 # set pars
@@ -129,14 +129,33 @@ for k in beams:
 
     hist    = MT.write_log(hist, ho)
 
+# %%
+# define latitude limits
+lat_lims = regrid.lat_min_max(B, all_beams, accent = False)
+
+# %% test ave photon density
+length_meter = (abs(lat_lims[1])  - abs(lat_lims[0])) * 110e3
+p_densities_r = list()
+p_densities_l = list()
+
+for k, I in B.items():
+    if 'r' in k:
+        p_densities_r.append( I.shape[0] /length_meter)
+    else:
+        p_densities_l.append( I.shape[0] /length_meter)
+
+if (np.array(p_densities_l).mean() < 1) | (np.array(p_densities_r).mean() < 0.3):
+    print('photon density too low, this track is classified as bad track and pushed to bad list')
+    MT.json_save(track_name, bad_track_path, {'densities': [ np.array(p_densities_r).mean(), np.array(p_densities_l).mean()] , 'date': str(datetime.date.today()) })
+    print('exit.')
+    exit()
+
 
 # %% save corrected data and delete from cash
 io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with distance coordinate
 del B1save
 
-# %%
-# define latitude limits
-lat_lims = regrid.lat_min_max(B, all_beams, accent = accent)
+
 
 ##### 1.) derive common axis for beams
 # %% 1st all stong beams
@@ -159,7 +178,7 @@ for key,Ti in B2.items():
     print(key, Ti.shape, 2* Ti.shape[0]/Lmeter)
     stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, [ np.nanmin(dist_list[:, 0], 0) , np.nanmax(dist_list[:, 1], 0) ], iter_flag=True )
 
-    with futures.ThreadPoolExecutor(max_workers=4) as executor:
+    with futures.ThreadPoolExecutor(max_workers=5) as executor:
         B3[key] = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor.map)
 
     print(key, 'done')
@@ -171,7 +190,7 @@ io.save_pandas_table(B3, track_name + '_B01_binned'     , save_path) # regriddin
 
 # %% plotting just for checking
 
-key         = 'gt2r'
+key         = 'gt2l'
 if plot_flag:
     MT.mkdirs_r(plot_path)
     Ti2 = B3[key]
@@ -192,7 +211,7 @@ if plot_flag:
         plt.plot(Ti2['dist'], Ti2['heights_c_weighted_mean'] +1, '.-', color='darkblue', linewidth=0.5, markersize=2,alpha=0.9, label='x-gauss weighted mean +1')
         plt.plot(Ti2['dist'], Ti2['heights_c_median'], 'r.-',  linewidth=0.5, markersize=2,alpha=0.9, label='median')
 
-        plt.plot(Ti2['dist'], Ti2['heights_c_mode']-1, 'g.-',  linewidth=0.5, markersize=2,alpha=0.9, label='mode - 1')
+        #plt.plot(Ti2['dist'], Ti2['heights_c_mode']-1, 'g.-',  linewidth=0.5, markersize=2,alpha=0.9, label='mode - 1')
 
         plt.plot(Ti2['dist'], Ti2['heights_c_std'] - 1.8, 'k-', linewidth=0.5,alpha=1)
         plt.fill_between(  Ti2['dist'], Ti2['heights_c_std'] -1.8 , y2=-1.8, color='gray',alpha=1)

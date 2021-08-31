@@ -6,6 +6,7 @@ This file open a ICEsat2 track applied filters and corections and returns smooth
 This is python 3
 """
 
+
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
@@ -45,6 +46,7 @@ from matplotlib.gridspec import GridSpec
 #import s3fs
 # %%
 
+
 # Python reader based on Pandas. Other reader examples available in readers.py
 plot_path = mconfig['paths']['plot'] + '/tests/'
 
@@ -56,10 +58,22 @@ load_path   = base_path + 'data/data1/'
 track_name= 'ATL03_20210414174223_03191110_004_01'
 load_path   = base_path + 'data/data4/'
 
+# %% as in main analysis
+#20190601220921_09870310_004_01
+track_name= '20190601220921_09870310_004_01'
+ATlevel= 'ATL03'
+hemis= 'SH'
+load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
+load_file   = load_path + 'processed_' + ATlevel + '_' + track_name + '.h5'
+
+bad_track_path =mconfig['paths']['work'] +'bad_tracks/'
+# %%
 # test which beams exist:
 all_beams = ['gt1l', 'gt1r', 'gt2l', 'gt2r', 'gt3l', 'gt3r']
 low_beams = ['gt1l',  'gt2l',  'gt3l']
 high_beams = ['gt1r',  'gt2r',  'gt3r']
+
+
 
 # %%
 
@@ -74,9 +88,19 @@ Gd = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 # %% test LS with an even grid where missing values are set to 0
 imp.reload(spec)
 
-Gi =Gd[high_beams[0]]
+nan_fraction= list()
+for I in Gd.values():
+    nan_fraction.append( np.sum(np.isnan(I['heights_c_std'])) / I['heights_c_std'].shape[0] )
 
+
+if np.array(nan_fraction).mean() > 0.95:
+    print('nan fraction > 95%, pass this track, add to bad tracks')
+    MT.json_save(track_name, bad_track_path, {'nan_fraction': np.array(nan_fraction).mean(), 'date': str(datetime.date.today()) })
+    exit()
+    
 #Gi = Gi[~np.isnan(Gi['heights_c_weighted_mean'])].sort_values('dist')
+
+Gi =Gd[high_beams[0]]
 
 # derive spectal limits
 # Longest deserved period:
