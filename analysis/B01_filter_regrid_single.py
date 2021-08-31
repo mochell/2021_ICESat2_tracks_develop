@@ -304,7 +304,7 @@ def get_stencil_stats(T2, stencil_iter,  key , Nphoton_min = 5):
             Tmedian = T2[i_mask].median()
 
             Tmedian[key+ '_weighted_mean']  = np.nan
-            Tmedian[key+ '_mode']           = np.nan
+            #Tmedian[key+ '_mode']           = np.nan
             Tmedian['N_photos']             = i_mask.sum()
             Tmedian[key+ '_std']            = np.nan
 
@@ -317,7 +317,7 @@ def get_stencil_stats(T2, stencil_iter,  key , Nphoton_min = 5):
         y       = y_data[i_mask]
 
         Tmedian[key+ '_weighted_mean']      = weighted_mean(x_rel, y)
-        Tmedian[key+ '_mode']               = get_mode(y)
+        #Tmedian[key+ '_mode']               = get_mode(y)
         Tmedian['N_photos']                 = i_mask.sum()
         Tmedian[key+ '_std']                = y.std()
 
