@@ -38,7 +38,7 @@ load_file   = load_path + 'processed_' + ATlevel + '_' + track_name + '.h5'
 save_path   = mconfig['paths']['work'] + '/B02_spectra_'+hemis+'/'
 save_name   = 'B02_'+track_name
 
-plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/tracks/' + track_name + '/B_spectra/'
+plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B_spectra/'
 MT.mkdirs_r(plot_path)
 MT.mkdirs_r(save_path)
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
@@ -47,7 +47,7 @@ bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
-Gfilt   = io.load_pandas_table_dict(track_name + '_B01_corrected', load_path) # rhis is the rar photon data
+Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
 
@@ -65,8 +65,8 @@ if np.array(nan_fraction).mean() > 0.95:
 
 # %% test LS with an even grid where missing values are set to 0
 imp.reload(spec)
-
-Gi =Gd[all_beams[0]] # to select a test  beam
+print(Gd.keys())
+Gi =Gd[ list(Gd.keys())[0] ] # to select a test  beam
 
 # derive spectal limits
 # Longest deserved period:
