@@ -2,8 +2,7 @@ import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
 """
-This file open a ICEsat2 track applied filters and corections and returns smoothed photon heights on a regular grid in an .nc file.
-This is python 3
+This script takes in a list of
 """
 
 exec(open(os.environ['PYTHONSTARTUP']).read())
@@ -25,7 +24,12 @@ import icepyx as ipx
 # %%
 path = mconfig['paths']['analysis']+'../track_lists/'
 
+# batch   = 'Batch02_alex'
 with open(path+  'alex_ATL07_filelist.txt', 'r') as f:
+    contents = f.readlines()
+
+batch   = 'batch03'
+with open(path+  'batch03_ATL07_filelist.txt', 'r') as f:
     contents = f.readlines()
 
 h5_files= list()
@@ -38,7 +42,8 @@ for h in h5_files:
     #h.split('.')[0].split('_')
     file_instances.append(  h.split('.')[0].split('_')[1:4] )
 
-MT.json_save('Batch02_alex_tracks', path, file_instances)
+
+MT.json_save(batch+'_tracks_components', path, file_instances)
 
 #file_instances
 ## make dataframe and derive ID that is need to compare the data:
@@ -62,6 +67,7 @@ D['id_compare'] = D['RGT']+D['cycle']
 
 # len(D['id_compare'])
 # len(set(D['id_compare']))
+
 # %%
 dx= 100
 all_wanted_tracks = list()
@@ -72,7 +78,7 @@ for x in np.arange(0, int(len(D)), dx):
     # % login to earth data  ..
 
     date_range =[str(dmin).split(' ')[0],str(dmax).split(' ')[0]]
-    region_a = ipx.Query('ATL03',[30, -70, -30, -55],date_range, \
+    region_a = ipx.Query('ATL03',[180, -70, -180, -55],date_range, \
                                start_time='00:00:00', end_time='23:59:59', \
                                 tracks = list(Dsub['RGT']))
 
@@ -84,7 +90,7 @@ for x in np.arange(0, int(len(D)), dx):
     region_a.avail_granules()
     region_a.avail_granules(ids=True)
 
-    # %
+    # % compare availabe ID's with the wanted ID's
     gran_list = [i['producer_granule_id'] for i in region_a.granules.avail]
     sub_set= list()
     for id_wanted in Dsub['id_compare']:
@@ -96,4 +102,4 @@ for x in np.arange(0, int(len(D)), dx):
     [all_wanted_tracks.append(i) for i in all_possible_tracks]
 
 # %% save clean file list
-MT.json_save('Batch02_alex_ALT03_tracks', path, all_wanted_tracks)
+MT.json_save(batch+'_ATL03_A00', path, all_wanted_tracks)

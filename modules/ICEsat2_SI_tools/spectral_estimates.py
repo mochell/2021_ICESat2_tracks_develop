@@ -44,10 +44,12 @@ def create_chunk_boundaries_unit_lengths(L_unit, data_limits, ov= None,  iter_fl
     """
     L= L_unit
     ov=np.round(L/2) if ov is None else ov
+    #print(ov)
+    dl = (L-ov)
+    xleft   = np.arange(data_limits[0]           ,   data_limits[1]-dl,   dl )
+    xcenter_pos = np.arange(data_limits[0]+ L/2   ,   data_limits[1]-dl+1, dl )
+    xright  = np.arange(data_limits[0] + L    ,   data_limits[1]+1,           dl )
 
-    xleft   = np.arange(data_limits[0]                  ,   data_limits[1]-int(L-ov),   int(L-ov) )
-    xright  = np.arange(data_limits[0] + int(L-ov)*2    ,   data_limits[1]+1,           int(L-ov) )
-    xcenter_pos = np.arange(data_limits[0]+ int(L-ov)   ,   data_limits[1]-int(L-ov)+1, int(L-ov) )
 
     max_size = min([xleft.size , xcenter_pos.size, xright.size])
     # if xright[max_size-1] < data_limits[1]:
