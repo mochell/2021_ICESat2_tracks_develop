@@ -7,3 +7,4 @@ plots/
 analysis_db/log
 modules/ICEsat2_SI_tools/__pycache__/*
 modules/read-ICESat-2
+ICEsat2

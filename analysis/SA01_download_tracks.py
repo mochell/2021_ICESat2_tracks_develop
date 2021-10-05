@@ -2,8 +2,8 @@ import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
 """
-This file open a ICEsat2 track applied filters and corections and returns smoothed photon heights on a regular grid in an .nc file.
-This is python 3
+This is a test file, playing with the Earth data login and icepyx.
+
 """
 
 exec(open(os.environ['PYTHONSTARTUP']).read())
@@ -48,7 +48,9 @@ Dsub = D[0:2]
 # list(set(D['cyle']))
 # len(D['RGT'])
 # len(set(D['RGT']))
+
 # %%
+
 date_range =[str(dmin).split(' ')[0],str(dmax).split(' ')[0]]
 region_a = ipx.Query('ATL03',[30, -70, -30, -55],date_range, \
                            start_time='00:00:00', end_time='23:59:59', \
@@ -75,21 +77,21 @@ region_a.tracks
 #region_a.file_vars
 
 # %%
-# help(region_a.granules)
-# #region_a.granules.__dict__
-# #region_a.granules.avail[0].keys()
-#
-# type(region_a.granules.avail)
-# gran_list = [i['producer_granule_id'] for i in region_a.granules.avail]
-#
-# len(gran_list)
-#
-# sub_set= list()
-# for id_wanted in Dsub['id_compare']:
-#     sub_set.append([i for i in gran_list if id_wanted in i][0])
-#
-#
-# gran_to_delete = list(set(gran_list) - set(sub_set))
+help(region_a.granules)
+#region_a.granules.__dict__
+#region_a.granules.avail[0].keys()
+
+type(region_a.granules.avail)
+gran_list = [i['producer_granule_id'] for i in region_a.granules.avail]
+
+len(gran_list)
+
+sub_set= list()
+for id_wanted in Dsub['id_compare']:
+    sub_set.append([i for i in gran_list if id_wanted in i][0])
+
+
+gran_to_delete = list(set(gran_list) - set(sub_set))
 
 # %%
 wanted_granuals= list()

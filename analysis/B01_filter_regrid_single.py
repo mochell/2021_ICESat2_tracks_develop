@@ -47,8 +47,12 @@ track_name= 'ATL03_20191215230028_12220512_004_01'
 track_name= 'ATL03_20210414065545_03121112_004_01'
 load_path   = base_path + 'data/data4/'
 load_file   = load_path + 'processed_'+track_name+'.h5'
+# %%
+track_name= 'ATL03_20200520190502_08440701_003_01'
+load_path   = base_path + 'modules/read-ICESat-2/scripts/2020.05.20/'
+load_file   = load_path +track_name+'.h5'
 
-# %
+# %%
 
 # test which beams exist:
 all_beams = ['gt1l', 'gt1r', 'gt2l', 'gt2r', 'gt3l', 'gt3r']
@@ -91,6 +95,9 @@ for k in beams:
     print(ho)
     hist    = MT.write_log(hist, ho)
 
+
+# %%
+plt.plot( B[k].lats , B[k].heights_c, '.')
 
 # %%
 
