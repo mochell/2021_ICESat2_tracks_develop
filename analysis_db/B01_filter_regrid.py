@@ -15,7 +15,6 @@ import datetime
 import h5py
 from random import sample
 import imp
-
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import ICEsat2_SI_tools.io as io
 from spectral_estimates import create_chunk_boundaries_unit_lengths, create_chunk_boundaries
@@ -25,12 +24,14 @@ import filter_regrid as regrid
 
 import concurrent.futures as futures
 
+
+
 #import s3fs
 #processed_ATL03_20190605061807_10380310_004_01.h5
 
 #imp.reload(io)
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
