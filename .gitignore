@@ -13,3 +13,5 @@ data/
 data_figures/
 documentation/
 nsidc-download_ATL03.004_2021-08-31.py
+config/2021_IceSAT2_startup.py
+config/config.json
