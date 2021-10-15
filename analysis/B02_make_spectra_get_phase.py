@@ -125,7 +125,7 @@ for k in all_beams:
 
     dd_filled = np.copy(dd)
     dd_filled[dd_nans] = 0
-    win = create_weighted_window(dd_filled)
+    #win = create_weighted_window(dd_filled)
 
     # using gappy data
     dd_no_nans = dd[~dd_nans] # windowing is applied here
@@ -177,10 +177,10 @@ for k in all_beams:
     # kk.shape
 
     S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method =   kk,  ov=None, window=None)
-    G, PP = S.cal_spectrogram(xlims= xlims, weight_data=False)
+    G, PP = S.cal_spectrogram(xlims= xlims, weight_data=False, max_nfev = 200)
 
     # %%
-    plot_data_model=False
+    plot_data_model=True
     if plot_data_model:
         for i in np.arange(60,120,2):
             c1= 'blue'
