@@ -10,7 +10,7 @@ This is python 3
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
-%matplotlib inline
+#%matplotlib inline
 
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import h5py
@@ -21,12 +21,12 @@ import imp
 import copy
 import spicke_remover
 import datetime
-
+import concurrent.futures as futures
 #import s3fs
 # %%
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
-track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -136,8 +136,11 @@ for k in all_beams:
 
     imp.reload(spec)
     print('LS')
+
+
     S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method = wavenumber_k,  ov=None, window=None)
-    G, PP = S.cal_spectrogram(xlims= xlims, weight_data=True, max_nfev = 200)
+    with futures.ThreadPoolExecutor(max_workers= 10) as executor_sub:
+        G, PP = S.cal_spectrogram(xlims= xlims, weight_data=True, max_nfev = None , map_func=executor_sub.map)
     S.mean_spectral_error() # add x-mean spectal error estimate to xarray
     S.parceval(add_attrs= True, weight_data=False)
 
@@ -237,9 +240,9 @@ for k in all_beams:
     plt.legend()
     plt.show()
 
-    #F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
-    #print('saved as '+'B02_control_'+k+'_' + track_name)
-    #print(np.isinf(G).sum().data)
+    F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
+    print('saved as '+'B02_control_'+k+'_' + track_name)
+    print(np.isinf(G).sum().data)
 
 
 # %%
@@ -415,7 +418,7 @@ plt.legend()
 plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
-#F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
 
 
 # %% save fitting parameters
