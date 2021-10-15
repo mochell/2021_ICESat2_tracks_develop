@@ -62,13 +62,29 @@ def create_chunk_boundaries_unit_lengths(L_unit, data_limits, ov= None,  iter_fl
     else:
         return position_stancil
 
+def Z_to_power(Z, df, N):
+    """ compute the 1d spectrum of a field phi
+    inputs:
+    Z       complex fourier coefficients
+    df      frequency / or wavenumber step
+    N       length of data vector in real space (= L)
+    """
+    spec = 2.*(Z*Z.conj()).real / df /N**2
+    neven = True if (N%2) else False
+    # the zeroth frequency should be counted only once
+    spec[0] = spec[0]/2.
+    if neven:
+        spec[-1] = spec[-1]/2.
+
+    return spec
+
 # 2nd cal spectra
 def calc_spectrum_fft(phi, df, N):
     """ compute the 1d spectrum of a field phi
     inputs:
 
     df      frequency / or wavenumber step
-    N       length of data (= L)
+    N       length of data vector in real space (= L)
     neven   bool, if True
     """
     neven = True if (N%2) else False
@@ -93,23 +109,55 @@ def LS_power_to_PSD( ls_power, L , dff):
     """
     return 2 * ls_power / L /dff
 
-def calc_spectrum_LS( x, y, k,  LS= None, dk =None):
+def calc_spectrum_LS( x, y, k, err=None,  LS= None, dk =None):
     """
-    returns Power spectral density of y given postitions x, for wanumbers k
+    returns:
+    Power spectral density of y given postitions x, for wanumbers k
     LS is a Lomb-scargel object. if None its initlized again
-
+    and
+    LS     LombScargle object
     """
     if LS is None:
         from astropy.timeseries import LombScargle
-        LS = LombScargle(x , y, fit_mean=True)
+        LS = LombScargle(x , y, dy = err, fit_mean=False, center_data=True)
     else:
         LS.t = x
         LS.y = y
-    ls_power    = LS.power(k, normalization='psd', assume_regular_frequency='True')
+        LS.dy= err
+
+    ls_power    = LS.power(k, normalization='psd', assume_regular_frequency='False')
 
     dk          = np.diff(k).mean() if dk is None else dk
+    return  2 * ls_power / y.size / dk , LS
 
-    return  2 * ls_power / y.size / dk
+def reconstruct_data_from_LS(LS, x_real_axis, freq):
+    """
+    This method return reconstructed field given a LombScargle object.
+    LS          is the LombScargle object
+    x_real_axis is the x coordinate of the original data (np.array)
+    freq        is the frequency grid on which the field is reconstructed
+    """
+    # t_base =np.array(Gi['dist'])
+    y_reconstruct = LS.offset() * np.ones(len(x_real_axis))
+
+    freq_seq = freq[1:] if freq[0] == 0 else freq
+    freq_mask= freq <= 1/100
+
+    #print(freq_seq)
+    for fi in freq_seq:
+        try:
+            theta = LS.model_parameters(fi)
+        except:
+            theta = [0,0]
+        y_reconstruct += theta[0] * np.sin(x_real_axis * 2 * np.pi *fi ) + theta[1]*  np.cos(x_real_axis * 2 * np.pi *fi)
+        #y_reconstruct += LS.model(x_real_axis, fi)
+
+    # for fi in freq_seq[:]:
+    #     theta = LS.model_parameters(fi)
+    #     y_reconstruct += theta[0] +  theta[1] * np.sin(x_real_axis * 2 * np.pi *fi ) + theta[2]*  np.cos(x_real_axis * 2 * np.pi *fi)
+    #     #y_reconstruct += LS.model(x_real_axis, fi)
+
+    return y_reconstruct
 
 def calc_freq_fft(x_grid, N):
     """ calculate array of spectral variable (frequency or
@@ -204,6 +252,24 @@ def create_window(L, window=None):
 
     factor=np.sqrt(L/(win**2).sum())
     win*=factor
+    return win
+
+def create_weighted_window(data, window=None):
+    """
+    define window function and weight it to conserve variance
+    if window is not None it show have a length of N
+    """
+    import scipy.signal.windows as WINDOWS
+    L = data.size
+    if window is None:
+        #win=np.hanning(L)
+        win =  WINDOWS.tukey(L, alpha=0.1, sym=True)
+    else:
+        win=window
+
+    factor  = np.sqrt( np.var(data)  / np.var(( data* win) ) )
+    #factor=np.sqrt( L/(win**2).sum())
+    win     *= factor
     return win
 
 def spec_error(E,sn,ci=.95):
@@ -390,8 +456,6 @@ class wavenumber_spectrogram(object):
             self.G.attrs['mean_variance_detrended_chunks']  = np.array(stancil_vars).mean()
             self.G.attrs['mean_variance_pwelch_spectrum']   = self.calc_var()
 
-
-
 class wavenumber_spectrogram_LS_even(object):
     def __init__(self, x, data, L, waven_method = 'fftX2' , dy=None ,  ov=None, window=None, kjumps=1):
         """
@@ -463,7 +527,8 @@ class wavenumber_spectrogram_LS_even(object):
             idata = DATA[stancil[0]:stancil[-1]]
             y = detrend(idata)# * win
 
-            return stancil[1], calc_spectrum_LS( x, y, self.k,  LS= self.LS, dk =self.dk)
+            LS_PSD, LS_object = calc_spectrum_LS( x, y, self.k,  LS= self.LS, dk =self.dk)
+            return stancil[1], LS_PSD
 
         # % derive L2 stancil
         stancil_iter = create_chunk_boundaries(L, DATA.size, ov= self.ov)
@@ -497,9 +562,8 @@ class wavenumber_spectrogram_LS_even(object):
     def mean_spectral_error(self, confidence = 0.95 ):
         return wavenumber_spectrogram.mean_spectral_error(self, confidence= confidence )
 
-
 class wavenumber_spectrogram_LS(object):
-    def __init__(self, x, data, L, waven_method = 'fftX2' ,  ov=None, window=None, kjumps=1):
+    def __init__(self, x, data, L, dx, dy = None, waven_method = 'fftX2', ov=None, window=None):
         """
         returns a wavenumber spectrogram with the resolution L-ov
         this uses Lombscargle
@@ -523,8 +587,9 @@ class wavenumber_spectrogram_LS(object):
         self.ov = int(L/2) if ov is None else ov #when not defined in create_chunk_boundaries then L/2
 
         self.x      = x
-        self.dx     = np.diff(x).mean()
+        self.dx     = dx
         self.data   = data
+        self.error = dy if dy is not None else None
         self.Lpoints= int(self.L/self.dx)
 
 
@@ -537,32 +602,53 @@ class wavenumber_spectrogram_LS(object):
         else:
             raise ValueError('waven_method is neither string nor an array')
 
-        self.k, self.dk  = self.k[::kjumps], self.dk*kjumps
+        #self.k, self.dk  = self.k[::kjumps], self.dk*kjumps
         # create window
         self.win    = None #create_window(L)
 
-    def cal_spectrogram(self, x = None, data=None, name=None, dx=1, xlims =None):
+    def cal_spectrogram(self, x = None, data=None, error=None, name=None, xlims =None, weight_data= True, max_nfev = None):
 
         """
         defines apply function and calculated all sub-sample sprectra using map
+
+        input:
+        x (None)
+        data (None)
+        error (None)
+        name (None)
+
+        creates:
+        all kinds of self. variables:
+        self.G is an xr.DataArray with the best guess spectral power.
+        self.GG is a xr.Dataset with the best guess conmplex conjugate and the rar spectral power
+
+        returns:
+        self.GG, params_dataframe
+            params_dataframe is a pd.DataFrame that containes all the parameters of the fitting process (and may contain uncertainties too once they are calculated)
         """
         from astropy.timeseries import LombScargle
         import xarray as xr
         import copy
+        import pandas as pd
+        import concurrent.futures as futures
 
         X       = self.x if x is None else x # all x positions
         DATA    = self.data if data is None else data # all data points
+        ERR     = self.error if error is None else error # all error for points
         L, dk   = self.L, self.dk
-        win     = self.win
-        self.dx = dx
+        #win     = self.win
         self.xlims = ( np.round(X.min()), X.max() ) if xlims is None else xlims
 
         # init Lomb scargle object with noise as nummy data ()
         #dy_fake= np.random.randn(len(dy))*0.001 if self.dy is not None else None
         #self.LS = LombScargle(X[0:L] , np.random.randn(L)*0.001, fit_mean=True)
 
+        # define window
+        import scipy.signal.windows as WINDOWS
+        self.win = WINDOWS.tukey(self.Lpoints, alpha=0.1, sym=True)
 
-        def calc_spectrum_apply(stancil):
+
+        def calc_spectrum_and_field_apply(stancil):
 
             """
             windows the data accoding to stencil and applies LS spectrogram
@@ -571,15 +657,50 @@ class wavenumber_spectrogram_LS(object):
             from scipy.signal import detrend
 
             #x = X[stancil[0]:stancil[-1]]
-            x_mask= (stancil[0] < X) & (X <= stancil[-1])
+            x_mask= (stancil[0] <= X) & (X <= stancil[-1])
+
+            #print(stancil[1])
             x = X[x_mask]
-            if x.size < 100: # if there are not enough photos set results to nan
-                return stancil[1], self.k*np.nan, x.size
+            if x.size < 200: # if there are not enough photos set results to nan
+                #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
+                return stancil[1], self.k*np.nan, self.k*np.nan, np.nan,   x.size
 
             y = DATA[x_mask]
 
+            #make x positions
+            x_pos =  (np.round( (x - stancil[0])/ 10.0 -1 , 0) ).astype('int')
+
+            # weight data
+            if weight_data:
+                window = self.win[x_pos]
+                y = y * window * np.sqrt( np.var(y)  / np.var(( y* window) ) )
+
+            #make y gridded
+            x_model          = np.arange(stancil[0], stancil[-1] + self.dx, self.dx)
+            y_gridded        = np.copy(x_model) * np.nan
+            y_gridded[x_pos] = y
+            nan_mask         =np.isnan(y_gridded)
+
+            err = ERR[x_mask] if ERR is not None else None
             #print(x.shape, y.shape, self.k,  self.LS)
-            return stancil[1], calc_spectrum_LS( x, y, self.k,  LS= None, dk =self.dk), x.size
+            LS_PSD, LS_object = calc_spectrum_LS( x, y, self.k, err=err,  LS= None, dk =self.dk)
+
+            y_model           = reconstruct_data_from_LS(LS_object, x_model, self.k)
+
+            #x_pos[x_pos >= x_model.size] = x_model.size-1
+            # optimze
+            if self.k[0] !=0:
+                kk = np.insert(self.k, 0, 0)
+            else:
+                kk = self.k
+
+            P = conserve_variance(np.fft.rfft(y_model), kk, y_gridded, nan_mask = nan_mask )
+            P.set_parameters()
+            #P.test_ojective_func(P.tanh_weight_function, plot_flag=False)
+            fitter = P.optimize(max_nfev=max_nfev)
+            #y_model = np.fft.irfft(P.best_guess_Z())
+
+            return stancil[1], LS_PSD, P.best_guess_Z(), fitter.params, x.size
 
         # % derive L2 stancil
         self.stancil_iter = create_chunk_boundaries_unit_lengths(L, self.xlims, ov= self.ov, iter_flag=True)
@@ -591,34 +712,100 @@ class wavenumber_spectrogram_LS(object):
         #     print(ss)
         #     Spec_returns.append( calc_spectrum_apply(ss) )
 
-        Spec_returns = list(map( calc_spectrum_apply, copy.copy(self.stancil_iter)   ))
+        # parallel excecution:
+        Nworkers = 4
+        with futures.ThreadPoolExecutor(max_workers=Nworkers) as executor:
+            Spec_returns = list(executor.map( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
+        # # linear version
+        #Spec_returns = list(map( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
 
         # unpack resutls of the mapping:
-        D_specs = dict()
-        N_per_stancil = list()
+        D_specs         = dict()
+        Y_model         = dict()
+        Pars            = dict()
+        N_per_stancil   = list()
         for I in Spec_returns:
-            D_specs[I[0]] = I[1]
-            N_per_stancil.append(I[2])
+            #print(I[1].shape, I[2].shape)
+            D_specs[I[0]]      = I[1]
+            Y_model[I[0]]      = I[2]
+            Pars[I[0]]         = I[3]
+            N_per_stancil.append(I[4])
 
         self.N_per_stancil = N_per_stancil
         chunk_positions = np.array(list(D_specs.keys()))
         self.N_stancils    = len(chunk_positions) # number of spectral realizatiobs
 
         # repack data, create xarray
-        self.spec_name = 'power_spec' if name is None else name
-        G =dict()
+        # 1st LS spectal estimates
+        self.spec_name = 'LS_spectal_power' if name is None else name
+        G_LS_power =dict()
         for xi,I in D_specs.items():
-            G[xi] = xr.DataArray(I,  dims=['k'], coords={'k': self.k, 'x': xi * self.dx } , name=self.spec_name)
+            G_LS_power[xi] = xr.DataArray(I,  dims=['k'], coords={'k': self.k, 'x': xi } , name=self.spec_name)
 
-        self.G = xr.concat(G.values(), dim='x').T#.to_dataset()
-        if self.G.k[0] == 0:
-            self.G = self.G[1:, :]
+        G_LS_power = xr.concat(G_LS_power.values(), dim='x').T#.to_dataset()
 
-        self.G.attrs['ov'] = self.ov
-        self.G.attrs['L'] = self.L
-        self.G.coords['N_per_stancil'] = ( ('x'), N_per_stancil)
+        # 2nd Y_model
+        # G_model =dict()
+        # # define relative x-coodinate. relative to center
+        # #eta   =  np.arange(0, self.L, self.dx) - self.L/2
+        # eta   =  np.arange(0, self.L + self.dx, self.dx) - self.L/2
+        # for xi,I in Y_model.items():
+        #     if I.size < eta.size:
+        #         I = np.insert(I, -1, I[-1])
+        #
+        #     G_model[xi] = xr.DataArray(I,  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_model")
+        #
+        # self.G_model = xr.concat(G_model.values(), dim='x').T#.to_dataset()
+        # # if self.G_fft.k[0] == 0:
+        # #     self.G_fft = self.G_fft[1:, :]
+        #
+        # self.G_model.attrs['ov'] = self.ov
+        # self.G_model.attrs['L'] = self.L
+        # self.G_model.attrs['Lpoints'] = self.Lpoints
+        # self.G_model.coords['N_per_stancil'] = ( ('x'), N_per_stancil)
 
-        return self.G
+
+        #2nd FFT(Y_model)
+        G_fft =dict()
+        Y_model_k_fft   = np.fft.rfftfreq( int(self.Lpoints), d=self.dx)
+        for xi,I in Y_model.items():
+            if I.size < Y_model_k_fft.size:
+                I = np.insert(I, -1, I[-1])
+
+            G_fft[xi] = xr.DataArray(I,  dims=['k'], coords={'k': Y_model_k_fft, 'x': xi } , name='Y_model_hat')
+
+        G_fft = xr.concat(G_fft.values(), dim='x').T#.to_dataset()
+
+        # generate power spec as well
+        self.G = Z_to_power(G_fft, self.dk, self.Lpoints)
+        self.G.name = 'spectral_power_optm'
+
+
+        # merge both datasets
+        self.GG = xr.merge([G_LS_power, G_fft, self.G])
+        self.GG.attrs['ov'] = self.ov
+        self.GG.attrs['L'] = self.L
+        self.GG.attrs['Lpoints'] = self.Lpoints
+        self.GG.coords['N_per_stancil'] = ( ('x'), N_per_stancil)
+
+        self.GG.expand_dims(dim='eta')
+        self.GG.coords['eta'] = ( ('eta'), np.arange(0, self.L + self.dx, self.dx) - self.L/2 )
+        self.GG['win'] = ( ('eta'), np.insert(self.win, -1, self.win[-1]))
+
+        # create dataframe with fitted parameters
+        PP2= dict()
+        for k, I in Pars.items():
+            if I is not np.nan:
+                PP2[k] =I
+
+        keys = PP2[next(iter(PP2))].keys()
+        params_dataframe = pd.DataFrame(index =keys)
+
+        for k,I in PP2.items():
+            I.values()
+            params_dataframe[k] = list(I.valuesdict().values())
+
+        return self.GG, params_dataframe
 
     def calc_var(self):
 
@@ -630,7 +817,7 @@ class wavenumber_spectrogram_LS(object):
     # def parceval(self, add_attrs=True ):
     #     return wavenumber_spectrogram.parceval(self, add_attrs= add_attrs )
 
-    def parceval(self, add_attrs=True ):
+    def parceval(self, add_attrs=True, weight_data=False ):
         "test Parceval theorem"
         import copy
         DATA = self.data
@@ -647,7 +834,12 @@ class wavenumber_spectrogram_LS(object):
             idata = DATA[x_mask]
             if len(idata) < 1:
                 return stancil[1], np.nan, len(idata)
-            idata = detrend(idata)# * win
+            idata = detrend(idata)
+            # weight data
+            x_pos =  (np.round( (X[x_mask] - stancil[0])/ 10.0 , 0) ).astype('int')
+            if weight_data:
+                window = self.win[x_pos]
+                idata = idata * window * np.sqrt( np.var(idata)  / np.var(( idata* window) ) )
             return stancil[1], idata.var(), len(idata)
 
         D_vars = list(map(get_stancil_var_apply, copy.copy(self.stancil_iter)  ))
@@ -664,7 +856,7 @@ class wavenumber_spectrogram_LS(object):
         print('mean variance of stancils: ', stancil_weighted_variance )
         #print('variance of weighted timeseries: ',self.phi.var() )
         #self.calc_var(self)
-        print('variance of the pwelch LS Spectrum: ', self.calc_var())
+        print('variance of the optimzed windowed LS Spectrum: ', self.calc_var())
 
         if add_attrs:
             self.G.attrs['variance_unweighted_data']        = DATA.var()
@@ -845,4 +1037,187 @@ class wavenumber_pwelch(object):
 
     def calc_var(self):
         """ Compute total variance from spectrum """
-        self.var = self.df*self.specs[1:].mean(axis=0).sum()  # do not consider zeroth frequency
+        self.var = self.df* np.nanmean(self.specs[1:], 0).sum()  # do not consider zeroth frequency
+
+
+
+# %% optimze spectral variance
+
+class conserve_variance(object):
+    def __init__(self,Z, freq, data, nan_mask= None):
+
+        """
+
+        """
+        import lmfit as LM
+        self.LM =LM
+        self.data = data
+        self.Z    = Z
+        self.freq = freq
+        self.nan_mask = nan_mask
+
+    def set_parameters(self):
+
+        params = self.LM.Parameters()
+
+        p_smothed = self.runningmean(np.abs(self.Z ), 20, tailcopy=True)
+        f_max = self.freq[p_smothed[~np.isnan(p_smothed)].argmax()]
+        params.add('x_pos', f_max, min=f_max*0.75, max=f_max*1.25, vary=True)
+
+        params.add('LF_amp', 1, min=0.8, max=1.2, vary= True)
+        params.add('HF_amp', 0.8, min=0, max=1.5)
+        params.add('sigma_g', 0.002, min=0.001, max=0.05, vary= False)
+        params.add('amp', 0.1, min=0.01, max=2, vary= True) # anomalous amplitude
+        self.params = params
+        return params
+
+    def test_ojective_func(self, weight_func, plot_flag=True):
+        self.objective_func(self.params, self.data, self.Z, weight_func, self.freq, self.nan_mask, plot_flag=plot_flag)
+
+
+    def tanh_weight_function(self, ff, params):
+        return self.tanh_weight(ff, params['x_pos'].value,params['LF_amp'].value,params['HF_amp'].value,params['amp'].value, params['sigma_g'].value )
+
+    def tanh_weight(self, x, x_positions,  LF_amp, HF_amp, amp, sigma_g):
+        """
+            zdgfsg
+        """
+        HF_amp1 = (LF_amp-HF_amp)
+        decay   =  0.5 - np.tanh( (x-x_positions)/sigma_g  )/2
+        y       =  decay * HF_amp1 + (1 - HF_amp1)
+        y  = y- y[0] +LF_amp
+
+        def gaus(x, x_0, amp, sigma_g ):
+            return amp* np.exp(-0.5 * (  (x-x_0)/sigma_g)**2)
+
+        y += gaus(x, x_positions, amp, sigma_g )
+
+        #y =  y * LF_amp
+        return y
+
+    def objective_func(self, params, data_x, Z_results, weight_func, freq, nan_mask = None, plot_flag=False):
+
+        alpha =1e7
+        def model_real_space(Z, weights):
+            """
+            Both inputs must have the same length
+            """
+            return np.fft.irfft(Z*weights)
+
+        weights = weight_func(freq, params)
+
+        if nan_mask is not None:
+            model = model_real_space(Z_results, weights)[~nan_mask[1:]]
+            dd = data_x[~nan_mask][:]
+        else:
+            model = model_real_space(Z_results, weights)[:]
+            dd = data_x[1:]
+
+        if model.size > dd.size:
+            model = model[:-1]
+        elif model.size < dd.size:
+            dd = dd[:-1]
+
+        if plot_flag:
+            import m_general_ph3 as M
+            from matplotlib.gridspec import GridSpec
+            import matplotlib.pyplot as plt
+            F= M.figure_axis_xy(10, 4.1 * 2.5, view_scale= 0.5, container = True)
+
+            gs = GridSpec(5,1,  wspace=0.1,  hspace=0.4)#figure=fig,
+            pos0,pos1,pos2 = gs[0:3, 0],gs[3, 0],gs[4, 0]#,gs[3, 0]
+            ax1 = F.fig.add_subplot(pos0)
+            plt.title('Stacked Timeseries', loc='left')
+
+            chunk_l= 400
+            chunk_iter = create_chunk_boundaries(chunk_l, data_x.size, ov=0, iter_flag = True)
+
+            ofsett0= 6
+            ofsett = np.copy(ofsett0)
+            for chi in chunk_iter:
+
+                v1= np.round(np.nanvar(dd), 4)
+                plt.plot(ofsett+ data_x[chi[0]:chi[-1]] , linewidth=3, alpha=0.5 , c='black', label=' org. data (var:'+str(v1)+')')
+
+                v1= np.round(model_real_space(Z_results, weights*0 +1)[~nan_mask[1:]].var(), 4)
+                plt.plot(ofsett + model_real_space(Z_results, weights*0 +1)[chi[0]:chi[-1]] ,linewidth= 0.8, c='red', label='LS model init (var:'+str(v1)+')')
+
+                v1= np.round(model.var(), 4)
+                plt.plot(ofsett + model_real_space(Z_results, weights)[chi[0]:chi[-1]],linewidth= 0.8, c='blue', label='LS model weighted (var:'+str(v1)+')')
+
+                if ofsett == ofsett0:
+                    plt.legend()
+                ofsett -= 1
+
+            plt.ylim(ofsett, ofsett0+1)
+            plt.xlim(0, chunk_l*2)
+
+
+            ax2 = F.fig.add_subplot(pos1)
+            #ax2 = plt.subplot(3, 1, 2)
+            plt.title('Amplitude Weight Function', loc='left')
+            plt.plot(weights , c='black')
+            ax2.set_xscale('log')
+
+            ax3 = F.fig.add_subplot(pos2)
+            plt.title('Initial and tuned |Z|', loc='left')
+
+            #ax3 = plt.subplot(3, 1, 3)
+
+            # v2_fft= np.fft.rfft(data_x)
+            # v2 = np.round( (2.*(v2_fft*v2_fft.conj()).real  /data_x.size**2 ).sum(), 4)
+            # plt.plot(abs(v2_fft) , linewidth=2, alpha=0.5 , c='black', label='org data (var: '+str(v2) +')')
+
+            v2 = np.round( (4.*(Z_results*Z_results.conj()).real  /data_x.size**2 ).sum(), 4)
+            plt.plot(abs(Z_results), linewidth= 0.8,  c='red', label='Z (var: '+str(v2) +')')
+            plt.plot(M.runningmean(abs(Z_results) , 20, tailcopy=True), linewidth= 1.5, c='red', zorder=12)
+
+            Z2= Z_results* weights
+            v2 = np.round( (4.*(Z2*Z2.conj()).real  /data_x.size**2 ).sum(), 4)
+            plt.plot(abs(Z2), linewidth= 0.8, c='blue', label='weighted Z(var: '+str(v2) +')')
+            plt.plot(M.runningmean(abs(Z2) , 20, tailcopy=True), linewidth= 1.5, c='blue', zorder=12)
+            plt.legend()
+
+            plt.ylim( np.percentile(abs(Z_results), 0.5), abs(Z_results).max()*1.3 )
+            plt.xlabel('wavenumber k')
+            ax3.set_xscale('log')
+            ax3.set_yscale('log')
+
+        fitting_cost =( abs(dd - model) / dd.std() )**2
+        variance_cost =( abs(dd.var() -  model.var())  / dd.std() ) **2
+
+        return fitting_cost.sum() , alpha* variance_cost
+
+    def optimize(self, fitting_args= None , method='dual_annealing', max_nfev=None):
+
+
+        if fitting_args is None:
+            fitting_args = (self.data, self.Z, self.tanh_weight_function, self.freq)
+
+        self.weight_func = fitting_args[2]
+        self.fitter = self.LM.minimize(self.objective_func, self.params, args=fitting_args, kws={'nan_mask':self.nan_mask} , method=method, max_nfev=max_nfev)
+        return self.fitter
+
+    def plot_result(self):
+        self.objective_func(self.fitter.params, self.data, self.Z, self.weight_func, self.freq, self.nan_mask, plot_flag=True)
+
+    def best_guess_Z(self):
+        return self.Z * self.weight_func(self.freq, self.fitter.params)
+
+    def runningmean(self, var, m, tailcopy=False):
+        m=int(m)
+        s =var.shape
+        if s[0] <= 2*m:
+            print('0 Dimension is smaller then averaging length')
+            return
+        rr=np.asarray(var)*np.nan
+        #print(type(rr))
+        var_range=np.arange(m,int(s[0])-m-1,1)
+        for i in var_range[np.isfinite(var[m:int(s[0])-m-1])]:
+            #rm.append(var[i-m:i+m].mean())
+            rr[int(i)]=np.nanmean(var[i-m:i+m])
+        if tailcopy:
+            rr[0:m]=rr[m+1]
+            rr[-m-1:-1]=rr[-m-2]
+
+        return rr

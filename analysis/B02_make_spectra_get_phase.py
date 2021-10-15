@@ -58,6 +58,7 @@ nan_fraction= list()
 for I in Gd.values():
     nan_fraction.append( np.sum(np.isnan(I['heights_c_std'])) / I['heights_c_std'].shape[0] )
 
+
 if np.array(nan_fraction).mean() > 0.95:
     print('nan fraction > 95%, pass this track, add to bad tracks')
     MT.json_save(track_name, bad_track_path, {'nan_fraction': np.array(nan_fraction).mean(), 'date': str(datetime.date.today()) })
@@ -85,16 +86,22 @@ print('L number of gridpoint:', Lpoints)
 print('L length in meters:', Lmeters)
 print('approx number windows', 2* Gi['dist'].iloc[-1] /Lmeters-1   )
 
-wavenumber_k = np.fft.rfftfreq( Lpoints, d=dx)
-dk = np.diff(wavenumber_k).mean()
 
+# S_pwelch_k, S_pwelch_dk = spec.calc_freq_LS( x, Lpoints, dx= dx, method='fft', minimum_frequency=None, maximum_frequency=None, samples_per_peak=0.005)
+# S_pwelch_k.shape
+
+S_pwelch_k = np.fft.rfftfreq( Lpoints, d=dx)
+dk = np.diff(S_pwelch_k).mean()
 # %%
 
-plot_data_model=False
+#plt.plot( Gfilt[k]['dist']-Gfilt[k]['dist'].min(), Gfilt[k]['heights_c'], '.' )
+#plt.xlim(200000, 201000)
+
+
+
 G_LS= dict()
 G_rar_fft= dict()
-Pars_optm = dict()
-#imp.reload(spec)
+imp.reload(spec)
 
 for k in all_beams:
 
@@ -106,8 +113,7 @@ for k in all_beams:
 
     dd_error = np.copy(Gd[k]['heights_c_std'])
     dd_error[np.isnan(dd_error)] = 100
-
-
+    #plt.hist(1/dd_weight, bins=40)
     F = M.figure_axis_xy(6, 3)
     plt.subplot(2, 1, 1)
     plt.plot(x, dd, 'gray', label='displacement (m) ')
@@ -117,13 +123,22 @@ for k in all_beams:
     dd, _   = spicke_remover.spicke_remover(dd, spreed=10, verbose=False)
     dd_nans = (np.isnan(dd) ) + (Gd[k]['N_photos'] <= 5)
 
-    dd_filled           = np.copy(dd)
-    dd_filled[dd_nans]  = 0
+    dd_filled = np.copy(dd)
+    dd_filled[dd_nans] = 0
+    win = create_weighted_window(dd_filled)
 
     # using gappy data
-    dd_no_nans          = dd[~dd_nans] # windowing is applied here
-    x_no_nans           = x[~dd_nans]
-    dd_error_no_nans    = dd_error[~dd_nans]
+    dd_no_nans = dd[~dd_nans] # windowing is applied here
+    x_no_nans  = x[~dd_nans]
+    dd_error_no_nans = dd_error[~dd_nans]
+
+    # replace bad daa by zero
+    # dd_no_nans = np.copy(dd)#[~dd_nans]
+    # x_no_nans  = x#[~dd_nans]
+    # dd_error_no_nans = np.copy(dd_error)#[~dd_nans]
+    # dd_no_nans[dd_nans]         = 0
+    # x_no_nans                   = x
+    # dd_error_no_nans[dd_nans]   = 1000
 
     dx = np.diff(x).mean()
 
@@ -134,13 +149,38 @@ for k in all_beams:
     plt.plot(x_no_nans, dd_no_nans, 'black', label='slope (m/m)')
     plt.legend()
 
-    imp.reload(spec)
-    print('LS')
-    S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method = wavenumber_k,  ov=None, window=None)
-    G, PP = S.cal_spectrogram(xlims= xlims, weight_data=True, max_nfev = 200)
-    S.mean_spectral_error() # add x-mean spectal error estimate to xarray
-    S.parceval(add_attrs= True, weight_data=False)
+    # ---------------------------------- use ungridded data
+    # hkey    = 'heights_c'
+    # x       = np.copy(Gfilt[k]['dist'])
+    # xlims   = x.min(), x.max()
+    # dd      = np.copy(Gfilt[k][hkey])
+    # dd_nans = np.isnan(dd)
+    #
+    # dd_no_nans = dd[~dd_nans]
+    # x_no_nans  = x[~dd_nans]
+    # dx = np.diff(x).mean()
+    # plt.plot(x_no_nans, dd_no_nans,'.' ,c='black', label='displacement (m)')
+    # plt.legend()
 
+    # for testing
+    #xlims = xlims[0], xlims[1]/2
+
+    # %%
+    print('LS')
+    imp.reload(spec)
+    #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
+
+    kk = S_pwelch_k#[(S_pwelch_k >0)]# & (S_pwelch_k < 1/50 ) ]
+    #kk= S_pwelch_k2
+    # plt.plot(1/kk)
+    # kk = np.concatenate( [kk[kk <= 1/50] , kk[kk > 1/50][::1]] )
+    # kk.shape
+
+    S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method =   kk,  ov=None, window=None)
+    G, PP = S.cal_spectrogram(xlims= xlims, weight_data=False)
+
+    # %%
+    plot_data_model=False
     if plot_data_model:
         for i in np.arange(60,120,2):
             c1= 'blue'
@@ -172,7 +212,9 @@ for k in all_beams:
             plt.ylim(-1, 1)
             plt.show()
 
-
+    # %%
+    S.mean_spectral_error() # add x-mean spectal error estimate to xarray
+    S.parceval(add_attrs= True, weight_data=False)
     # assign beam coordinate
     G.coords['beam']    = str(k)#(('beam'), str(k))
     G                   = G.expand_dims(dim = 'beam', axis = 1)
@@ -192,8 +234,7 @@ for k in all_beams:
     G.coords['N_photons'] = (('x', 'beam' ), np.expand_dims(photon_list, 1))
 
     # Save to dict
-    G_LS[k]      = G
-    Pars_optm[k] = PP
+    G_LS[k] = G
 
     # plot
     plt.subplot(2, 1, 2)
@@ -240,6 +281,7 @@ for k in all_beams:
     #F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
     #print('saved as '+'B02_control_'+k+'_' + track_name)
     #print(np.isinf(G).sum().data)
+
 
 
 # %%
@@ -323,7 +365,7 @@ gs = GridSpec(3,3,  wspace=0.2,  hspace=.5)#figure=fig,
 
 #%matplotlib inline
 
-clev = M.clevels( [Gmean.quantile(0.01).data, Gmean.quantile(0.99).data * 1], 31)* 1
+clev = M.clevels( [Gmean.quantile(0.01).data, Gmean.quantile(0.99).data * 1.2], 31)* 1
 xlims= Gmean.x[0]/1e3, Gmean.x[-1]/1e3
 
 for pos, k, pflag in zip([gs[0, 0],gs[0, 1],gs[0, 2] ], high_beams, [True, False, False] ):
@@ -417,14 +459,9 @@ plt.xlim(xlims)
 
 #F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
 
-
-# %% save fitting parameters
-MT.save_pandas_table(Pars_optm, save_name+'_params', save_path )
-
-
 # %% repack data
 def repack_attributes(DD):
-    #DD = G_LS
+    DD = G_LS
     attr_dim_list = list(DD.keys())
     for k in attr_dim_list:
         for ka in list(DD[k].attrs.keys()):
@@ -441,16 +478,8 @@ G_rar_fft = repack_attributes(G_rar_fft)
 # %% save results
 G_LS_DS         = xr.merge(G_LS.values())
 G_LS_DS['name'] = 'LS_power_spectra'
-G_LS_DS['Y_model_hat_imag'] = G_LS_DS.Y_model_hat.imag
-G_LS_DS['Y_model_hat_real'] = G_LS_DS.Y_model_hat.real
-G_LS_DS                     = G_LS_DS.drop('Y_model_hat')
-G_LS_DS.to_netcdf(save_path+save_name+'_LS.nc')
-
+#G_LS_DS.to_netcdf(save_path+save_name+'_LS.nc')
 
 G_fft_DS        = xr.merge(G_rar_fft.values())
 G_fft_DS['name']= 'FFT_power_spectra'
-try:
-    G_fft_DS = G_fft_DS.drop('Y_model_hat')
-except:
-    pass
-G_fft_DS.to_netcdf(save_path+save_name+'_FFT.nc')
+#G_fft_DS.to_netcdf(save_path+save_name+'_FFT.nc')

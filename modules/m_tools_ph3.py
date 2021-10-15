@@ -247,7 +247,7 @@ def save_pandas_table(table_dict, ID , save_path):
     warnings.filterwarnings('ignore',category=PerformanceWarning)
 
     with HDFStore(save_path+'/'+ID+'.h5') as store:
-        for name,table in table_dict.iteritems():
+        for name,table in table_dict.items():
                 store[name]=table
 
 

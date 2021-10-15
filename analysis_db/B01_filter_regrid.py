@@ -62,6 +62,7 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.05 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
+Nworkers    = 6         # number of threads for parallel processing
 
 # %%
 # test which beams exist:
@@ -223,7 +224,7 @@ def get_better_lower_boundary(Lmeter_large, dd):
 # for bb in all_beams:
 #     A = derive_axis_and_boundaries(bb)
 
-with futures.ProcessPoolExecutor(max_workers=6) as executor:
+with futures.ProcessPoolExecutor(max_workers=Nworkers) as executor:
     A = list( executor.map(derive_axis_and_boundaries, all_beams)  )
 # %%
 B2          = dict()

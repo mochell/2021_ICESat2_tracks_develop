@@ -81,17 +81,195 @@ spec_fft2 = spec.calc_spectrum_fft(y, df2, np.array(Gi['dist']).size)
 f_fft2_regular, spec_fft2_regular = f_fft2, spec_fft2
 
 
+
+# %%
+# test getting phase
+
+t_base =np.array(Gi['dist'])
+t_base = t_base - t_base[0]#.mean()
+m1 = ls.offset() * np.ones(len(t_base))
+m1_man = ls.offset() * np.ones(len(t_base))
+fi_divide= 1000
+thetas = np.zeros([2])
+thetas_v2 = np.zeros([2])
+
+
+N_f = f_fft2.size
+fft_contstruct = np.complex128(np.zeros(N_f))
+fft_contstruct[0] = 0 + np.complex128(0)
+LS_power_construct = np.complex128(np.zeros(N_f))
+
+for fi, i in zip( f_fft2[1:], np.arange(1,N_f+1)):
+    #m1 += ls.model(t_base, fi)
+    #print(ls.model_parameters(fi))
+    theta = ls.model_parameters(fi)
+    phi = t_base * 2 * np.pi *fi
+    THETA  = 0#np.arctan2( np.sin(2* phi).sum(),  np.cos(2* phi).sum() )/2
+    m_i = theta[1]*  np.cos(phi - THETA) + theta[0] * np.sin(phi- THETA)
+    m1_man +=   m_i
+
+    thetas = np.vstack([thetas, theta])
+
+    # follow Hocke anad Kämpfer
+    R = np.sum( theta[1] *np.cos(phi - THETA)*np.cos(phi - THETA) + theta[0] * np.sin(phi - THETA) *np.cos(phi - THETA) )
+    I = np.sum( theta[1] *np.cos(phi - THETA)*np.sin(phi - THETA)  + theta[0] * np.sin(phi - THETA) *np.sin(phi - THETA) )
+    C = np.sum( np.cos(phi)*np.cos(phi) )
+    S = np.sum( np.sin(phi)*np.sin(phi) )
+    m_ii_sigma = np.var(m_i)
+
+    P       = ( (R**2 / C) + (I**2 /S) ) / (2 * m_ii_sigma)
+    A_ft    = np.sqrt((R**2 / C + I**2 /S)  * N_f/4 ) *2
+    t_ave = (t_base[0] + t_base[-1])/2
+    phi_ft  =np.arctan2(I, R) + t_ave *fi +  THETA
+
+    fft_contstruct[i] = A_ft * (np.cos(phi_ft) + np.sin(phi_ft)* 1j)
+    LS_power_construct[i] = P
+
+    theta
+    np.sqrt(2/N_f) * I/ np.sqrt(S), np.sqrt(2/N_f) * R/ np.sqrt(C)
+
+thetas = thetas[1:, :]
+
+# %%
 # %% simple spectra
 from astropy.timeseries import LombScargle
-ls = LombScargle( np.array(Gi['dist']) , np.array(Gi['heights_c_weighted_mean']) )
+ls = LombScargle( np.array(Gi['dist']) , np.array(Gi['heights_c_weighted_mean']) , fit_mean=False)
 
-ls_auto_power = ls.power(f_fft2 , normalization='psd')
+ls_auto_power = ls.power(f_fft2[1::] , normalization='psd')
 #ls_auto_f , ls_auto_power = ls.autopower(normalization='psd', samples_per_peak=0.1)
 
-plt.plot(f_fft2 , spec.LS_power_to_PSD(ls_auto_power, y.size, df2) )
+plt.plot(f_fft2[1::] , spec.LS_power_to_PSD(ls_auto_power, y.size, df2)  , label= 'LS')
 
-plt.plot(f_fft2[:-1], spec_fft2 )
+plt.plot(f_fft2[1:] , LS_power_construct[1:] /y.size , label= 'LS construct')
+
+
+plt.plot(f_fft2[:-1], spec_fft2 , label= 'standard FFT')
+plt.legend()
 plt.xlim(0, 0.01)
+
+# %%
+# m2 = ls.offset() * np.ones(len(t_base))
+# for fi in f_fft2[fi_divide+1::1]:
+#     m2 += ls.model(t_base, fi)
+
+
+plt.plot(t_base, m1_man, '-', label='LS model')
+
+#plt.plot(t_base, m2 - m2.mean())
+
+plt.plot( t_base , np.array(Gi['heights_c_weighted_mean'])  , c='black', label=' org. data')
+plt.xlim(t_base[100], t_base[700])
+plt.legend()
+
+# %% fft again
+phih_from_LS = np.fft.rfft(m1_man)
+phih_from_data = np.fft.rfft(y)
+
+f_fft3 = np.fft.rfftfreq(m1_man.size, d=10.0)
+
+f_fft2.shape
+
+N=y.size
+
+fft_contstruct.imag.std()
+phih_from_data.imag.std()
+phih_from_LS.imag.std()
+
+fft_contstruct.real.std()
+phih_from_data.real.std()
+phih_from_LS.real.std()
+
+abs(fft_contstruct).sum()
+abs(phih_from_data).sum()
+
+# compare FFT coefficients again
+F= M.figure_axis_xy(10, 2.5, view_scale= 0.8)
+plt.plot(f_fft2, abs(fft_contstruct) )
+plt.plot(f_fft2[0:-1], abs(phih_from_data)   )
+#F.ax.set_xscale('log')
+plt.xlim(0, 0.01)
+
+
+# %%
+
+M.figure_axis_xy(10, 2.5, view_scale= 0.8)
+plt.plot(f_fft2, (fft_contstruct.imag ))
+plt.plot(f_fft2[0:-1], (phih_from_LS.imag )   )
+plt.xlim(0, 0.01)
+
+
+
+# %%
+# spec_fft3 = 2.*(phih*phih.conj()).real / df2 /np.array(Gi['dist']).size**2
+#
+# plt.semilogy(f_fft2[1:-1], spec_fft3[1:] , 'r')
+# plt.semilogy(f_fft2[1::] , spec.LS_power_to_PSD(ls_auto_power, y.size, df2), 'k' )
+#plt.xlim(0, 0.01)
+# %%
+# phih_from_data.shape
+# phih_flat = np.copy(phih)
+# phih_flat[150::] = 0
+
+m1_man_inv = np.fft.irfft(phih_from_data)
+plt.plot(t_base[1:], m1_man_inv , '-', label=' iFFT(FFT(LS model))')
+#plt.plot(t_base, m1_man, '*')
+plt.plot( t_base , np.array(Gi['heights_c_weighted_mean']) -  np.array(Gi['heights_c_weighted_mean']).mean()  , c='black', label=' org. data')
+
+fft_contstruct_inv = np.fft.irfft(1j*fft_contstruct)
+plt.plot(t_base, fft_contstruct_inv[1:], '-', label=' iFFT( FFT constructed from LS)')
+
+plt.xlim(t_base[-500], t_base[-100])
+plt.legend()
+
+# %% single frequency tests
+fi = f_fft2[abs(phih_from_data ).argmax()]
+
+
+t_base_short = t_base[0:100] - t_base[0]
+theta_i = ls.model_parameters(fi)
+m_single =   theta_i[0] * np.sin(t_base_short * 2 * np.pi *fi ) + theta_i[1]*  np.cos(t_base_short * 2 * np.pi *fi)
+
+alpha = 3
+#m_single2 =  alpha * theta_i[0] * np.sin(t_base_short * 2 * np.pi *fi ) + alpha * theta_i[1]*  np.cos(t_base_short * 2 * np.pi *fi)
+m_single3 =  - np.sign(sum(theta_i)) *  np.linalg.norm(theta_i) * np.sin(t_base_short * 2 * np.pi *fi  + np.arctan2(theta_i[1],theta_i[0]))
+
+z_i_fft = phih_from_data[abs(phih_from_data ).argmax()]
+m_single_fft =  - np.sign(z_i_fft.real+z_i_fft.imag) *  (z_i_fft).real * np.sin(t_base_short * 2 * np.pi *fi  + np.arctan2(z_i_fft.imag,z_i_fft.real))
+
+
+
+plt.plot(t_base_short, m_single)
+#plt.plot(t_base_short, m_single2)
+plt.plot(t_base_short[:], m_single3[:], 'k.')
+#plt.plot(t_base_short[:], m_single_fft[:], 'r')
+
+
+# %%
+def reconstruct_data_from_LS(LS, x_real_axis, freq):
+    """
+    This method return reconstructed field given a LombScargle object.
+    LS          is the LombScargle object
+    x_real_axis is the x coordinate of the original data (np.array)
+    freq        is the frequency grid on which the field is reconstructed
+    """
+    # t_base =np.array(Gi['dist'])
+    y_reconstruct = LS.offset() * np.ones(len(x_real_axis))
+
+    freq_seq = freq[1::] if freq[0] == 0 else freq
+
+    for fi in freq_seq:
+        theta = LS.model_parameters(fi)
+        y_reconstruct += theta[0] +  theta[1] * np.sin(x_real_axis * 2 * np.pi *fi ) + theta[2]*  np.cos(x_real_axis * 2 * np.pi *fi)
+
+    return y_reconstruct
+
+def get_missfit_error(data, model):
+    return np.nanmean( (data-model)**2)/ np.nanstd(data)
+
+y_model = reconstruct_data_from_LS(ls, np.array(Gi['dist']), f_fft2 )
+y_model_fft = np.fft.rfft(y_model)
+y_model_r = get_missfit_error(np.array(Gi['heights_c_weighted_mean']) , y_model)
+
 
 # %% tests
 # maximum to be resolved wavenumber
