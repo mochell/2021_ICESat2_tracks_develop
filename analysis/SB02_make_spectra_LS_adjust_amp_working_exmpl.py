@@ -231,24 +231,24 @@ print('LS model fft sum:', df3 * spec_LS_model_fft3.sum().data )
 
 
 # %%
-def tanh_weight(x, x_positions,  LF_amp, HF_amp, amp, sigma_g):
+def tanh_weight(x, x_cutoff , x_max_pos,  LF_amp, HF_amp, Gauss_amp, sigma_g):
     """
         zdgfsg
     """
     HF_amp1 = (LF_amp-HF_amp)
-    decay   =  0.5 - np.tanh( (x-x_positions)/sigma_g  )/2
+    decay   =  0.5 - np.tanh( (x-x_cutoff)/sigma_g  )/2
     y       =  decay * HF_amp1 + (1 - HF_amp1)
     y  = y- y[0] +LF_amp
 
     def gaus(x, x_0, amp, sigma_g ):
         return amp* np.exp(-0.5 * (  (x-x_0)/sigma_g)**2)
 
-    y += gaus(x, x_positions, amp, sigma_g )
+    y += gaus(x, x_max_pos, Gauss_amp, sigma_g )
 
     #y =  y * LF_amp
     return y
 
-plt.plot( f_fft2, tanh_weight( f_fft2,  0.025, 1 ,  0.1, 1.5, 0.005)  )
+plt.plot( f_fft2, tanh_weight( f_fft2,  0.025 + 0.02 , 0.025 ,  1 ,  0.1, 0.5, 0.003)  )
 # %%
 
 
@@ -346,20 +346,27 @@ def objective_func(params, data_x, Z_results, weight_func, freq, nan_mask = None
 
 
 def tanh_weight_function(ff, params):
-    return tanh_weight(ff, params['x_pos'].value,params['LF_amp'].value,params['HF_amp'].value,params['amp'].value, params['sigma_g'].value )
+    return tanh_weight(ff, params['x_cutoff'].value,
+                        params['x_max_pos'].value,
+                        params['LF_amp'].value,
+                        params['HF_amp'].value,
+                        params['Gauss_amp'].value,
+                        params['sigma_g'].value )
 
 params = lmfit.Parameters()
 
 p_smothed = M.runningmean(np.abs(Y_from_LS), 20, tailcopy=True)
 f_max = f_fft2[p_smothed[~np.isnan(p_smothed)].argmax()]
-params.add('x_pos', f_max, min=f_max*0.75, max=f_max*1.25, vary=True)
 
-params.add('LF_amp', 1, min=0.8, max=1.2, vary= True)
-params.add('HF_amp', 0.1, min=0, max=1.5)
-params.add('sigma_g', 0.002, min=0.001, max=0.05, vary= False)
-params.add('amp', 0.1, min=0.01, max=2, vary= True)
+lambda_max = 9.81 * 5 **2/ (2* np.pi)
+params.add('x_cutoff', 1/lambda_max , min=f_max*0.75, max=f_max*5,  vary=False)
+params.add('x_max_pos', f_max       , min=f_max*0.75, max=f_max*5,  vary=False)
+params.add('LF_amp',        1       , min=0.5       , max=1.2,      vary= True)
+params.add('HF_amp', 0.5            ,  min=0        , max=1.5,      vary= True)
+params.add('sigma_g', 0.002         , min=0.001     , max=0.05,     vary= False)
+params.add('Gauss_amp', 0.5         , min=0.01      , max=2,        vary= True)
 
-# %%
+# %
 dx = t_base[2]- t_base[1]
 stancil=t_base[0], t_base[-1]
 x_model           = np.arange(stancil[0], stancil[-1] + dx, dx)
@@ -388,6 +395,13 @@ D_data.shape
 # Z_2 = np.copy(Z_data_final)
 # Z_2[Z_mask] =0
 # Z_data = Z_2
+
+1/f_fft2[450]
+
+f_fft2[450]
+
+1/30
+
 
 
 fitter = lmfit.minimize(objective_func, params, args=(D_data, Z_data, tanh_weight_function, f_fft2),

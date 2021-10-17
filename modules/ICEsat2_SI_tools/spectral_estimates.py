@@ -1060,38 +1060,48 @@ class conserve_variance(object):
 
         p_smothed = self.runningmean(np.abs(self.Z ), 20, tailcopy=True)
         f_max = self.freq[p_smothed[~np.isnan(p_smothed)].argmax()]
-        params.add('x_pos', f_max, min=f_max*0.75, max=f_max*1.25, vary=True)
 
-        params.add('LF_amp', 1, min=0.8, max=1.2, vary= True)
-        params.add('HF_amp', 0.8, min=0, max=1.5)
-        params.add('sigma_g', 0.002, min=0.001, max=0.05, vary= False)
-        params.add('amp', 0.1, min=0.01, max=2, vary= True) # anomalous amplitude
+
+        lambda_max = 9.81 * 5 **2/ (2* np.pi)
+        params.add('x_cutoff', 1/lambda_max , min=f_max*0.75, max=f_max*5,  vary=False)
+        params.add('x_max_pos', f_max       , min=f_max*0.75, max=f_max*5,  vary=False)
+        params.add('LF_amp',        1       , min=0.5       , max=1.2,      vary= True)
+        params.add('HF_amp', 0.5            ,  min=0        , max=1.5,      vary= True)
+        params.add('sigma_g', 0.002         , min=0.001     , max=0.05,     vary= False)
+        params.add('Gauss_amp', 0.5         , min=0.01      , max=2,        vary= True)
+
+
         self.params = params
         return params
 
     def test_ojective_func(self, weight_func, plot_flag=True):
         self.objective_func(self.params, self.data, self.Z, weight_func, self.freq, self.nan_mask, plot_flag=plot_flag)
 
+    def tanh_weight_function(self,ff, params):
+        return self.tanh_weight(ff, params['x_cutoff'].value,
+                            params['x_max_pos'].value,
+                            params['LF_amp'].value,
+                            params['HF_amp'].value,
+                            params['Gauss_amp'].value,
+                            params['sigma_g'].value )
 
-    def tanh_weight_function(self, ff, params):
-        return self.tanh_weight(ff, params['x_pos'].value,params['LF_amp'].value,params['HF_amp'].value,params['amp'].value, params['sigma_g'].value )
-
-    def tanh_weight(self, x, x_positions,  LF_amp, HF_amp, amp, sigma_g):
+    def tanh_weight(self,x, x_cutoff , x_max_pos,  LF_amp, HF_amp, Gauss_amp, sigma_g):
         """
             zdgfsg
         """
         HF_amp1 = (LF_amp-HF_amp)
-        decay   =  0.5 - np.tanh( (x-x_positions)/sigma_g  )/2
+        decay   =  0.5 - np.tanh( (x-x_cutoff)/sigma_g  )/2
         y       =  decay * HF_amp1 + (1 - HF_amp1)
         y  = y- y[0] +LF_amp
 
         def gaus(x, x_0, amp, sigma_g ):
             return amp* np.exp(-0.5 * (  (x-x_0)/sigma_g)**2)
 
-        y += gaus(x, x_positions, amp, sigma_g )
+        y += gaus(x, x_max_pos, Gauss_amp, sigma_g )
 
         #y =  y * LF_amp
         return y
+
 
     def objective_func(self, params, data_x, Z_results, weight_func, freq, nan_mask = None, plot_flag=False):
 
