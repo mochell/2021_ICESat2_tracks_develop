@@ -606,7 +606,7 @@ class wavenumber_spectrogram_LS(object):
         # create window
         self.win    = None #create_window(L)
 
-    def cal_spectrogram(self, x = None, data=None, error=None, name=None, xlims =None, weight_data= True, max_nfev = None):
+    def cal_spectrogram(self, x = None, data=None, error=None, name=None, xlims =None, weight_data= True, max_nfev = None, map_func=None):
 
         """
         defines apply function and calculated all sub-sample sprectra using map
@@ -630,7 +630,6 @@ class wavenumber_spectrogram_LS(object):
         import xarray as xr
         import copy
         import pandas as pd
-        import concurrent.futures as futures
 
         X       = self.x if x is None else x # all x positions
         DATA    = self.data if data is None else data # all data points
@@ -712,10 +711,9 @@ class wavenumber_spectrogram_LS(object):
         #     print(ss)
         #     Spec_returns.append( calc_spectrum_apply(ss) )
 
-        # parallel excecution:
-        Nworkers = 4
-        with futures.ThreadPoolExecutor(max_workers=Nworkers) as executor:
-            Spec_returns = list(executor.map( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
+        map_func = map if map_func is None else map_func
+        print(map_func)
+        Spec_returns = list(map_func( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
         # # linear version
         #Spec_returns = list(map( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
 
