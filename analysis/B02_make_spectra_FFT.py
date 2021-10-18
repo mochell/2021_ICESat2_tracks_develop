@@ -9,9 +9,9 @@ This is python 3
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
-base_path='/Users/Shared/Projects/2021_IceSAT2_tracks/'
-sys.path.append(base_path +'modules/')
-sys.path.append(base_path +'modules/ICEsat2_SI_tools/')
+#base_path='/Users/Shared/Projects/2021_IceSAT2_tracks/'
+#sys.path.append(base_path +'modules/')
+#sys.path.append(base_path +'modules/ICEsat2_SI_tools/')
 
 import matplotlib.pyplot as plt
 %matplotlib inline

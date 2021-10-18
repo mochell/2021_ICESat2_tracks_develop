@@ -15,13 +15,13 @@ example :
 MKDIR_P = mkdir -p
 
 # define paths to analysis
-analysisfolder		= /home/mhell/2021_ICESat2_tracks/analysis_db/
-plotsfolder	     	= /home/mhell/2021_ICESat2_tracks/plots/
+analysisfolder		= $(shell jq -r '.paths.analysis' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/analysis_db/
+plotsfolder	     	= $(shell jq -r '.paths.plot' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/plots/
 
-work_folder				= /work/mhell_work/2021_ICESat2_tracks/
-scratch_folder    = /scratch/mhell/2021_ICESat2_tracks/
-track_lists			  = /home/mhell/2021_ICESat2_tracks/track_lists/
-track_downloader  = /home/mhell/2021_ICESat2_tracks/modules/read-ICESat-2/scripts/
+work_folder				= $(shell jq -r '.paths.work' ../config/config.json)#/work/mhell_work/2021_ICESat2_tracks/
+scratch_folder    = $(shell jq -r '.paths.scratch' ../config/config.json)#/scratch/mhell/2021_ICESat2_tracks/
+track_lists			  = $(shell jq -r '.paths.base' ../config/config.json)track_lists/#/home/mhell/2021_ICESat2_tracks/track_lists/
+track_downloader  = $(shell jq -r '.paths.local_script' ../config/config.json)read-ICESat-2/scripts/#/home/mhell/2021_ICESat2_tracks/modules/read-ICESat-2/scripts/
 bad_tracks_folder = $(work_folder)bad_tracks
 
 
