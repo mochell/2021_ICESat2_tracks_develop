@@ -27,7 +27,7 @@ import datetime
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
-
+#track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -97,7 +97,50 @@ dk = np.diff(S_pwelch_k).mean()
 #plt.plot( Gfilt[k]['dist']-Gfilt[k]['dist'].min(), Gfilt[k]['heights_c'], '.' )
 #plt.xlim(200000, 201000)
 
+for k in all_beams:
+    plt.plot(Gd[k]['lons'], Gd[k]['lats'])
 
+for k in all_beams:
+    plt.plot(Gd[k]['x'][0:1000], Gd[k]['y'][0:1000])
+
+
+Gd[k].shape
+Gd[k][30000:40000]
+
+np.interp()
+
+
+def linear_gap_fill(F, key_lead, key_int):
+    y_g = np.array(F[key_int])
+
+    nans, x2= np.isnan(y_g), lambda z: z.nonzero()[0]
+    y_g[nans]= np.interp(x2(nans), x2(~nans), y_g[~nans])
+
+    return y_g
+
+plt.plot( linear_gap_fill( Gi, 'dist', 'lons' ) , linear_gap_fill( Gi, 'dist', 'lats' ) )
+
+
+lon_interp = linear_gap_fill( Gi, 'dist', 'lons' )
+lat_interp = linear_gap_fill( Gi, 'dist', 'lats' )
+
+plt.plot( np.gradient(lat_interp) )
+Gd[k]['lons'] = yy
+
+plt.plot(Gd[k]['dist'], Gd[k]['lons'])
+
+nan_mask = np.isnan(Gi['lons'])
+sum(nan_mask)
+
+xp = (~nan_mask).ravel().nonzero()[0]
+
+yy =np.copy(Gi['lons'])
+yy[nan_mask] = np.interp(Gi['dist'][nan_mask], Gi['dist'][~nan_mask],yy[~nan_mask] ).shape
+
+plt.plot(yy)
+plt.show()
+
+# %%
 
 G_LS= dict()
 G_rar_fft= dict()
@@ -170,14 +213,25 @@ for k in all_beams:
     imp.reload(spec)
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
 
-    kk = S_pwelch_k#[(S_pwelch_k >0)]# & (S_pwelch_k < 1/50 ) ]
+    kk = S_pwelch_k # includes 0 wavenumber
     #kk= S_pwelch_k2
     # plt.plot(1/kk)
     # kk = np.concatenate( [kk[kk <= 1/50] , kk[kk > 1/50][::1]] )
-    # kk.shape
-
+    kk.shape
     S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method =   kk,  ov=None, window=None)
     G, PP = S.cal_spectrogram(xlims= xlims, weight_data=False, max_nfev = 200)
+
+    # add more coodindates to the Dataset
+    x_coord_no_gaps = linear_gap_fill( Gd[k], 'dist', 'x' )
+    y_coord_no_gaps = linear_gap_fill( Gd[k], 'dist', 'y' )
+    mapped_coords = spec.sub_sample_coords(Gd[k]['dist'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter , map_func = None )
+    G = G.assign_coords(x_coord =('x',mapped_coords[:,1] ) ).assign_coords(y_coord =('x',mapped_coords[:,2] ) )
+
+    lons_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lons' )
+    lats_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lats' )
+    mapped_coords = spec.sub_sample_coords(Gd[k]['dist'], lons_no_gaps, lats_no_gaps, S.stancil_iter , map_func = None )
+    G = G.assign_coords(lon =('x',mapped_coords[:,1] ) ).assign_coords(lat =('x',mapped_coords[:,2] ) )
+
 
     # %%
     plot_data_model=True

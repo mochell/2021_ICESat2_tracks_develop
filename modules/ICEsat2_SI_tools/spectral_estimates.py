@@ -329,7 +329,50 @@ def spec_error(E,sn,ci=.95):
 
     return El, Eu
 
+def linear_gap_fill(F, key_lead, key_int):
 
+    """
+    F pd.DataFrame
+    key_lead   key in F that determined the independent coordindate
+    key_int     key in F that determined the dependent data
+    """
+    y_g = np.array(F[key_int])
+
+    nans, x2= np.isnan(y_g), lambda z: z.nonzero()[0]
+    y_g[nans]= np.interp(x2(nans), x2(~nans), y_g[~nans])
+
+    return y_g
+
+def sub_sample_coords(X, lons, lats, stancils, map_func =None):
+
+    """
+    X            non-nan array of coodinate along beam
+    lons, lats   arrays of postion data that should be mapped. must have same size as X
+    stancils     interable stancil positions
+    map_func (None) If not None the function is used to apply proceudre to each stancil
+
+    returns
+    nparray(3, N)   1st column is the stancil center, 2nd and 3rd collumn are the mapped lons and lats
+    """
+
+    import copy
+    def get_lon_lat_coords(stancil):
+
+        x_mask= (stancil[0] <= X) & (X <= stancil[-1])
+        #print(stancil[1])
+        if sum(x_mask) ==0: # if there are not enough photos set results to nan
+            return np.array([stancil[1], np.nan, np.nan])
+
+        lon_bin, lat_bin = lons[x_mask].mean(), lats[x_mask].mean()
+
+        return np.array([stancil[1],lon_bin, lat_bin])
+
+    map_func = map if map_func is None else map_func
+    print(map_func)
+    coord_positions = list(map_func( get_lon_lat_coords, copy.copy(stancils)   ))
+
+    coord_positions = np.vstack(coord_positions)
+    return coord_positions
 
 
 class wavenumber_spectrogram(object):
@@ -412,10 +455,17 @@ class wavenumber_spectrogram(object):
         """ Compute total variance from spectragram """
         return self.dk*self.G.mean('x').sum().data  # do not consider zeroth frequency
 
-    def mean_spectral_error(self, confidence = 0.95):
+    def mean_spectral_error(self, mask=None, confidence = 0.95):
         "retrurns spetral error for the x-mean spectral estimate and stores it as coordindate in the dataarray"
         #  make error estimate
-        El_of_mean, Eu_of_mean = spec_error(self.G.mean('x'), self.N_stancils, confidence )
+        if mask is not None:
+            meanspec=  self.G.isel(x=mask).mean('x')
+            N = int(sum(mask))
+        else:
+            meanspec=  self.G.mean('x')
+            N = self.N_stancils
+
+        El_of_mean, Eu_of_mean = spec_error(meanspec, N , confidence )
         El_of_mean.name = 'El_mean'
         Eu_of_mean.name = 'Eu_mean'
 
@@ -675,7 +725,7 @@ class wavenumber_spectrogram_LS(object):
                 y = y * window * np.sqrt( np.var(y)  / np.var(( y* window) ) )
 
             #make y gridded
-            x_model          = np.arange(stancil[0], stancil[-1] + self.dx, self.dx)
+            x_model          = np.arange(stancil[0], stancil[-1], self.dx)
             y_gridded        = np.copy(x_model) * np.nan
             y_gridded[x_pos] = y
             nan_mask         =np.isnan(y_gridded)
@@ -686,18 +736,16 @@ class wavenumber_spectrogram_LS(object):
 
             y_model           = reconstruct_data_from_LS(LS_object, x_model, self.k)
 
-            #x_pos[x_pos >= x_model.size] = x_model.size-1
-            # optimze
-            if self.k[0] !=0:
-                kk = np.insert(self.k, 0, 0)
-            else:
-                kk = self.k
 
-            P = conserve_variance(np.fft.rfft(y_model), kk, y_gridded, nan_mask = nan_mask )
+            # print(stancil[-1], x_model[-1])
+            # print(stancil[0], x_model[0])
+            # print(np.fft.rfft(y_model).size , kk.size)
+            # print(x_model.size, y_gridded.size, y_model.size)
+            # print('--')
+            P = conserve_variance(np.fft.rfft(y_model), self.k, y_gridded, nan_mask = nan_mask )
             P.set_parameters()
             #P.test_ojective_func(P.tanh_weight_function, plot_flag=False)
             fitter = P.optimize(max_nfev=max_nfev)
-            #y_model = np.fft.irfft(P.best_guess_Z())
 
             return stancil[1], LS_PSD, P.best_guess_Z(), fitter.params, x.size
 
@@ -805,6 +853,9 @@ class wavenumber_spectrogram_LS(object):
 
         return self.GG, params_dataframe
 
+
+
+
     def calc_var(self):
 
         Gmean = np.nanmean(self.G, 1)
@@ -862,8 +913,8 @@ class wavenumber_spectrogram_LS(object):
             self.G.attrs['mean_variance_LS_pwelch_spectrum']   = self.calc_var()
 
 
-    def mean_spectral_error(self, confidence = 0.95 ):
-        return wavenumber_spectrogram.mean_spectral_error(self, confidence= confidence )
+    def mean_spectral_error(self, mask=None, confidence = 0.95 ):
+        return wavenumber_spectrogram.mean_spectral_error(self, mask=mask, confidence= confidence )
 
 
 
@@ -1106,25 +1157,23 @@ class conserve_variance(object):
     def objective_func(self, params, data_x, Z_results, weight_func, freq, nan_mask = None, plot_flag=False):
 
         alpha =1e7
-        def model_real_space(Z, weights):
+        def model_real_space(Z, weights, n=None):
             """
             Both inputs must have the same length
             """
-            return np.fft.irfft(Z*weights)
+            return np.fft.irfft(Z*weights, n = n)
 
         weights = weight_func(freq, params)
-        
-        #print(Z_results.size,  weights.size)
+
+        if Z_results.size > weights.size:
+            weights = np.insert(weights, -1, weights[-1])
+
         if nan_mask is not None:
-            if Z_results.size > weights.size:
-                weights = np.insert(weights, -1, weights[-1])
-                model = model_real_space(Z_results, weights)[~nan_mask[:]]
-            else:
-                model = model_real_space(Z_results, weights)[~nan_mask[1:]]
+            model = model_real_space(Z_results, weights, n= data_x.size)[~nan_mask]
             dd = data_x[~nan_mask][:]
         else:
-            model = model_real_space(Z_results, weights)[:]
-            dd = data_x[1:]
+            model = model_real_space(Z_results, weights, n= data_x.size)[:]
+            dd = data_x[:]
 
         if model.size > dd.size:
             model = model[:-1]
