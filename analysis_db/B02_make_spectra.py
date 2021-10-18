@@ -27,6 +27,7 @@ import concurrent.futures as futures
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190207001112_06190210_004_01', 'SH_batch02', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -49,7 +50,7 @@ bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
-Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
+#Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
 
@@ -139,8 +140,8 @@ for k in all_beams:
 
 
     S = spec.wavenumber_spectrogram_LS( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, dy = None, waven_method = wavenumber_k,  ov=None, window=None)
-    with futures.ThreadPoolExecutor(max_workers= 10) as executor_sub:
-        G, PP = S.cal_spectrogram(xlims= xlims, weight_data=True, max_nfev = None , map_func=executor_sub.map)
+    with futures.ProcessPoolExecutor(max_workers= 4) as executor_sub:
+        G, PP = S.cal_spectrogram(xlims= xlims, weight_data=True, max_nfev = None , map_func=None)
     S.mean_spectral_error() # add x-mean spectal error estimate to xarray
     S.parceval(add_attrs= True, weight_data=False)
 

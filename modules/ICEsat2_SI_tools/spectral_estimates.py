@@ -1063,8 +1063,8 @@ class conserve_variance(object):
 
 
         lambda_max = 9.81 * 5 **2/ (2* np.pi)
-        params.add('x_cutoff', 1/lambda_max , min=f_max*0.75, max=f_max*5,  vary=False)
-        params.add('x_max_pos', f_max       , min=f_max*0.75, max=f_max*5,  vary=False)
+        params.add('x_cutoff', 1/lambda_max , min=0, max=1,  vary=False)
+        params.add('x_max_pos', f_max       , min=f_max*0.75, max=f_max*5+0.001,  vary=False)
         params.add('LF_amp',        1       , min=0.5       , max=1.2,      vary= True)
         params.add('HF_amp', 0.5            ,  min=0        , max=1.5,      vary= True)
         params.add('sigma_g', 0.002         , min=0.001     , max=0.05,     vary= False)
@@ -1113,9 +1113,14 @@ class conserve_variance(object):
             return np.fft.irfft(Z*weights)
 
         weights = weight_func(freq, params)
-
+        
+        #print(Z_results.size,  weights.size)
         if nan_mask is not None:
-            model = model_real_space(Z_results, weights)[~nan_mask[1:]]
+            if Z_results.size > weights.size:
+                weights = np.insert(weights, -1, weights[-1])
+                model = model_real_space(Z_results, weights)[~nan_mask[:]]
+            else:
+                model = model_real_space(Z_results, weights)[~nan_mask[1:]]
             dd = data_x[~nan_mask][:]
         else:
             model = model_real_space(Z_results, weights)[:]

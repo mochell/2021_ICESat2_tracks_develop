@@ -26,6 +26,9 @@ import datetime
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190205231558_06030212_004_01', 'SH_batch02', False
+
+
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -92,12 +95,17 @@ hkey= 'heights_c_weighted_mean'
 G_LS= dict()
 G_fft= dict()
 imp.reload(spec)
+
+# %%
+k =all_beams[0]
+
 for k in all_beams:
 
     x       = Gd[k]['dist']
     xlims   = x.iloc[0], x.iloc[-1]
     dd      = np.copy(Gd[k][hkey])
-
+    print(xlims)
+ # %%
     F = M.figure_axis_xy(6, 3)
     plt.subplot(2, 1, 1)
     plt.plot(x, dd, 'gray', label='displacement (m) ')
