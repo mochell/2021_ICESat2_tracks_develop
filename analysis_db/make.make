@@ -133,8 +133,8 @@ bad_beams := $(basename $(bad_beams_files))
 
 source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch_key), /processed_ATL03_${i}.h5 ) )
 #B01_files_01 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
-B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
-B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
+#B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
+#B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
 
 plot_folders := $(foreach i, $(bad_beams) ,$(addprefix $(plotsfolder)/$(hemis)/tracks/, ${i} ) )
 
@@ -142,7 +142,7 @@ rm_bad_beams: #rm_B01_files
 					@echo "removing bad tracks in 5 sec"
 					sleep 5
 					rm -fv $(source_files)
-					rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
+					#rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 					rm -fv -r $(plot_folders)
 					mv $(bad_tracks_folder)/$(batch_key)/*.json $(bad_tracks_folder)/$(batch_key)_deleted/
 
