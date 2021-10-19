@@ -1,4 +1,4 @@
-MAKEFLAGS += -j10
+MAKEFLAGS += -j5
 
 ### example : show example how to use this file
 .PHONY : example
@@ -15,7 +15,7 @@ example :
 MKDIR_P = mkdir -p
 
 # define paths to analysis
-analysisfolder		= $(shell jq -r '.paths.analysis' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/analysis_db/
+analysisfolder		= $(shell jq -r '.paths.base' ../config/config.json)analysis_db/#/home/mhell/2021_ICESat2_tracks/analysis_db/
 plotsfolder	     	= $(shell jq -r '.paths.plot' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/plots/
 
 work_folder				= $(shell jq -r '.paths.work' ../config/config.json)#/work/mhell_work/2021_ICESat2_tracks/
