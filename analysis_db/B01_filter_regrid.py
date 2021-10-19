@@ -31,7 +31,7 @@ import concurrent.futures as futures
 
 #imp.reload(io)
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
@@ -53,7 +53,6 @@ MT.mkdirs_r(save_path)
 
 # set pars
 
-
 # define parameters:
 Lmeter      = 20 # stencil length in units of 'dist'; likely in meters the resulting resolution is L/2
 Nphoton_min = 5 # mininum need photons per stancil to return results
@@ -62,8 +61,8 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.05 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers    = 6         # number of threads for parallel processing
-
+Nworkers    = 3         # number of threads for parallel processing
+Nworkers_process    =3         # number of threads for parallel processing
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']
@@ -85,8 +84,10 @@ B1save  = dict()
 for k in beams:
     #k = beams[0]
     #imp.reload(io)
+    print(k)
     T = io.getATL03_beam(load_file, beam= k)
 
+    print('loaded')
     T = T[T['mask_seaice']] # only take sea ice points, no ocean points
 
     ho = k
@@ -103,7 +104,7 @@ for k in beams:
     Tsel_c  = io.getATL03_height_correction(load_file)
     Tsel_c  = Tsel_c[Tsel_c['dem_h'] < 1e5] # cute out weird references
     Tsel2 = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
-
+    print('corrected')
 
     ### cut data at the rear that has too much variance
     # cut last segments of data until variance is similar
@@ -140,6 +141,7 @@ for k in beams:
 
     hist    = MT.write_log(hist, ho)
 
+print('done with 1st loop')
 
 # %%
 # define latitude limits
@@ -195,7 +197,7 @@ def get_better_lower_boundary(Lmeter_large, dd):
     def get_density(sti):
         return sti[0], sum( (sti[0] <= dd) & (dd < sti[-1]) ) / Lmeter_large
 
-    with futures.ThreadPoolExecutor(max_workers= 2) as executor_sub:
+    with futures.ThreadPoolExecutor(max_workers= Nworkers_process) as executor_sub:
         #var_list = np.array(list(map(get_density, stencil_iter)))
         var_list = np.array(list(executor_sub.map(get_density, stencil_iter)))
 
@@ -224,7 +226,7 @@ def get_better_lower_boundary(Lmeter_large, dd):
 # for bb in all_beams:
 #     A = derive_axis_and_boundaries(bb)
 
-with futures.ProcessPoolExecutor(max_workers=Nworkers) as executor:
+with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(derive_axis_and_boundaries, all_beams)  )
 # %%
 B2          = dict()
@@ -248,14 +250,14 @@ def regridding_wrapper(I):
     key, Ti = I
     print(key, Ti.shape, 2* Ti.shape[0]/Lmeter)
     stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, track_dist_bounds, iter_flag=True )
-    with futures.ThreadPoolExecutor(max_workers= 4) as executor_sub:
+    with futures.ThreadPoolExecutor(max_workers= Nworkers) as executor_sub:
         Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor_sub.map)
     #B3[key] =
     print(key, 'done')
     return key, Bi
 
 
-with futures.ProcessPoolExecutor(max_workers=6) as executor:
+with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     B3 = dict( executor.map(regridding_wrapper, B2.items() )  )
 
 
