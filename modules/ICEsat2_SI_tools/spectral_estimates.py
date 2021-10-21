@@ -469,8 +469,8 @@ class wavenumber_spectrogram(object):
         El_of_mean.name = 'El_mean'
         Eu_of_mean.name = 'Eu_mean'
 
-        self.G.coords['mean_El'] = (('k'), El_of_mean)
-        self.G.coords['mean_Eu'] = (('k'), Eu_of_mean)
+        self.G.coords['mean_El'] = (('k'), El_of_mean.data)
+        self.G.coords['mean_Eu'] = (('k'), Eu_of_mean.data)
 
     def parceval(self, add_attrs=True ):
         "test Parceval theorem"

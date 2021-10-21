@@ -1,4 +1,4 @@
-MAKEFLAGS += -j5
+#MAKEFLAGS += -j5
 
 ### example : show example how to use this file
 .PHONY : example
@@ -122,7 +122,7 @@ $(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folde
 
 B_collect : #B01 B02
 					${MKDIR_P} $(plotsfolder)$(hemis)/$(batch_key)/B02/
-					rm $(plotsfolder)$(hemis)/$(batch_key)/B02/*
+					rm -fv $(plotsfolder)$(hemis)/$(batch_key)/B02/*
 					cp $(plotsfolder)$(hemis)/$(batch_key)/*/B_spectra/B02_specs_*.png $(plotsfolder)$(hemis)/$(batch_key)/B02/
 
 #### delete bad tracks ###

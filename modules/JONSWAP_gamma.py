@@ -141,6 +141,10 @@ def pierson_moskowitz_fetch_limit(f, X,  U):
 
     return alpha * g**2.0 * w**(-5.) * np.exp(-5./4.0 *  (w/wp)**-4)# Hz**-5 m**2 /s**4  = m**2 sec
 
+def JONSWAP_default_alt(f, f_max, U, gamma=3.3):
+
+    return JONSWAP_default(f, X(f_max, U), U, gamma=gamma)
+
 def JONSWAP_default(f, X, U, gamma=3.3):
     """
     see Ocean Surface waves - S. R. Massel eq.3.81 - eq.3.84
