@@ -118,7 +118,7 @@ $(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_
 
 $(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 $(analysisfolder)/B02_make_spectra.py
 					sleep $${RANDOM:0:2}s
-					python $(analysisfolder)/B02_make_spectra.py $* $(batch_key) $(test_flag) > log/B02/$*.txt 2>&1
+					python $(analysisfolder)/B02_make_spectra_gFT.py $* $(batch_key) $(test_flag) > log/B02/$*.txt 2>&1
 
 B_collect : #B01 B02
 					${MKDIR_P} $(plotsfolder)$(hemis)/$(batch_key)/B02/
