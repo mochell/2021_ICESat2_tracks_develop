@@ -82,7 +82,7 @@ x           = np.array(Gi['dist'])
 dx          =  np.diff(x).mean()
 min_datapoint =  2*np.pi/k_0/dx
 
-Lpoints     = int(np.round(min_datapoint) * 20 )
+Lpoints     = int(np.round(min_datapoint) * 10 )
 Lmeters     = Lpoints  * dx
 
 #plt.plot(np.diff(np.array(Gi['dist'])))
@@ -107,6 +107,7 @@ print('2 M = ',  kk.size *2 )
 G_gFT= dict()
 G_gFT_x = dict()
 G_rar_fft= dict()
+Pars_optm = dict()
 imp.reload(spec)
 
 k=all_beams[2]
@@ -260,6 +261,7 @@ for k in all_beams:
     # Save to dict
     G_gFT[k]    = GG
     G_gFT_x[k]  = GG_x
+    Pars_optm[k] = PP
 
     # plot
     plt.subplot(2, 1, 2)
@@ -482,6 +484,9 @@ plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
 #F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+
+# %% save fitting parameters
+MT.save_pandas_table(Pars_optm, save_name+'_params', save_path )
 
 # %% repack data
 def repack_attributes(DD):
