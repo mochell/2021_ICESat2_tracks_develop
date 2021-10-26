@@ -40,12 +40,12 @@ mconfig=json_load('config_local','/Users/Shared/Projects/2021_IceSAT2_tracks/con
 sys.path.append(mconfig['paths']['local_script'])
 sys.path.append(mconfig['paths']['local_script'] +'/ICEsat2_SI_tools/')
 
-#import m_colormanager_ph3 as M_color
+import m_colormanager_ph3 as M_color
 import m_tools_ph3 as MT
 import m_general_ph3 as M
 
 #load colorscheme
-#col=M_color.color(path=mconfig['paths']['analysis']+'../config/', name='color_def')
+col=M_color.color(path=mconfig['paths']['analysis']+'../config/', name='color_def')
 
 
 lstrings =iter([i+') ' for i in list(string.ascii_lowercase)])
