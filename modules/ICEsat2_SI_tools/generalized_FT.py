@@ -543,27 +543,45 @@ class generalized_Fourier(object):
         data_uncertainty (observed) uncertainy of the data, can be vector of length N, or scaler
         """
 
-        self.H = self.get_H()
-        penalties = np.concatenate([ penalty ,  penalty  ])
-        self.P  = np.diag(1/penalties) # penalty  2M x 2M
-        self.R  = np.diag(  data_uncertainty) #Noise Prior N x N
+        self.H      = self.get_H()
+        penalties   = np.concatenate([ penalty ,  penalty  ])
+        #self.P     = np.diag(1/penalties) # penalty  2M x 2M
+        #self.R      = np.diag(  data_uncertainty) #Noise Prior N x N
+        self.P_1d   = 1/penalties # these are weights again ..
+        self.R_1d   = data_uncertainty
 
     def solve(self):
         from numpy import linalg
         inv = linalg.inv
         " solves the linear inverse problem, return hessian and b_hat"
 
+        # standard inversion
+        # H = self.H
+        # P = self.P
+        # R = self.R
+        # y = self.ydata
+        #
+        # Hess        = (H.T @ inv(R) @ H  ) + inv(P)
+        # Hess_inv    = inv( Hess)
+        # b_hat       = Hess_inv @ H.T @ inv(R) @ y
+        #
+        # self.Hess, self.Hess_inv, self.b_hat = Hess, Hess_inv, b_hat
+
+        # faster inversion
         H = self.H
-        P = self.P
-        R = self.R
+        P_1d = self.P_1d
+        R_1d = self.R_1d
         y = self.ydata
 
-        Hess        = (H.T @ inv(R) @ H  ) + inv(P)
-        Hess_inv    = inv( Hess)
-        b_hat       = Hess_inv @ H.T @ inv(R) @ y
+        H_T_R_inv   = H.T * (1/R_1d)
+        Hess        = (H_T_R_inv @ H  ) + np.diag(1/P_1d)
+        Hess_inv    = inv(Hess)
+        b_hat       = Hess_inv @ H_T_R_inv @ y
 
         self.Hess, self.Hess_inv, self.b_hat = Hess, Hess_inv, b_hat
+        del H_T_R_inv
 
+        
         return b_hat
 
     def model(self):
@@ -583,7 +601,7 @@ class generalized_Fourier(object):
         'data_var': self.ydata.var(),
         'model_var': self.model().var(),
         'residual_var' : residual.var(),
-        'normalized_residual' : residual.var() /np.diag(self.R).mean(),
+        'normalized_residual' : residual.var() /self.R_1d.mean(),
         'model_error_k' : np.diag(self.Hess_inv),
         'model_error_x' : ((self.H**2) @ self.Hess_inv).sum(1),
         'var_sum' : self.ydata.var() - self.model().var() -residual.var()

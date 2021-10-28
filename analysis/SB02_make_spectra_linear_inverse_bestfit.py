@@ -37,6 +37,8 @@ import ICEsat2_SI_tools.spectral_estimates as spec
 import imp
 
 import lmfit
+
+import generalized_FT as gFT
 #import s3fs
 # %%
 
@@ -70,7 +72,7 @@ from scipy.signal import detrend
 y =detrend(np.array(Gi['heights_c_weighted_mean']) )
 y.shape
 y_gap= np.copy(y)
-y_gap[200:3000] = np.nan
+y_gap[200:1000] = np.nan
 nan_mask =np.isnan(y_gap)
 data_filled = np.copy(y)
 data_filled[nan_mask] = 0
@@ -79,16 +81,14 @@ nan_mask.sum()/y_gap.size
 
 plt.plot( Gi['dist'], y, '-')
 plt.plot( Gi['dist'], y_gap, '-')
-x_gap.size
+
 # %%
 x= Gi['dist'] - Gi['dist'].iloc[0]
 dx = np.median(np.diff(x))
 plt.plot( x, y_gap)
 
-
 y_gap_fill=np.copy(y_gap)
 y_gap_fill[nan_mask]= 0
-
 
 
 # %%
@@ -184,8 +184,6 @@ plt.plot([kk[-1], kk[-1]], [0, 1/weight.min()], 'k')
 plt.plot(kk, 1/weight)
 plt.title('penalty')
 
-
-
 plt.plot(f, (1/f)**(1/4))
 
 #next(iter(S.params.items()))[1].value
@@ -199,7 +197,7 @@ weights.shape
 # weights.shape
 #weights = np.concatenate([ np.exp(-4 *np.arange(0, MM)/MM),  np.exp(-4 *np.arange(0, MM)/MM) ])
 P = np.diag(weights)
-
+P_1d  = weights
 #plt.plot(1/weights)
 P.shape
 
@@ -208,18 +206,26 @@ P.shape
 data_uncertainty = np.array(Gi['heights_c_std'])[~nan_mask]
 noise_amp = 0.1
 R = np.diag( noise_amp *  data_uncertainty/data_uncertainty.std() )
-
+R_1d = np.diag(R)
 #np.array(Gi['heights_c_std'])[~nan_mask].std()
 
 from numpy import linalg
 inv = linalg.inv
 
 
+plt.plot(  - 1/np.diag(P) )
+
+
+
 # Hessian_int
-Hess =(G.T @ inv(R) @ G  ) + inv(P)
-b_hat = inv( Hess) @ G.T @ inv(R) @ y[~nan_mask]
+%timeit Hess =(G.T @ inv(R) @ G  ) + inv(P)
+%timeit b_hat = inv( Hess) @ G.T @ inv(R) @ y[~nan_mask]
 
 
+%timeit G_T_R_inv       = G.T * (1/R_noise)
+%timeit Hess    = (G_T_R_inv @ G  ) + np.diag(1/P_1d)
+%timeit Hess_inv = inv(Hess)
+%timeit b_hat = Hess_inv @ G_T_R_inv @ y[~nan_mask]
 
 # %%
 
@@ -238,7 +244,7 @@ print('data variance=', data_var, 'model variance', model_var, ' residual varian
 print('sum', data_var-model_var- residual.var())
 
 # %%
-import generalized_FT as gFT
+
 plt.plot(k, gFT.power_from_model(b_hat, dk, MM, NN, x.size) )
 plt.title('Power(b_hat)')
 plt.show()
