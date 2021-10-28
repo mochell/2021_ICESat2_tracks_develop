@@ -185,6 +185,9 @@ plt.plot(kk, 1/weight)
 plt.title('penalty')
 
 
+
+plt.plot(f, (1/f)**(1/4))
+
 #next(iter(S.params.items()))[1].value
 
 #plt.plot( np.arange(MM, 0, -1)/MM )

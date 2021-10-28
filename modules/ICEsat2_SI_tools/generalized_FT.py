@@ -128,6 +128,8 @@ class wavenumber_spectrogram_gFT(object):
                 f= np.sqrt(9.81 * k) / (2 *np.pi)
                 #weight = weight + weight.max()* 0.1 # add pemnalty floor
                 # optimzes paramteric function to data
+                #Spec_fft.data = Spec_fft.runningmean(Spec_fft.data , 10, tailcopy=True)
+                #Spec_fft.data[np.isnan(Spec_fft.data)] = 0
                 weight = Spec_fft.create_weight(freq = f, plot_flag= False, max_nfev=max_nfev)
 
                 if plot_flag:
@@ -148,7 +150,7 @@ class wavenumber_spectrogram_gFT(object):
                 #plt.plot(k_fft[1:], Spec_fft.model_func(Spec_fft.freq, pars), 'b--' )
 
                 plt.plot(k, weight, zorder=12)
-                plt.plot(k_fft, data_weight)
+                plt.plot(k_fft[1:], Spec_fft.data)
                 plt.xlim(k[0],k[-1] )
                 plt.show()
 
@@ -167,11 +169,12 @@ class wavenumber_spectrogram_gFT(object):
             """
             from scipy.signal import detrend
             import matplotlib.pyplot as plt
-
+            import time
+            ta = time.perf_counter()
             #x = X[stancil[0]:stancil[-1]]
             x_mask= (stancil[0] <= X) & (X <= stancil[-1])
 
-            #print(stancil[1])
+            print(stancil[1])
             x = X[x_mask]
             if x.size/Lpoints < 0.1: # if there are not enough photos set results to nan
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
@@ -192,20 +195,27 @@ class wavenumber_spectrogram_gFT(object):
             err = ERR[x_mask] if ERR is not None else 1
             err = (err/ err.std()) * y_var * noise_amp
 
+
+            print( 'weights : ', time.perf_counter() - ta)
+            ta = time.perf_counter()
             FT.define_problem(1/weight, err) # 1st arg is Penalty, 2nd is error
 
             b_hat = FT.solve()
+
+            print( 'solve : ', time.perf_counter() - ta)
+            ta = time.perf_counter()
 
             x_pos               = (np.round( (x - stancil[0])/ self.dx -1 , 0) ).astype('int')
             eta                 =  np.arange(0, self.Lmeters + self.dx, self.dx) - self.Lmeters/2
             y_model_grid        = np.copy(eta) *np.nan
             y_model_grid[x_pos] = FT.model()
 
-            inverse_stats = FT.get_stats(print_flag=True)
+            inverse_stats = FT.get_stats(print_flag=False)
             # add fitting parameters of Prior to stats dict
             for k,I in prior_pars.items():
                 inverse_stats[k] = I.value
 
+            print( 'stats : ', time.perf_counter() - ta)
             # Z = complex_represenation(b_hat, FT.M, Lpoints )
 
             PSD = power_from_model(b_hat, dk,  self.k.size,  x.size,  Lpoints) #Z_to_power_gFT(b_hat, dk, x.size,  Lpoints )
@@ -223,6 +233,7 @@ class wavenumber_spectrogram_gFT(object):
                 plt.show()
 
                 print('---------------------------------')
+
 
             return stancil[1], b_hat, inverse_stats, y_model_grid ,  x.size
 
@@ -628,7 +639,7 @@ class get_prior_spec(object):
         # p_smothed = self.runningmean(np.abs(self.Z ), 20, tailcopy=True)
         # f_max = self.freq[p_smothed[~np.isnan(p_smothed)].argmax()]
         params.add('f_max', f_max , min=f_max*0.2, max=f_max*1.5,  vary=True)
-        params.add('amp', 1       , min=.0001, max=5,  vary=True)
+        params.add('amp', 0.05       , min=.0001, max=.1,  vary=True)
         params.add('gamma', 1     , min=1, max=3.3,  vary=False)
         params.add('alpha', 1     , min=0, max= 0.95 * np.pi /2,  vary=True)
 
@@ -665,8 +676,10 @@ class get_prior_spec(object):
         if fitting_args is None:
             fitting_args = (self.data, self.model_func, self.freq)
 
+        #fit_kws=  {'maxfun': 1e7}
+        fit_kws=  {'maxfun': 1e5}
         self.weight_func = fitting_args[1]
-        self.fitter = self.LM.minimize(self.objective_func, self.params, args=fitting_args, method=method, max_nfev=max_nfev)
+        self.fitter = self.LM.minimize(self.objective_func, self.params, args=fitting_args, method=method, max_nfev=max_nfev, **fit_kws)
         return self.fitter
 
     def plot_data(self):
