@@ -53,7 +53,7 @@ bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
-Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
+#Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
 
@@ -82,7 +82,7 @@ x           = np.array(Gi['dist'])
 dx          =  np.diff(x).mean()
 min_datapoint =  2*np.pi/k_0/dx
 
-Lpoints     = int(np.round(min_datapoint) * 10 )
+Lpoints     = int(np.round(min_datapoint) * 5 )
 Lmeters     = Lpoints  * dx
 
 #plt.plot(np.diff(np.array(Gi['dist'])))
@@ -261,7 +261,7 @@ for k in all_beams:
     # Save to dict
     G_gFT[k]    = GG
     G_gFT_x[k]  = GG_x
-    Pars_optm[k] = PP
+    Pars_optm[k] = Params
 
     # plot
     plt.subplot(2, 1, 2)
@@ -483,7 +483,7 @@ plt.legend()
 plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
-#F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
 
 # %% save fitting parameters
 MT.save_pandas_table(Pars_optm, save_name+'_params', save_path )

@@ -5,7 +5,6 @@ modules/ICEsat2_SI_tools/__pycache__/*
 modules/ICEsat2_SI_tools/__pycache__/*.pyc
 plots/
 analysis_db/log
-modules/ICEsat2_SI_tools/__pycache__/*
 modules/read-ICESat-2
 ICEsat2
 .DS_Store
@@ -15,3 +14,7 @@ documentation/
 nsidc-download_ATL03.004_2021-08-31.py
 config/2021_IceSAT2_startup.py
 config/config.json
+modules/ICEsat2_SI_tools/__pycache__/
+modules/__pycache__/
+modules/__pycache__/*
+work/

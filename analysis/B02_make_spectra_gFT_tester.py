@@ -10,7 +10,7 @@ This is python 3
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
-%matplotlib inline
+#%matplotlib inline
 
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import h5py
@@ -29,11 +29,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
 track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch01', False
-
-
-
 
 
 #print(track_name, batch_key, test_flag)
@@ -56,7 +53,7 @@ bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
-Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
+#Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
 
@@ -79,57 +76,38 @@ Gi =Gd[ list(Gd.keys())[0] ] # to select a test  beam
 
 # derive spectal limits
 # Longest deserved period:
-T_max = 40 #sec
-k_0 = (2 * np.pi/ T_max)**2 / 9.81
-x= np.array(Gi['dist'])
-dx = np.diff(x).mean()
+T_max       = 40 #sec
+k_0         = (2 * np.pi/ T_max)**2 / 9.81
+x           = np.array(Gi['dist'])
+dx          =  np.diff(x).mean()
 min_datapoint =  2*np.pi/k_0/dx
 
-Lpoints = int(np.round(min_datapoint) * 20 )
-Lmeters =Lpoints  * dx
+Lpoints     = int(np.round(min_datapoint) * 10 )
+Lmeters     = Lpoints  * dx
 
 #plt.plot(np.diff(np.array(Gi['dist'])))
 print('L number of gridpoint:', Lpoints)
-
-
 print('L length in km:', Lmeters/1e3)
 print('approx number windows', 2* Gi['dist'].iloc[-1] /Lmeters-1   )
 
+T_min       = 5
+lambda_min  = 9.81 * T_min**2/ (2 *np.pi)
+flim        = 1/T_min
 
-T_min=6
-lambda_min = 9.81 * T_min**2/ (2 *np.pi)
-flim = 1/T_min
-
-oversample = 0.5#2
-dlambda = Lmeters * oversample
-dk = 2 * np.pi/ dlambda
-kk =np.arange(0, 1/lambda_min,  1/dlambda) * 2*np.pi
-kk = kk[k_0<=kk]
+oversample  = 2
+dlambda     = Lmeters * oversample
+dk          = 2 * np.pi/ dlambda
+kk          =np.arange(0, 1/lambda_min,  1/dlambda) * 2*np.pi
+kk          = kk[k_0<=kk]
 #dk = np.diff(kk).mean()
-
 print('2 M = ',  kk.size *2 )
-
-# S_pwelch_k, S_pwelch_dk = spec.calc_freq_LS( x, Lpoints, dx= dx, method='fft', minimum_frequency=None, maximum_frequency=None, samples_per_peak=0.005)
-# S_pwelch_k.shapes
-
-# S_pwelch_k = np.fft.rfftfreq( Lpoints, d=dx)
-# dk = np.diff(S_pwelch_k).mean()
-# %%
-
-#plt.plot( Gfilt[k]['dist']-Gfilt[k]['dist'].min(), Gfilt[k]['heights_c'], '.' )
-#plt.xlim(200000, 201000)
-
-for k in all_beams:
-    plt.plot(Gd[k]['lons'], Gd[k]['lats'])
-
-for k in all_beams:
-    plt.plot(Gd[k]['x'][0:1000], Gd[k]['y'][0:1000])
 
 # %%
 
 G_gFT= dict()
 G_gFT_x = dict()
 G_rar_fft= dict()
+Pars_optm = dict()
 imp.reload(spec)
 
 k=all_beams[2]
@@ -139,7 +117,7 @@ for k in all_beams:
     # -------------------------------  use gridded data
     hkey= 'heights_c_weighted_mean'
     x       = Gd[k]['dist']
-    xlims   = x.iloc[0], x.iloc[-8000]
+    xlims   = x.iloc[0], x.iloc[-1]
     dd      = np.copy(Gd[k][hkey])
 
     dd_error = np.copy(Gd[k]['heights_c_std'])
@@ -163,8 +141,6 @@ for k in all_beams:
     x_no_nans  = x[~dd_nans]
     dd_error_no_nans = dd_error[~dd_nans]
 
-    dx = np.diff(x).mean()
-
     plt.plot(x_no_nans, dd_no_nans, 'black', label='slope (m/m)')
     plt.legend()
     plt.show()
@@ -172,9 +148,9 @@ for k in all_beams:
 
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
-
+    imp.reload(gFT)
     S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, dy = dd_error_no_nans,  ov=None)
-    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 100)
+    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = None, plot_flag = True)
 
     #plt.plot(Params.loc['normalized_residual'])
 
@@ -196,7 +172,7 @@ for k in all_beams:
     # #np.log(GG.gFT_PSD_data).plot()
     #
     # plt.plot(Params.T['alpha'], '.')
-
+    # %%
     def linear_gap_fill(F, key_lead, key_int):
 
         """
@@ -289,8 +265,6 @@ for k in all_beams:
     GG.coords['lon'] = GG_x.coords['lon'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,1], 1) )
     GG.coords['lat'] = GG_x.coords['lat'] =  (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
 
-
-
     # spectral errors are cacualted within S and now repacked to main DataSet G
     #G.coords['mean_El'] = (('k', 'beam' ), np.expand_dims(S.G['mean_El'], 1))
     #G.coords['mean_Eu'] = (('k', 'beam' ), np.expand_dims(S.G['mean_Eu'], 1))
@@ -307,6 +281,7 @@ for k in all_beams:
     # Save to dict
     G_gFT[k]    = GG
     G_gFT_x[k]  = GG_x
+    Pars_optm[k] = Params
 
     # plot
     plt.subplot(2, 1, 2)
@@ -528,7 +503,10 @@ plt.legend()
 plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
-#F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+
+# %% save fitting parameters
+MT.save_pandas_table(Pars_optm, save_name+'_params', save_path )
 
 # %% repack data
 def repack_attributes(DD):
