@@ -7,6 +7,7 @@ This file open a ICEsat2 track applied filters and corections and returns smooth
 This is python 3
 """
 
+
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
@@ -113,7 +114,6 @@ imp.reload(spec)
 k=all_beams[2]
 for k in all_beams:
 
-    # %%
     # -------------------------------  use gridded data
     hkey= 'heights_c_weighted_mean'
     x       = Gd[k]['dist']
@@ -154,7 +154,6 @@ for k in all_beams:
 
     #plt.plot(Params.loc['normalized_residual'])
 
-    # %%
     # np.nanmean( (GG.gFT_PSD_model.sum('k') *dk) )
     # GG.gFT_PSD_model.median('x').plot()
     # GG.gFT_PSD_data.median('x').rolling(k= 30).mean().plot()
@@ -172,7 +171,7 @@ for k in all_beams:
     # #np.log(GG.gFT_PSD_data).plot()
     #
     # plt.plot(Params.T['alpha'], '.')
-    # %%
+    # %
     def linear_gap_fill(F, key_lead, key_int):
 
         """
@@ -240,7 +239,7 @@ for k in all_beams:
             plt.ylim(ylims[0], ylims[-1])
             plt.show()
 
-    # %%
+    # %
     #S.mean_spectral_error() # add x-mean spectal error estimate to xarray
     S.parceval(add_attrs= True, weight_data=False)
 
@@ -325,7 +324,7 @@ for k in all_beams:
     plt.legend()
     plt.show()
 
-    #F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
+    F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
     #print('saved as '+'B02_control_'+k+'_' + track_name)
     #print(np.isinf(G).sum().data)
 

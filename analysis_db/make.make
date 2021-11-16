@@ -6,7 +6,7 @@ example :
 					@echo "to download data given a batch list; -n is the text flag"
 					@echo "make -f make.make batch=batch02 download=batch02_tracks_test.json A01 -n"
 					@echo "to make targets without re-downloading the data; -n is the text flag"
-					@echo "make -f make.make batch=batch02 download=False B01-n"
+					@echo "make -f make.make batch=batch02 download=False B01 -n"
 					@echo "print targets"
 					@echo "make -f make.make batch=batch02 download=False print-B01_targets -n"
 					@echo "force target to rebuld -B"
