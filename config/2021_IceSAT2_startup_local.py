@@ -85,7 +85,9 @@ plt.rc('figure', titlesize=MEDIUM_SIZE, titleweight='bold', autolayout=True) #, 
 plt.rc('path', simplify=True)
 
 plt.rcParams['figure.figsize'] = (10, 8)#(20.0, 10.0) #inline
-
+plt.rcParams['pcolor.shading'] = 'auto'
+#rcParams['pcolor.shading'] = 'auto'
+plt.rc('pcolor', shading = 'auto')
 
 ### TICKS
 # see http://matplotlib.org/api/axis_api.html#matplotlib.axis.Tick

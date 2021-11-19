@@ -364,8 +364,18 @@ class wavenumber_spectrogram_gFT(object):
 
                 sta, ste    = xi- self.Lmeters/2, xi+self.Lmeters/2
                 #x_mask= (sta <= X) & (X <= ste)
-                x_pos =  (np.round( (X[(sta <= X) & (X <= ste)] - sta)/ self.dx , 0) ).astype('int')
+                x_pos =  (np.round( (X[(sta <= X) & (X <= ste)] - sta)/ self.dx ) ).astype('int')
                 x_err = np.copy(eta) *np.nan
+                # check sizes and adjust if necessary.
+
+                if x_pos.size > I['model_error_x'].size:
+                    x_pos = x_pos[ 0 : I['model_error_x'].size ]
+                    print('adjust x')
+                elif x_pos.size < I['model_error_x'].size:
+                    I['model_error_x'] = I['model_error_x'][0:-1]# np.append(I['model_error_x'], I['model_error_x'][-1])
+                    print('adjust y')
+
+                print(x_pos.size , I['model_error_x'].size)
                 x_err[x_pos] = I['model_error_x']
                 model_error_x[xi]    = xr.DataArray(x_err,  dims=['eta'], coords={'eta': eta, 'x': xi } , name='model_error_x')
 
@@ -581,7 +591,7 @@ class generalized_Fourier(object):
         self.Hess, self.Hess_inv, self.b_hat = Hess, Hess_inv, b_hat
         del H_T_R_inv
 
-        
+
         return b_hat
 
     def model(self):

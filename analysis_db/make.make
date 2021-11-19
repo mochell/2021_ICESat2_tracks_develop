@@ -90,8 +90,15 @@ $(A01_targets) : $(scratch_folder)/$(batch_key)/processed_ATL03_%.h5 :
 					mv $(scratch_folder)/$(batch_key)/ATL03_$*.h5 $(scratch_folder)/$(batch_key)/processed_ATL03_$*.h5
 endif
 
-.PHONY : A01
+
+A02_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
+$(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json : $(analysisfolder)/A02b_WW3_hindcast_prior.py
+					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
+
+
+.PHONY : A01 A02
 A01 : $(A01_targets)
+A02 : $(A02_targets)
 
 #### section B ####
 # B01 				filters and regridds data, data is saves in binnned .h5 tables.
@@ -142,9 +149,10 @@ rm_bad_beams: #rm_B01_files
 					@echo "removing bad tracks in 5 sec"
 					sleep 5
 					rm -fv $(source_files)
-					#rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 					rm -fv -r $(plot_folders)
 					mv $(bad_tracks_folder)/$(batch_key)/*.json $(bad_tracks_folder)/$(batch_key)_deleted/
+
+#rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 
 
 # #beam_list := $(foreach i, $(beam_list_rar) , $(subst processed_ATL03_,,$(i))  )

@@ -1670,7 +1670,7 @@ def find_max_along_line(time_lin, f, data, f1, f2, f_delta=.05, spreed=10,  plot
         f_start=np.unravel_index(np.abs(a).argmin(),np.transpose(a.shape))[0]
 
     #print(f_start)
-    if mode is 'free_limits' or mode is 'lower_limit':
+    if mode == 'free_limits' or mode == 'lower_limit':
         if line_right[-1] > time_lin[-1]:
             print(' right line > time window')
             print( line_right[-1] ,time_lin[-1])

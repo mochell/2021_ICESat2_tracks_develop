@@ -30,7 +30,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -146,9 +146,10 @@ for k in all_beams:
     plt.show()
     #xlims = xlims[0],xlims[1]/3
 
+
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
-    #imp.reload(gFT)
+    imp.reload(gFT)
     S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, dy = dd_error_no_nans,  ov=None)
     GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
 
