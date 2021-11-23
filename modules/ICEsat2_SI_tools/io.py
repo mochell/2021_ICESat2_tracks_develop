@@ -99,9 +99,10 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
 
     # Along track distance from equator i think.
     along_track_distance=ATL03[beam+'/heights/dist_ph_along'][:]
+    across_track_distance=ATL03[beam+'/heights/dist_ph_across'][:]
     #dem_h = ATL03[beam+'/geophys_corr/dem_h'][:]
     #delta_time_dem_h = ATL03[beam+'/geophys_corr/delta_time'][:]
-    #segment_dist_x=ATL03[beam+'/geolocation/segment_dist_x'][:]
+    segment_dist_x=ATL03[beam+'/geolocation/segment_dist_x'][:]
 
     #  Nathan says it's the number of seconds since the GPS epoch on midnight Jan. 6, 1980
     delta_time  =   ATL03[beam+'/heights/delta_time'][:]
@@ -158,6 +159,7 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
     else:
         dF = pd.DataFrame({'heights':heights, 'lons':lons, 'lats':lats, 'signal_confidence':signal_confidence, 'mask_seaice':mask_seaice,
                        'delta_time_granule':delta_time_granule,'delta_time':delta_time, 'along_track_distance':along_track_distance,
+                        'across_track_distance':along_track_distance, 'segment_dist_x':segment_dist_x,
                         'year':year, 'month':month, 'day':day, 'hour':hour,'minute':minute , 'second':second})
 
         # Filter out high elevation values
