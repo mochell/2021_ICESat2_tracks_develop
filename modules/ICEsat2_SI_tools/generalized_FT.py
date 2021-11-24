@@ -180,6 +180,7 @@ class wavenumber_spectrogram_gFT(object):
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
                 return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, x.size
             y = DATA[x_mask]
+
             y_var = y.var()
 
             FT = generalized_Fourier(x, y, self.k)
@@ -205,10 +206,14 @@ class wavenumber_spectrogram_gFT(object):
             print( 'solve : ', time.perf_counter() - ta)
             ta = time.perf_counter()
 
-            x_pos               = (np.round( (x - stancil[0])/ self.dx -1 , 0) ).astype('int')
+            x_pos               = (np.round( (x - stancil[0])/ self.dx , 0) ).astype('int')
             eta                 =  np.arange(0, self.Lmeters + self.dx, self.dx) - self.Lmeters/2
             y_model_grid        = np.copy(eta) *np.nan
             y_model_grid[x_pos] = FT.model()
+
+            # save data on this grid as well
+            y_data_grid = np.copy(eta) *np.nan
+            y_data_grid[x_pos] = y
 
             inverse_stats = FT.get_stats(print_flag=False)
             # add fitting parameters of Prior to stats dict
@@ -235,7 +240,7 @@ class wavenumber_spectrogram_gFT(object):
                 print('---------------------------------')
 
 
-            return stancil[1], b_hat, inverse_stats, y_model_grid ,  x.size
+            return stancil[1], b_hat, inverse_stats, y_model_grid , y_data_grid,  x.size
 
         # % derive L2 stancil
         self.stancil_iter = spec.create_chunk_boundaries_unit_lengths(Lmeters, self.xlims, ov= self.ov, iter_flag=True)
@@ -262,6 +267,7 @@ class wavenumber_spectrogram_gFT(object):
 
         Pars            = dict()
         y_model         = dict()
+        y_data         = dict()
         N_per_stancil   = list()
 
         for I in Spec_returns:
@@ -270,13 +276,14 @@ class wavenumber_spectrogram_gFT(object):
             GFT_model[I[0]]     = (I[1][0:self.k.size],  I[1][self.k.size:])
             Z_model[I[0]]       = Z = complex_represenation(I[1], self.k.size, Lpoints )
 
-            PSD_data, PSD_model =  Z_to_power_gFT(Z, self.dk, I[4], Lpoints )
+            PSD_data, PSD_model =  Z_to_power_gFT(Z, self.dk, I[5], Lpoints )
             D_specs[I[0]]       = PSD_data
             D_specs_model[I[0]] = PSD_model
 
             Pars[I[0]]         = I[2]
             y_model[I[0]]       = I[3]
-            N_per_stancil.append(I[4])
+            y_data[I[0]]       = I[4]
+            N_per_stancil.append(I[5])
 
 
         self.N_per_stancil = N_per_stancil
@@ -320,12 +327,17 @@ class wavenumber_spectrogram_gFT(object):
         GFT_model_coeff_A = xr.concat(GFT_model_coeff_A.values(), dim='x').T#.to_dataset()
         GFT_model_coeff_B = xr.concat(GFT_model_coeff_B.values(), dim='x').T#.to_dataset()
 
-        # 4rd: model in real space
+        # 4th: model in real space
         y_model_eta =dict()
+        y_data_eta  =dict()
+
         eta   =  np.arange(0, self.Lmeters + self.dx, self.dx) - self.Lmeters/2
-        for xi,I in y_model.items():
-            y_model_eta[xi] = xr.DataArray(I,  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_model")
+        for xi in y_model.keys():
+            y_model_eta[xi] = xr.DataArray(y_model[xi],  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_model")
+            y_data_eta[xi]  = xr.DataArray(y_data[xi],  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_data")
+
         y_model_eta = xr.concat(y_model_eta.values(), dim='x').T#.to_dataset()
+        y_data_eta = xr.concat(y_data_eta.values(), dim='x').T#.to_dataset()
 
         # merge wavenumber datasets
         self.GG = xr.merge([G_LS_power, G_LS_power_model, G_model, GFT_model_coeff_A, GFT_model_coeff_B])
@@ -390,7 +402,7 @@ class wavenumber_spectrogram_gFT(object):
         self.GG['model_error_k_sin'] = xr.concat(model_error_k_sin.values(), dim='x').T
 
         model_error_x = xr.concat(model_error_x.values(), dim='x').T
-        GG_x= xr.merge([y_model_eta, model_error_x])
+        GG_x= xr.merge([y_model_eta, y_data_eta, model_error_x])
         #model_error_x
 
         return self.GG, GG_x, params_dataframe

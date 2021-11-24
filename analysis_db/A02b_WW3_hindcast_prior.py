@@ -32,6 +32,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190217194220_07840212_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 track_name_short = track_name[0:-16]
 
 
@@ -129,6 +130,8 @@ def sel_data(I, lon_range, lat_range, timestamp = None):
 #         plt.title( str(llon) +', ' +str(llat) )
 #         plt.show()
 # %
+
+
 try:
 
     Gww3 = xr.open_mfdataset(f_list)
@@ -224,6 +227,7 @@ try:
     ice_mask_prior = ice_mask.sel(latitude=G_prior.latitude)
     G_prior_masked = G_prior.where(~ice_mask_prior, np.nan)
 
+
     def test_nan_frac(imask):
         return ((~imask).sum()/imask.size).data < 0.3
 
@@ -232,6 +236,9 @@ try:
         lat_range_prior = lat_range_prior[0] + 0.5, lat_range_prior[1] + 0.5
         G_prior = sel_data(G_beam  , lon_range, lat_range_prior)
         ice_mask_prior = ice_mask.sel(latitude=G_prior.latitude)
+
+    G_prior_masked = G_prior.where(~ice_mask_prior, np.nan)
+
 
 
     # make pandas table with obs track end postitions

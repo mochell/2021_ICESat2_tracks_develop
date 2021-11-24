@@ -111,7 +111,7 @@ G_rar_fft= dict()
 Pars_optm = dict()
 imp.reload(spec)
 
-k=all_beams[2]
+k=all_beams[1]
 for k in all_beams:
 
     # -------------------------------  use gridded data
@@ -144,7 +144,8 @@ for k in all_beams:
     plt.plot(x_no_nans, dd_no_nans, 'black', label='slope (m/m)')
     plt.legend()
     plt.show()
-    #xlims = xlims[0],xlims[1]/3
+
+    #xlims = xlims[0], xlims[0] + (xlims[1] -xlims[0])/2
 
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
@@ -187,7 +188,7 @@ for k in all_beams:
         return y_g
 
 
-    plot_data_model=False
+    plot_data_model=True
     if plot_data_model:
         for i in np.arange(0,29,2):
             c1= 'blue'
@@ -202,11 +203,13 @@ for k in all_beams:
             F = M.figure_axis_xy(16, 2)
             eta  = GG_x.eta
 
+            # gFT model
             y_model = GG_x.y_model[:, i]
             plt.plot(eta +xi_1, y_model ,'-', c=c1, linewidth=0.8, alpha=1, zorder=12)
             y_model = GG_x.y_model[:, i+1]
             plt.plot(eta +xi_2, y_model,'-', c=c2, linewidth=0.8, alpha=1, zorder=12)
 
+            # iterpolated model in gaps
             FT = gFT.generalized_Fourier(eta +xi_1, None,GG.k )
             _ = FT.get_H()
             FT.b_hat=np.concatenate([ GGi.gFT_cos_coeff, GGi.gFT_sin_coeff ])
@@ -219,8 +222,14 @@ for k in all_beams:
 
 
             # oringial data
-            plt.plot(x, dd, '-', c='k',linewidth=2,  alpha =0.6, zorder=11)
+            #plt.plot(x, dd, '-', c='k',linewidth=3,  alpha =0.6, zorder=11)
             #plt.plot(x, dd, '.', c='k',markersize=3,  alpha =0.5)
+
+            # oringal data from model_output
+            y_data = GG_x.y_data[:, i]
+            plt.plot(eta +xi_1, y_data ,'-', c='k',linewidth=3,  alpha =0.3, zorder=11)
+            y_data = GG_x.y_data[:, i+1]
+            plt.plot(eta +xi_2, y_data,'-', c='k',linewidth=3,  alpha =0.3, zorder=11)
 
 
             #plt.plot(x[~dd_nans], dd_error[~dd_nans], '.', c='green',linewidth=1,  alpha =0.5)
@@ -234,6 +243,7 @@ for k in all_beams:
             plt.text(xi_1 + eta[0].data, ylims[-1], '  N='+ str(GG.sel(x=xi_1, method='nearest').N_per_stancil.data) + ' N/2M= '+ str(GG.sel(x=xi_1, method='nearest').N_per_stancil.data/2/kk.size) )
             plt.text(xi_2 + eta[0].data, ylims[-1], '  N='+ str(GG.sel(x=xi_2, method='nearest').N_per_stancil.data) + ' N/2M= '+ str(GG.sel(x=xi_2, method='nearest').N_per_stancil.data/2/kk.size) )
             plt.xlim(xi_1 + eta[0].data*1.2, xi_2 + eta[-1].data*1.2 )
+            #plt.xlim(xi_1, xi_2 )
 
 
             plt.ylim(ylims[0], ylims[-1])
