@@ -103,7 +103,15 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
     #dem_h = ATL03[beam+'/geophys_corr/dem_h'][:]
     #delta_time_dem_h = ATL03[beam+'/geophys_corr/delta_time'][:]
     segment_dist_x=ATL03[beam+'/geolocation/segment_dist_x'][:]
+    segment_length=ATL03[beam+'/geolocation/segment_length'][:]
+    segment_id = ATL03[beam+'/geolocation/segment_id'][:]
 
+    delta_time_geolocation  =   ATL03[beam+'/geolocation/delta_time'][:]
+    reference_photon_index=   ATL03[beam+'/geolocation/reference_photon_index'][:]
+    ph_index_beg=   ATL03[beam+'/geolocation/ph_index_beg'][:]
+
+
+    ph_id_count  =   ATL03[beam+'/heights/ph_id_count'][:]
     #  Nathan says it's the number of seconds since the GPS epoch on midnight Jan. 6, 1980
     delta_time  =   ATL03[beam+'/heights/delta_time'][:]
     #podppd_flag=ATL03[beam+'/geolocation/podppd_flag'][:]
@@ -159,17 +167,22 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
     else:
         dF = pd.DataFrame({'heights':heights, 'lons':lons, 'lats':lats, 'signal_confidence':signal_confidence, 'mask_seaice':mask_seaice,
                        'delta_time_granule':delta_time_granule,'delta_time':delta_time, 'along_track_distance':along_track_distance,
-                        'across_track_distance':along_track_distance, 'segment_dist_x':segment_dist_x,
+                        'across_track_distance':across_track_distance,'ph_id_count':ph_id_count,
                         'year':year, 'month':month, 'day':day, 'hour':hour,'minute':minute , 'second':second})
 
+
+        dF_seg = pd.DataFrame({'delta_time':delta_time_geolocation, 'segment_dist_x':segment_dist_x, 'segment_length':segment_length, 'segment_id':segment_id,
+                        'reference_photon_index':reference_photon_index, 'ph_index_beg':ph_index_beg})
         # Filter out high elevation values
+        print(segment_dist_x.shape)
         print(dF.shape)
+
         dF = dF[mask_total]
         print(dF.shape)
 
         # Reset row indexing
         dF=dF.reset_index(drop=True)
-        return dF
+        return dF, dF_seg
 
 def getATL03_height_correction(fileT, beam='gt1r'):
     """

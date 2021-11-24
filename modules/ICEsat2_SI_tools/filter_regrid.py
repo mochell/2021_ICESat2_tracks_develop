@@ -169,7 +169,7 @@ def weighted_mean(x_rel, y):
 
 
 # this function is applied to beam:
-def get_stencil_stats(T2, stencil_iter,  key , stancil_width ,  Nphoton_min = 5, map_func=None):
+def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nphoton_min = 5, map_func=None):
 
     """
     T2              pd.DAtaframe with beam data needs at least 'dist' and key
@@ -193,7 +193,7 @@ def get_stencil_stats(T2, stencil_iter,  key , stancil_width ,  Nphoton_min = 5,
     """
     import pandas as pd
 
-    x_data = np.array(T2['dist'])
+    x_data = np.array(T2[key_x_coord])
     y_data = np.array(T2[key])
     # apply this funcion to each stancil
     def calc_stencil_stats(istencil):
@@ -232,9 +232,9 @@ def get_stencil_stats(T2, stencil_iter,  key , stancil_width ,  Nphoton_min = 5,
     D_filt   = dict(map_func(calc_stencil_stats,stencil_iter))
 
     DF_filt         = pd.DataFrame.from_dict(D_filt, orient='index')
-    DF_filt         = DF_filt.rename(columns={key: key+'_median', 'dist': 'median_dist'})
+    DF_filt         = DF_filt.rename(columns={key: key+'_median', key_x_coord: 'median_'+key_x_coord})
     DF_filt[ key+  '_median'][ np.isnan(DF_filt[key+ '_std']) ] = np.nan # replace median calculation with nans
-    DF_filt['dist'] = DF_filt.index
+    DF_filt[key_x_coord] = DF_filt.index
     DF_filt         = DF_filt.reset_index()
 
     return DF_filt
