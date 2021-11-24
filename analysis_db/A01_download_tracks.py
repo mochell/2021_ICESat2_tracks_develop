@@ -31,7 +31,7 @@ region_a.earthdata_login('mhell','mhell@ucsd.edu')
 #region_a.visualize_spatial_extent()
 #region_a.order_vars.remove(all=True)
 
-ATL03_var_list = ['dem_h', 'delta_time', 'lon_ph', 'lat_ph', 'h_ph', 'dist_ph_along', 'atlas_sdp_gps_epoch', 'signal_conf_ph']
+ATL03_var_list = ['dem_h', 'delta_time', 'lon_ph', 'lat_ph', 'h_ph', 'dist_ph_along', 'dist_ph_across', 'segment_dist_x', 'atlas_sdp_gps_epoch', 'signal_conf_ph']
 region_a.order_vars.append(var_list=ATL03_var_list)#, keyword_list=['orbit_info'])
 region_a.order_vars.append( keyword_list=['orbit_info'])
 region_a.order_vars.wanted
