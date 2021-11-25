@@ -12,17 +12,30 @@ def correct_heights(T03, T03c, coord = 'delta_time'):
     return T03
 
 
-def track_type_beam(hdf5_file):
+# def track_type_beam(hdf5_file):
+#     """
+#     Returns True if track is acending
+#     hdf5_file is a hdf5 beam file
+#
+#     sc_orient - spacecraft orientation
+#     This parameter tracks the spacecraft orientation between ‘forward’ and ‘backward’ orientations, to allow mapping between ATLAS hardware and the beam orientation on the ground. Forward == 1; backward == 0; transition ==2.
+#
+#
+#     """
+#     return hdf5_file['orbit_info/sc_orient'][:][0] ==0
+
+def track_pole_ward_file(hdf5_file):
     """
-    Returns True if track is acending
-    hdf5_file is a hdf5 beam file
-
-    sc_orient - spacecraft orientation
-    This parameter tracks the spacecraft orientation between ‘forward’ and ‘backward’ orientations, to allow mapping between ATLAS hardware and the beam orientation on the ground. Forward == 1; backward == 0; transition ==2.
-
-
+    Returns true if track goes poleward
+    hdf5_file is a an HFD5 object in read mode
     """
-    return hdf5_file['orbit_info/sc_orient'][:][0] ==0
+
+    T_lat = hdf5_file['gt1r/geolocation/reference_photon_lat'][:]
+    T_time = hdf5_file['gt1r/geolocation/delta_time'][:]
+    #return ( T_lat[T_time.argmax()] - T_lat[T_time.argmin()] ) < 0
+    print('1st lat =' + str(abs(T_lat[T_time.argmin()])) , ';last lat =' + str(abs(T_lat[T_time.argmax()])) )
+    return abs(T_lat[T_time.argmax()]) > abs(T_lat[T_time.argmin()])
+
 
 
 def track_type(T):
@@ -33,6 +46,70 @@ def track_type(T):
     #T = B[k]
     #T = B[beams_list[0]]
     return (T['lats'].iloc[T['delta_time'].argmax()] - T['lats'].iloc[T['delta_time'].argmin()] ) < 0
+
+def lat_min_max_extended(B, beams_list, accent=None):
+    """
+    defines common boundaries for beams_list in B
+    iunputs:
+    beams_list list of concidered beams
+    B is dict of Pandas tables with beams
+    accent if track is accending or decending. if None, this will try to use the track time to get this
+
+    returns:
+    min_lat, max_lat, accent   min and max latitudes of the beams, (True/False) True if the track is accending
+    """
+    #B, beams_list = B , high_beams
+    accent = regrid.track_type( B[beams_list[0]] ) if accent is None else accent
+
+    if B[beams_list[0]]['lats'].iloc[0] < 0:
+        hemis = 'SH'
+    else:
+        hemis = 'NH'
+
+    track_pos_start, track_pos_end= list(), list()
+    for k in beams_list:
+        if (hemis == 'SH'):
+            track_pos_start.append( B[k].loc[B[k]['lats'].argmax()][ ['lats', 'lons']] )
+            track_pos_end.append( B[k].loc[B[k]['lats'].argmin()][ ['lats', 'lons']] )
+        else:
+            track_pos_start.append( B[k].loc[B[k]['lats'].argmin()][ ['lats', 'lons']] )
+            track_pos_end.append( B[k].loc[B[k]['lats'].argmax()][ ['lats', 'lons']] )
+
+
+    track_lat_start, track_lat_end = list(), list()
+    track_lon_start, track_lon_end = list(), list()
+
+    for ll in track_pos_start:
+        track_lat_start.append(ll['lats'])
+        track_lon_start.append(ll['lons'])
+
+
+    for ll in track_pos_end:
+        track_lat_end.append(ll['lats'])
+        track_lon_end.append(ll['lons'])
+
+        # track_lat_start.append( B[k]['lats'].min() )
+        # track_lat_end.append( B[k]['lats'].max() )
+        #
+        # track_lon_left.append(B[k]['lons'].min())
+        # track_lon_right.append(B[k]['lons'].max())
+
+    if accent:
+        track_lon_start
+    #track_lat_start.min(), track_lon_right.max()
+
+    if (hemis == 'SH') & accent:
+        return [max(track_lat_start) , min(track_lat_end)], [max(track_lon_start), min(track_lon_end)], accent # accenting SH mean start is in the top right
+    elif (hemis == 'SH') & ~accent:
+        return [max(track_lat_start) , min(track_lat_end)], [min(track_lon_start), max(track_lon_end)], accent # decent SH mean start is in the top left
+    elif (hemis == 'NH') & accent:
+        return [min(track_lat_start) , max(track_lat_end)], [min(track_lon_start), max(track_lon_end)], accent # accent NH mean start is in the lower left
+    elif (hemis == 'NH') & ~accent:
+        return [min(track_lat_start) , max(track_lat_end)], [max(track_lon_start), min(track_lon_end)], accent # decent NH mean start is in the lower right
+    else:
+        raise ValueError('some defintions went wrong')
+
+
 
 def lat_min_max(B, beams_list, accent=None):
     """

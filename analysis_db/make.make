@@ -121,7 +121,7 @@ B01 : make_folder $(B01_targets)
 B02 : $(B02_targets)
 
 $(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_folder)/$(batch_key)/processed_ATL03_%.h5
-					python $(analysisfolder)/B01_filter_regrid.py $* $(batch_key) $(test_flag) > log/B01/$*.txt 2>&1
+					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(test_flag) > log/B01/$*.txt 2>&1
 
 $(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 $(analysisfolder)/B02_make_spectra.py
 					sleep $${RANDOM:0:2}s
