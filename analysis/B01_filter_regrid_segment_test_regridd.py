@@ -36,7 +36,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 
 
@@ -184,7 +184,193 @@ for k,I in SEG.items():
     total_segment_dist_x_min.append( I['segment_dist_x'].min() )
 total_segment_dist_x_min = min(total_segment_dist_x_min)
 
+
+
+#
+#
+# plt.plot( np.diff( T2.index), '.', markersize = 0.3 )
+#
+# plt.plot( np.diff( T.index), '.', markersize = 0.3 )
+#
+# T3 = T2
+# plt.plot( np.diff( T3.index), '.', markersize = 0.3 )
+#
+# plt.plot(T['delta_time'] ,  T.index , '.', markersize = 0.3 )
+T = B['gt1r']
+seg = SEG['gt1r']
+T
+#T = T.sort_values('lats').reset_index(drop=True)
+#T.sort_values('lats')
+# find positions where segmetn length is reset
+time_ticks = np.insert(np.diff(T['along_track_distance']), 0,0 )
+
+#plt.plot(T['along_track_distance'][0:500], '.')
+
+Ti = T[-500:]
+plt.plot(Ti['along_track_distance'], '.')
+plt.plot(np.diff(Ti['along_track_distance']))
+
+
+T
 # %%
+#Ti = T[10200:10250]
+Ti = T[20000:20500]
+#Ti = T[20000:20550]
+
+#plt.plot(Ti['delta_time'], Ti['along_track_distance'], '.')
+#plt.plot(Ti['delta_time'], np.insert(np.diff(Ti['along_track_distance']), 0,0 ) )
+delta_onehalf =  seg['delta_time'].diff()/2
+delta_onehalf.iloc[0] = delta_onehalf.iloc[1]
+seg['delta_half_time']= seg['delta_time']  - delta_onehalf #+ 5e-5
+#seg['delta_half_time']= seg['delta_time']  - seg['delta_time'].diff().mean()/2# - 1e-5
+#seg['segment_length']
+segi  =seg[ (Ti['delta_time'].min() - 2 * delta_onehalf <= seg['delta_time'] ) & ( Ti['delta_time'].max() + 3 * delta_onehalf >= seg['delta_time'] ) ]
+#segi.shape
+
+#Ti['ph_id_count']
+#segi['ph_index_beg'] + segi['reference_photon_index'] -1
+
+# %%
+
+# %
+plt.plot(Ti['delta_time'], Ti['delta_time'] *0, '.')
+
+plt.plot( segi['delta_time'], segi['delta_time'] *0    , '.r' )
+plt.plot(Ti['delta_time'], Ti['along_track_distance'], '.')
+
+# cutting using delta time from segments
+for i in segi['delta_time']:
+    plt.gca().axvline(i, linewidth = 0.5, color= 'black')
+plt.plot(Ti['delta_time'], np.digitize(Ti['delta_time'], segi['delta_time'] ) , '.k')
+
+# cutting usind delta time from segments shifted
+for i in segi['delta_half_time']:
+    plt.gca().axvline(i, linewidth = 0.5, color= 'blue')
+
+plt.xlabel('delta_time')
+#np.digitize(T['delta_time'], T[ time_ticks  < - 10 ]['delta_time'])
+
+# %%
+
+plt.plot(Ti['delta_time'], Ti['delta_time'] *0, '.')
+
+plt.plot( segi['delta_time'], segi['delta_time'] *0    , '.r' )
+plt.plot(Ti['delta_time'], Ti['along_track_distance'], '.')
+
+# cutting usind delta time from segments shifted
+for i in segi['delta_half_time']:
+    plt.gca().axvline(i, linewidth = 0.5, color= 'blue')
+
+segi['delta_half_time'].max() < Ti['delta_time'].max()
+
+Ti2 = Ti[ (Ti['delta_time'] > segi['delta_half_time'].iloc[0]) & (Ti['delta_time'] < segi['delta_half_time'].iloc[-1])]
+bin_labels = np.digitize( Ti2['delta_time'], segi['delta_half_time'], right = True )
+plt.plot(Ti['delta_time'], bin_labels +5 , '.b')
+
+Ti2['delta_time0'] = Ti2['delta_time'] - Ti2['delta_time'].min()
+Ti2['lats0'] = Ti2['lats'] - Ti2['lats'].max()
+for i in np.arange(bin_labels.max()):
+    print( Ti2[[ 'along_track_distance', 'delta_time0', 'lats0']][bin_labels ==i] )
+
+#list(Ti2['delta_time'])
+#bin_labels.min()
+#bin_labels.max()
+repeats.shape
+
+SS = segi['segment_dist_x']
+repeats = np.bincount(bin_labels, minlength =SS.shape[0])
+
+# check if repeats sumup
+if repeats.sum() != Ti2.shape[0]:
+    print('repeats do not sum up')
+
+SS = SS.repeat(repeats)
+SS.index = Ti2.index
+
+Ti2['x'] =  SS + Ti2['along_track_distance']
+#list(SS.repeat(repeats).reset_index(drop=True)
+
+#segi[segi['ph_index_beg'] != 0]['seg_ID_local'] = list(set(bin_labels))
+
+#Tg= Ti.groupby(by= 'seg_ID_local', axis=0, group_keys=seg['delta_time'] )
+
+#Tii, segii = Ti.loc[Tg.groups[1]], segi
+
+
+# %%
+
+
+
+# %%
+
+#T2 = Tg.apply(add_seg_length, segi)
+
+#list(T2['x']  - T2['x'].iloc[0] )
+plt.plot(Ti2['delta_time'],  Ti2['x']     , 'b.')
+plt.xlabel('delta_time')
+#np.digitize(T['delta_time'], T[ time_ticks  < - 10 ]['delta_time'])
+#x_interp = np.interp(Ti2['delta_time'],  segi['delta_time'], segi['segment_dist_x'] )
+
+plt.plot( segi['delta_half_time'], segi['segment_dist_x'] + segi['segment_length'] , 'g-' )
+# plt.plot( Ti2['delta_time'], x_interp  - x_interp[0], '.' )
+
+
+def find_anomalie_photons(Ti2, segi):
+    x_interp = np.interp(Ti2['delta_time'],  segi['delta_half_time'], segi['segment_dist_x'] + segi['segment_length'])
+
+    diff_x  = x_interp -  Ti2['x']
+    diff_x = abs(diff_x-diff_x.mean())
+    return diff_x > 3 *diff_x.std(), x_interp
+
+fail_mask, x_interp = find_anomalie_photons(Ti2, segi)
+
+#Ti3= Ti2[~fail_mask]
+
+Ti2['x'][fail_mask] = x_interp[fail_mask]
+
+plt.plot(Ti2['delta_time'],  Ti2['x']    , 'r.')
+
+plt.plot(Ti2['delta_time'][fail_mask],  x_interp[fail_mask]    , 'g.', markersize= 20)
+#plt.plot(Ti2['delta_time'],  x_interp   , 'g.')
+
+
+
+
+# %%
+# def make_x_coorindate(k):
+#
+#     """
+#     Returns the "true" along track coordindate but finding the correpsonding segment length
+#     also adds the segment_ID to the main table T
+#     """
+#     print(k, ' make coodindate')
+#     T, seg= B[k], SEG[k]
+#
+#     # make sure data is strictly ordered by delta_time
+#     T = T.sort_values('delta_time').reset_index(drop=True)
+#     # find positions where segmetn length is reset
+#     time_ticks = np.insert(np.diff(T['along_track_distance']), 0,0 )
+#     # define separators for photons
+#     T['seg_ID_local'] = np.digitize(T['delta_time'], T[ time_ticks  < - 10 ]['delta_time'])
+#     # group data by this separation
+#     Tg= T.groupby(by= 'seg_ID_local', axis=0, group_keys=seg['delta_time'] )
+#
+#     def add_seg_length(Ti, seg):
+#         try:
+#             seg_data    = seg[seg['delta_time'] < Ti['delta_time'].iloc[0]].iloc[-1]
+#             seg_l       = seg_data['segment_dist_x'] - total_segment_dist_x_min
+#             seg_ID      = seg_data['segment_id']
+#         except:
+#             seg_l = np.nan
+#             seg_ID =  np.nan
+#
+#         Ti['x'] = seg_l.astype('float64') + Ti['along_track_distance'].astype('float64')
+#         Ti['seg_ID'] = seg_ID
+#         return Ti
+
+# # apply segment addition and return
+# return k, Tg.apply(add_seg_length, seg)
+
 
 def make_x_coorindate(k):
 
@@ -245,6 +431,7 @@ def make_x_coorindate(k):
     return k, T2
 
 
+#make_x_coorindate(k)
 
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(make_x_coorindate, all_beams)  )
@@ -313,12 +500,17 @@ del B1save
 # %%
 F = M.figure_axis_xy(4, 3, view_scale = 0.7)
 
+
 for k,I in B.items():
-    plt.plot( I['lats'] ,  I['x']  , '.' , markersize = 0.2)
-    #plt.xlim(3e6, 3.25e6)
-plt.xlabel('lats')
-plt.ylabel('x')
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_lat_x')
+    lmask = (I['lats'] > -68.1) & (I['lats'] < -67.7)
+    plt.plot(I['x'][lmask] - I['x'].iloc[0]  ,  I['lats'][lmask]   ,'.' , markersize = 0.2)
+
+
+#plt.xlim(, -67.8)
+
+plt.xlabel('x')
+plt.ylabel('lat')
+#F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_lat_x')
 
 # %%
 F = M.figure_axis_xy(4, 3, view_scale = 0.7)
@@ -472,17 +664,17 @@ for k,I in B3.items():
     I = I.rename(columns={'across_track_distance': 'y'})
 
     # find starting and end position
-    Di_s  = dict(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean()[['lons', 'lats', 'segment_id', 'delta_time']])
+    Di_s  = dict(I[I['seg_ID'] == I['seg_ID'].iloc[0] ].mean()[['lons', 'lats', 'seg_ID', 'delta_time']])
     Di_s['across_track_distance_0'] =track_dist_bounds[0]
 
-    Di_e  = dict(I[I['segment_id'] == I['segment_id'].iloc[-1] ].mean()[['lons', 'lats', 'segment_id', 'delta_time']])
+    Di_e  = dict(I[I['seg_ID'] == I['seg_ID'].iloc[-1] ].mean()[['lons', 'lats', 'seg_ID', 'delta_time']])
     Di_e['across_track_distance_0'] =track_dist_bounds[0]
 
     D_info[k] = {'start':Di_s,  'end':Di_e , 'poleward': str(track_poleward) }
 
     # reorder indexes
     column_names = ['index', 'x', 'y', 'median_x', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
-    vars_ad = set(list(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean().index)) - set(column_names)
+    vars_ad = set(list(I[I['seg_ID'] == I['seg_ID'].iloc[0] ].mean().index)) - set(column_names)
     I = I.reindex(columns=column_names  + list(vars_ad))
 
     B3[k] = I

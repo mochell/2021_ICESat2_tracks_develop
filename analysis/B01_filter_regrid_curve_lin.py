@@ -35,17 +35,10 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
-
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
-
+#track_name, batch_key, test_flag = '20190208104534_06410210_004_01', 'SH_batch02', False
 
 
-# equatorward track
-#track_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
 
-# poleward track
-#track_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
-#
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -57,7 +50,7 @@ load_file   = load_path + 'processed_'+ATlevel+'_'+track_name+'.h5'
 
 save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
-plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/B01/'
+plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/B_ov/'
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
 
@@ -71,27 +64,25 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers    = 4        # number of threads for parallel processing
-Nworkers_process = 3  # number of threads for parallel processing
+Nworkers    = 3         # number of threads for parallel processing
+Nworkers_process    =3         # number of threads for parallel processing
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']
-high_beams  = mconfig['beams']['high_beams']
+# high_beams  = mconfig['beams']['high_beams']
 # low_beams   = mconfig['beams']['low_beams']
 
 f         = h5py.File(load_file, 'r')
 beams     = [b if b in f.keys() else None for b in all_beams]
-imp.reload(regrid)
-track_poleward    = regrid.track_pole_ward_file(f)
-print('poleward track is ' , track_poleward)
+accent    = regrid.track_type_beam(f)
+
+print('accent is ' , accent)
 # Load fata and apply height corrections
 # This needs version 2 of the ALT 03 dataset
 
-# ATL03       =   h5py.File(load_file, 'r')
+#ATL03       =   h5py.File(load_file, 'r')
 
 #ATL03[k+'/heights/ph_id_channel'][0:100]
-#accent = regrid.track_type( B[beams_list[0]] )
-
 
 # %%
 hist    = 'Beam stats'
@@ -128,7 +119,7 @@ for k in beams:
 
     ### cut data at the rear that has too much variance
     # cut last segments of data until variance is similar
-    rear_mask = np.array(Tsel2.index) > -1 # True
+    rear_mask = np.array(Tsel2.index) > -1
     shape_old = Tsel2.shape
     N_seg= 20
 
@@ -142,21 +133,12 @@ for k in beams:
             return dd[sti[0]: sti[1]].var()
 
         var_list = np.array(list(map(get_var, stencil_iter)))
-        #print(var_list)
 
-        if track_poleward:
-            if var_list[0:3].mean()*10 < var_list[-1]:
-                #print('cut last '+ str(100/N_seg) +'% of data')
-                rear_mask[int(nsize* (N_seg-1) / N_seg):] = False
-            else:
-                cut_flag =  False
+        if var_list[0:3].mean()*10 < var_list[-1]:
+            #print('cut last '+ str(100/N_seg) +'% of data')
+            rear_mask[int(nsize* (N_seg-1) / N_seg):] = False
         else:
-            if var_list[-3:].mean()*10 < var_list[0]:
-                #print('cut last '+ str(100/N_seg) +'% of data')
-                #int(nsize* (N_seg-1) / N_seg)
-                rear_mask[: int(nsize* 1 / N_seg)] = False
-            else:
-                cut_flag =  False
+            cut_flag =  False
 
 
     Tsel2['process_mask'] = rear_mask
@@ -175,107 +157,123 @@ print('done with 1st loop')
 
 # %% define x- coodindate
 
-# find earliest segment length that is used.
-# this is on the equatorward side for poleward track, or
-# on the poleward side for equatorward tracks.
-
+# find most equator ward segment length
 total_segment_dist_x_min= list()
 for k,I in SEG.items():
     total_segment_dist_x_min.append( I['segment_dist_x'].min() )
 total_segment_dist_x_min = min(total_segment_dist_x_min)
 
-# %%
+# T = B['gt1r']
+# seg = SEG['gt1r']
 
-def make_x_coorindate(k):
+def make_x_coorindate(T, seg):
 
     """
     Returns the "true" along track coordindate but finding the correpsonding segment length
     also adds the segment_ID to the main table T
     """
-    print(k, ' make coodindate')
-    T, seg= B[k], SEG[k]
 
-    # make sure data is strictly ordered by delta_time
-    T = T.sort_values('delta_time').reset_index(drop=True)
+    time_ticks = np.insert(np.diff(T['along_track_distance']), 0,0 )
+    T['seg_ID_local'] = np.digitize(T['delta_time'], T[ time_ticks  < - 10 ]['delta_time'])
+    Tg= T.groupby(by= 'seg_ID_local', axis=0, group_keys=seg['delta_time'] )
 
-    # find positions where segmetn length is reset
-    # shifts segment length postions in time
-    delta_onehalf =  seg['delta_time'].diff()/2
-    delta_onehalf.iloc[0] = delta_onehalf.iloc[1]
-    seg['delta_half_time']= seg['delta_time']  - delta_onehalf - 1e-5
+    def add_seg_length(Ti, seg):
+        try:
+            seg_data = seg[seg['delta_time'] < Ti['delta_time'].iloc[0]].iloc[-1]
+            seg_l = seg_data['segment_dist_x'] - total_segment_dist_x_min
+            seg_ID = seg_data['segment_id']
+        except:
+            seg_l = np.nan
+            seg_ID =  np.nan
 
-    # cur phontos that are not in segmentns
-    T2 = T[ (T['delta_time'] > seg['delta_half_time'].iloc[0]) & (T['delta_time'] < seg['delta_half_time'].iloc[-1])]
-    bin_labels = np.digitize( T2['delta_time'], seg['delta_half_time'], right = True )
+        Ti['x'] = seg_l.astype('float64') + Ti['along_track_distance'].astype('float64')
+        Ti['seg_ID'] = seg_ID
+        return Ti
 
-    # select relevant data
-    SS = seg['segment_dist_x']
-    SS_sid = seg['segment_id']
+    return Tg.apply(add_seg_length, seg)
 
-    repeats = np.bincount(bin_labels, minlength =SS.shape[0])
-
-    # check if repeats sumup
-    if repeats.sum() != T2.shape[0]:
-        print('repeats do not sum up')
-
-    # repeat  segment dat accoridng to photons
-    SS = SS.repeat(repeats)
-    SS.index = T2.index
-    SS_sid = SS_sid.repeat(repeats)
-    SS_sid.index = T2.index
-    # define new coordinate
-    T2['x'] =  SS + T2['along_track_distance']
-    T2['segment_id'] =  SS_sid
-
-    # find bad photons
-    def find_anomalie_photons(Ti2, segi):
-        x_interp = np.interp(Ti2['delta_time'],  segi['delta_time'], segi['segment_dist_x'] )
-
-        diff_x  = x_interp -  Ti2['x']
-        diff_x = abs(diff_x-diff_x.mean())
-        return diff_x > 3 *diff_x.std() , x_interp
-
-    fail_mask, x_interp = find_anomalie_photons(T2, seg)
-
-    print('weird photon fraction:' ,  sum(fail_mask)/ fail_mask.size)
-    # aply fail mask
-    #T2= T2[~fail_mask]
-    T2['x'][fail_mask] = x_interp[fail_mask]
-
-    return k, T2
-
-
-
-with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
-    A = list( executor.map(make_x_coorindate, all_beams)  )
-
-# %%
-B= dict()
-for I in A: # collect returns from from mapping
-    k               = I[0]
-    B[ k ]          = I[1][::-1]
-
-    if ~track_poleward: # invert x- coordinate if there is an equatorward track
-        B[k]            = B[k].reset_index(drop=True)
-        B[k]['x_true']  = B[k]['x']
-        B[k]['x']       = abs(B[k]['x'] - B[k]['x'].iloc[0])
-    else:
-        B[k]['x_true']  = B[k]['x']
-
+for k in B.keys():
+    print(k)
+    B[k] = make_x_coorindate(B[k], SEG[k])
 
 dist_list   = np.array([np.nan, np.nan])
 for k in B.keys():
-    dist_list = np.vstack([ dist_list, [  B[k]['x'].iloc[0] , B[k]['x'].iloc[-1] ]  ])
+    dist_list = np.vstack([ dist_list, [B[k]['x'].iloc[0] , B[k]['x'].iloc[-1] ]  ])
 
 del A
 
+
+# %%
 # define latitude limits
-# lat_lims, lon_lims, accent = lat_min_max(B, all_beams, accent = None)
+# def lat_min_max(B, beams_list, accent=None):
+#     """
+#     defines common boundaries for beams_list in B
+#     iunputs:
+#     beams_list list of concidered beams
+#     B is dict of Pandas tables with beams
+#     accent if track is accending or decending. if None, this will try to use the track time to get this
+#
+#     returns:
+#     min_lat, max_lat, accent   min and max latitudes of the beams, (True/False) True if the track is accending
+#     """
+#     #B, beams_list = B , high_beams
+#     accent = track_type( B[beams_list[0]] ) if accent is None else accent
+#
+#     if B[beams_list[0]]['lats'].iloc[0] < 0:
+#         hemis = 'SH'
+#     else:
+#         hemis = 'NH'
+#
+#     track_pos_start, track_pos_end= list(), list()
+#     for k in beams_list:
+#         if (hemis == 'SH'):
+#             track_pos_start.append( B[k].loc[B[k]['lats'].argmax()][ ['lats', 'lons']] )
+#             track_pos_end.append( B[k].loc[B[k]['lats'].argmin()][ ['lats', 'lons']] )
+#         else:
+#             track_pos_start.append( B[k].loc[B[k]['lats'].argmin()][ ['lats', 'lons']] )
+#             track_pos_end.append( B[k].loc[B[k]['lats'].argmax()][ ['lats', 'lons']] )
+#
+#
+#     track_lat_start, track_lat_end = list(), list()
+#     track_lon_start, track_lon_end = list(), list()
+#
+#     for ll in track_pos_start:
+#         track_lat_start.append(ll['lats'])
+#         track_lon_start.append(ll['lons'])
+#
+#
+#     for ll in track_pos_end:
+#         track_lat_end.append(ll['lats'])
+#         track_lon_end.append(ll['lons'])
+#
+#         # track_lat_start.append( B[k]['lats'].min() )
+#         # track_lat_end.append( B[k]['lats'].max() )
+#         #
+#         # track_lon_left.append(B[k]['lons'].min())
+#         # track_lon_right.append(B[k]['lons'].max())
+#
+#     if accent:
+#         track_lon_start
+#     #track_lat_start.min(), track_lon_right.max()
+#
+#     if (hemis == 'SH') & accent:
+#         return [max(track_lat_start) , min(track_lat_end)], [max(track_lon_start), min(track_lon_end)], accent # accenting SH mean start is in the top right
+#     elif (hemis == 'SH') & ~accent:
+#         return [max(track_lat_start) , min(track_lat_end)], [min(track_lon_start), max(track_lon_end)], accent # decent SH mean start is in the top left
+#     elif (hemis == 'NH') & accent:
+#         return [min(track_lat_start) , max(track_lat_end)], [min(track_lon_start), max(track_lon_end)], accent # accent NH mean start is in the lower left
+#     elif (hemis == 'NH') & ~accent:
+#         return [min(track_lat_start) , max(track_lat_end)], [max(track_lon_start), min(track_lon_end)], accent # decent NH mean start is in the lower right
+#     else:
+#         raise ValueError('some defintions went wrong')
+#
+#
+# lat_lims, lon_lims, accent = lat_min_max(B, all_beams, accent = accent)
 
 
-# %% test ave photon density abnd quit if necessary
+# %% test ave photon density
 track_dist_bounds   = [ np.nanmin(dist_list[:, 0], 0) , np.nanmax(dist_list[:, 1], 0) ]
-length_meter        = abs(track_dist_bounds[1] - track_dist_bounds[0])
+length_meter        = track_dist_bounds[1] - track_dist_bounds[0]
 #length_meter       = (abs(lat_lims[1])  - abs(lat_lims[0])) * 110e3
 p_densities_r       = list()
 p_densities_l       = list()
@@ -309,36 +307,6 @@ del B1save
 #     plt.plot( I['x']  , I['across_track_distance'], '.' , markersize = 0.3)
 #     #plt.xlim(3e6, 3.25e6)
 
-
-# %%
-F = M.figure_axis_xy(4, 3, view_scale = 0.7)
-
-for k,I in B.items():
-    plt.plot( I['lats'] ,  I['x']  , '.' , markersize = 0.2)
-    #plt.xlim(3e6, 3.25e6)
-plt.xlabel('lats')
-plt.ylabel('x')
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_lat_x')
-
-# %%
-F = M.figure_axis_xy(4, 3, view_scale = 0.7)
-for k,I in B.items():
-    plt.plot( I['delta_time']  , I['lats'], '.' , markersize = 0.3)
-
-
-plt.xlabel('delta time')
-plt.ylabel('lat')
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_time_lat')
-# %%
-F = M.figure_axis_xy(4, 3, view_scale = 0.7)
-
-for k,I in B.items():
-    plt.plot( I['delta_time']  , I['x'], '.' , markersize = 0.3)
-
-plt.xlabel('delta time')
-plt.ylabel('x')
-
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_time_x')
 
 # %%
 ##### 1.) derive common axis for beams and filter out low density area at the beginning
@@ -410,32 +378,17 @@ track_dist_bounds     = [ np.nanmin(dist_list[:, 0], 0) , np.nanmax(dist_list[:,
 #ts_s = np.copy(track_dist_bounds)
 
 # %%
-xscale= 1e3
-F= M.figure_axis_xy(5, 3, view_scale= 0.6)
+F= M.figure_axis_xy(5, 3, view_scale= 0.5)
 for k,I in B2.items():
-    plt.plot( I['x']/xscale  , I['across_track_distance']/xscale , '.' , markersize = 0.3)
+    plt.plot( I['x']  , I['across_track_distance'] , '.' , markersize = 0.3)
     #plt.xlim(3e6, 3.25e6)
 
-
-for k in high_beams:
-
-    Ii = B2[k].iloc[0]
-    plt.text(Ii.x/xscale+ 5, Ii.across_track_distance/xscale , str(Ii[[ 'lats', 'lons'] ]).split('Name')[0] )
-
-    Ii = B2[k].iloc[-1]
-    plt.text(Ii.x/xscale+ 5, Ii.across_track_distance/xscale , str(Ii[[ 'lats', 'lons'] ]).split('Name')[0], ha ='right' )
-
-F.ax.axvline(track_dist_bounds[0]/xscale, color='gray', zorder= 2)
-F.ax.axvline(track_dist_bounds[1]/xscale, color='gray', zorder= 2)
-F.ax.axhline(0, color='gray', zorder= 2)
-
-plt.title('B01 filter and regrid | ' + track_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
-plt.xlabel('along track distance (km)')
-plt.ylabel('across track distance (km)')
-
-F.save_light(path= plot_path +'../', name='B01_ALT03_'+track_name+'_tracks_all')
-
+F.ax.axvline(track_dist_bounds[0], color='k')
+F.ax.axvline(track_dist_bounds[1], color='k')
+plt.title('A01 filter & regrid | ' + track_name)
+F.save_light(path= plot_path, name='ALT03_track_all')
 # %%
+
 # for testing
 #track_dist_bounds[1]  = track_dist_bounds[0] + (track_dist_bounds[1] - track_dist_bounds[0])/20
 #track_dist_bounds = ts_s[0] ,ts_s[0] + (ts_s[1] - ts_s[0]) /6
@@ -458,9 +411,9 @@ def regridding_wrapper(I):
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     B3 = dict( executor.map(regridding_wrapper, B2.items() )  )
 
-# %% ---define start and end position and same in Json file
+# %% ---------------------------- define start and end position and same in Json file
 
-#I = B3['gt2l'].copy()
+I = B3['gt2l'].copy()
 D_info = dict()
 for k,I in B3.items():
 
@@ -468,26 +421,27 @@ for k,I in B3.items():
     I['median_dist']   = I['median_x'] - track_dist_bounds[0] #- Lmeter/2
     I['dist']          = I['x']        - track_dist_bounds[0] #- Lmeter/2
     #I['index']      = I['x']
-    # rename y coordinate
+    # rename y cooridinate
     I = I.rename(columns={'across_track_distance': 'y'})
 
     # find starting and end position
-    Di_s  = dict(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean()[['lons', 'lats', 'segment_id', 'delta_time']])
+    Di_s  = dict(I[I['seg_ID'] == I['seg_ID'].iloc[0] ].mean()[['lons', 'lats', 'seg_ID', 'delta_time']])
     Di_s['across_track_distance_0'] =track_dist_bounds[0]
 
-    Di_e  = dict(I[I['segment_id'] == I['segment_id'].iloc[-1] ].mean()[['lons', 'lats', 'segment_id', 'delta_time']])
+    Di_e  = dict(I[I['seg_ID'] == I['seg_ID'].iloc[-1] ].mean()[['lons', 'lats', 'seg_ID', 'delta_time']])
     Di_e['across_track_distance_0'] =track_dist_bounds[0]
 
-    D_info[k] = {'start':Di_s,  'end':Di_e , 'poleward': str(track_poleward) }
+    D_info[k] = {'start':Di_s,  'end':Di_e  }
 
-    # reorder indexes
+    # rerder indexes
     column_names = ['index', 'x', 'y', 'median_x', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
-    vars_ad = set(list(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean().index)) - set(column_names)
+    vars_ad = set(list(I[I['seg_ID'] == I['seg_ID'].iloc[0] ].mean().index)) - set(column_names)
     I = I.reindex(columns=column_names  + list(vars_ad))
 
     B3[k] = I
 
 # save Json
+
 MT.json_save(track_name + '_B01_stats',save_path, D_info, verbose= True )
 
 # %% saving data
@@ -526,9 +480,9 @@ if plot_flag:
         # plt.plot(ALT07['time']['delta_time'] , ALT07['heights']['height_segment_height'] , 'r.', markersize=0.8, alpha = 1, label ='ALT07 seg. heights')
         plt.legend(loc=1)
         plt.xlim(ll, ll+dl)
-        plt.ylim(-4, 4)
+        plt.ylim(-6, 6)
 
         plt.xlabel('Meters from the Sea Ice Edge')
         plt.ylabel('Height Anomalie (meters)')
         F.ax.axhline(y =-1.8, color='black', linewidth=0.5)
-        F.save_light(path= plot_path, name='ALT03_filt_compare'+ str(ll))
+        #F.save_light(path= plot_path, name='ALT03_filt_compare'+ str(ll))

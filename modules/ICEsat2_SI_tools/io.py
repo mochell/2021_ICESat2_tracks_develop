@@ -181,7 +181,7 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
         print(dF.shape)
 
         # Reset row indexing
-        dF=dF.reset_index(drop=True)
+        dF=dF#.reset_index(drop=True)
         return dF, dF_seg
 
 def getATL03_height_correction(fileT, beam='gt1r'):
