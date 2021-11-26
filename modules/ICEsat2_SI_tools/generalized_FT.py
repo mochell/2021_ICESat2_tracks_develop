@@ -7,7 +7,7 @@ import spectral_estimates as spec
 
 
 class wavenumber_spectrogram_gFT(object):
-    def __init__(self, x, data, L, dx, wavenumber, dy = None, ov=None):
+    def __init__(self, x, data, L, dx, wavenumber, data_error = None, ov=None):
         """
         returns a wavenumber spectrogram with the resolution L-ov
         this uses Lombscargle
@@ -33,7 +33,7 @@ class wavenumber_spectrogram_gFT(object):
         self.x      = x
         self.dx     = dx
         self.data   = data
-        self.error = dy if dy is not None else None
+        self.error = data_error if data_error is not None else None
         self.Lpoints= int(self.Lmeters/self.dx)
 
         # create subsample k
@@ -178,14 +178,13 @@ class wavenumber_spectrogram_gFT(object):
             x = X[x_mask]
             if x.size/Lpoints < 0.1: # if there are not enough photos set results to nan
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
-                return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, x.size
+                return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size
             y = DATA[x_mask]
 
             y_var = y.var()
 
             FT = generalized_Fourier(x, y, self.k)
             H = FT.get_H()
-
 
             # define weights
             weight, prior_pars = get_weights_from_data(x, y, self.dx, stancil, self.k, plot_flag=plot_flag, method='parametric')
@@ -271,7 +270,12 @@ class wavenumber_spectrogram_gFT(object):
         N_per_stancil   = list()
 
         for I in Spec_returns:
-            #print(I[1].shape, I[2].shape)
+            # try:
+            #     print(I[0] , I[1].shape, I[2].shape, I[3].shape, I[4].shape)#, I[5].shape)
+            #     print(I[5])
+            # except:
+            #     print(I[0] , I[1], I[2], I[3], I[4] , I[5])
+            #     print(I[5])
 
             GFT_model[I[0]]     = (I[1][0:self.k.size],  I[1][self.k.size:])
             Z_model[I[0]]       = Z = complex_represenation(I[1], self.k.size, Lpoints )

@@ -36,7 +36,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 # equatorward track
 #track_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
@@ -456,6 +456,22 @@ def regridding_wrapper(I):
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     B3 = dict( executor.map(regridding_wrapper, B2.items() )  )
 
+# %%
+xscale= 1e3
+F= M.figure_axis_xy(5, 3, view_scale= 0.6)
+for k,I in B3.items():
+    plt.plot( I['x']/xscale  , I['across_track_distance']/xscale , '.' , markersize = 0.3)
+    #plt.xlim(3e6, 3.25e6)
+
+F.ax.axvline(track_dist_bounds[0]/xscale, color='gray', zorder= 2)
+F.ax.axvline(track_dist_bounds[1]/xscale, color='gray', zorder= 2)
+F.ax.axhline(0, color='gray', zorder= 2)
+
+plt.title('B01 filter and regrid | ' + track_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
+plt.xlabel('along track distance (km)')
+plt.ylabel('across track distance (km)')
+
+
 # %% ---define start and end position and same in Json file
 
 #I = B3['gt2l'].copy()
@@ -479,11 +495,26 @@ for k,I in B3.items():
     D_info[k] = {'start':Di_s,  'end':Di_e , 'poleward': str(track_poleward) }
 
     # reorder indexes
-    column_names = ['index', 'x', 'y', 'median_x', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
+    column_names = ['index', 'x', 'dist','y', 'median_x', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
     vars_ad = set(list(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean().index)) - set(column_names)
     I = I.reindex(columns=column_names  + list(vars_ad))
 
     B3[k] = I
+
+# %%
+xscale= 1e3
+F= M.figure_axis_xy(5, 3, view_scale= 0.6)
+for k,I in B3.items():
+    plt.plot( I['x']/xscale  , I['y']/xscale , '.' , markersize = 0.3)
+    #plt.xlim(3e6, 3.25e6)
+
+F.ax.axvline(track_dist_bounds[0]/xscale, color='gray', zorder= 2)
+F.ax.axvline(track_dist_bounds[1]/xscale, color='gray', zorder= 2)
+F.ax.axhline(0, color='gray', zorder= 2)
+
+plt.title('B01 filter and regrid | ' + track_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
+plt.xlabel('along track distance (km)')
+plt.ylabel('across track distance (km)')
 
 # save Json
 MT.json_save(track_name + '_B01_stats',save_path, D_info, verbose= True )

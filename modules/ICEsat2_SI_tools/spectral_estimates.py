@@ -368,7 +368,7 @@ def sub_sample_coords(X, lons, lats, stancils, map_func =None):
         return np.array([stancil[1],lon_bin, lat_bin])
 
     map_func = map if map_func is None else map_func
-    print(map_func)
+    #print(map_func)
     coord_positions = list(map_func( get_lon_lat_coords, copy.copy(stancils)   ))
 
     coord_positions = np.vstack(coord_positions)

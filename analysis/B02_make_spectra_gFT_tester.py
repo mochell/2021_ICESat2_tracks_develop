@@ -23,6 +23,7 @@ import copy
 import spicke_remover
 import datetime
 import generalized_FT as gFT
+from scipy.ndimage.measurements import label
 
 #import s3fs
 # %%
@@ -31,7 +32,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch01', False
+track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch01', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -145,14 +146,15 @@ for k in all_beams:
     plt.legend()
     plt.show()
 
-    #xlims = xlims[0], xlims[0] + (xlims[1] -xlims[0])/2
+    xlims = xlims[0], xlims[0] + (xlims[1] -xlims[0])/2
 
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
     imp.reload(gFT)
-    S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, dy = dd_error_no_nans,  ov=None)
-    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = None, plot_flag = True)
+    S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
+    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = None, plot_flag = False)
 
+    GG_x
     #plt.plot(Params.loc['normalized_residual'])
 
     # np.nanmean( (GG.gFT_PSD_model.sum('k') *dk) )
@@ -190,7 +192,7 @@ for k in all_beams:
 
     plot_data_model=True
     if plot_data_model:
-        for i in np.arange(0,29,2):
+        for i in np.arange(30,60,2):
             c1= 'blue'
             c2= 'red'
 
@@ -262,18 +264,30 @@ for k in all_beams:
     # add more coodindates to the Dataset
     x_coord_no_gaps = linear_gap_fill( Gd[k], 'dist', 'x' )
     y_coord_no_gaps = linear_gap_fill( Gd[k], 'dist', 'y' )
-    mapped_coords = spec.sub_sample_coords(Gd[k]['dist'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter , map_func = None )
+    mapped_coords   = spec.sub_sample_coords(Gd[k]['dist'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter , map_func = None )
 
     GG.coords['x_coord'] = GG_x.coords['x_coord'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,1], 1) )
-    GG.coords['y_coord'] = GG_x.coords['y_coord'] =  (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
+    GG.coords['y_coord'] = GG_x.coords['y_coord'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
 
-    lons_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lons' )
-    lats_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lats' )
+    # if data staarts with nans replace coords with nans again
+    if (GG.coords['N_per_stancil'] == 0).squeeze()[0].data:
+        nlabel = label( (GG.coords['N_per_stancil'] == 0).squeeze())[0]
+        nan_mask= nlabel ==nlabel[0]
+        GG.coords['x_coord'][nan_mask] =np.nan
+        GG.coords['y_coord'][nan_mask] =np.nan
+
+    lons_no_gaps  = linear_gap_fill( Gd[k], 'dist', 'lons' )
+    lats_no_gaps  = linear_gap_fill( Gd[k], 'dist', 'lats' )
     mapped_coords = spec.sub_sample_coords(Gd[k]['dist'], lons_no_gaps, lats_no_gaps, S.stancil_iter , map_func = None )
 
     GG.coords['lon'] = GG_x.coords['lon'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,1], 1) )
-    GG.coords['lat'] = GG_x.coords['lat'] =  (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
+    GG.coords['lat'] = GG_x.coords['lat'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
 
+    # plt.plot(Gd[k]['x'], Gd[k]['y']  , '.')
+    # plt.plot(GG.coords['x_coord'], GG.coords['y_coord'] , '.r')
+    #
+    # plt.plot(Gd[k]['lons'], Gd[k]['lats']  , '.')
+    # plt.plot(GG.coords['lon'], GG.coords['lat'] , '.r')
     # spectral errors are cacualted within S and now repacked to main DataSet G
     #G.coords['mean_El'] = (('k', 'beam' ), np.expand_dims(S.G['mean_El'], 1))
     #G.coords['mean_Eu'] = (('k', 'beam' ), np.expand_dims(S.G['mean_Eu'], 1))

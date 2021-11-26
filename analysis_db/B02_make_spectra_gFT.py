@@ -22,6 +22,7 @@ import copy
 import spicke_remover
 import datetime
 import generalized_FT as gFT
+from scipy.ndimage.measurements import label
 
 #import s3fs
 # %%
@@ -31,7 +32,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 
 
@@ -104,6 +105,28 @@ kk          = kk[k_0<=kk]
 #dk = np.diff(kk).mean()
 print('2 M = ',  kk.size *2 )
 
+
+# for k in all_beams:
+#     #I = G_gFT[k]
+#     I2 = Gd[k]
+#     #plt.plot(I['x_coord'], I['y_coord'], linewidth  =0.3)
+#     plt.plot( I2['x']/1e3, I2['dist']/1e3)
+
+
+# # %%
+# xscale= 1e3
+# F= M.figure_axis_xy(5, 3, view_scale= 0.6)
+# for k in all_beams:
+#     I = Gd[k]
+#     plt.plot( I['x']/xscale  , I['y']/xscale , '.' , markersize = 0.3)
+#     #plt.xlim(3e6, 3.25e6)
+#
+# #F.ax.axhline(0, color='gray', zorder= 2)
+#
+# plt.title('B01 filter and regrid | ' + track_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
+# plt.xlabel('along track distance (km)')
+# plt.ylabel('across track distance (km)')
+
 # %%
 
 G_gFT= dict()
@@ -152,7 +175,7 @@ for k in all_beams:
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
     imp.reload(gFT)
-    S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, dy = dd_error_no_nans,  ov=None)
+    S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
     GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
 
     # %%
@@ -223,12 +246,12 @@ for k in all_beams:
             plt.ylim(ylims[0], ylims[-1])
             plt.show()
 
-    # %%
+
     #S.mean_spectral_error() # add x-mean spectal error estimate to xarray
     S.parceval(add_attrs= True, weight_data=False)
 
     # assign beam coordinate
-    GG.coords['beam'], GG_x.coords['beam']  = str(k), str(k)
+    GG.coords['beam'] = GG_x.coords['beam']  = str(k)
     GG, GG_x                                = GG.expand_dims(dim = 'beam', axis = 1), GG_x.expand_dims(dim = 'beam', axis = 1)
     # repack such that all coords are associated with beam
     GG.coords['N_per_stancil']              = (('x', 'beam' ), np.expand_dims(GG['N_per_stancil'], 1))
@@ -240,6 +263,13 @@ for k in all_beams:
 
     GG.coords['x_coord'] = GG_x.coords['x_coord'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,1], 1) )
     GG.coords['y_coord'] = GG_x.coords['y_coord'] =  (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
+
+    # if data staarts with nans replace coords with nans again
+    if (GG.coords['N_per_stancil'] == 0).squeeze()[0].data:
+        nlabel = label( (GG.coords['N_per_stancil'] == 0).squeeze())[0]
+        nan_mask= nlabel ==nlabel[0]
+        GG.coords['x_coord'][nan_mask] =np.nan
+        GG.coords['y_coord'][nan_mask] =np.nan
 
     lons_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lons' )
     lats_no_gaps = linear_gap_fill( Gd[k], 'dist', 'lats' )
@@ -311,7 +341,6 @@ for k in all_beams:
     #F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
     #print('saved as '+'B02_control_'+k+'_' + track_name)
     #print(np.isinf(G).sum().data)
-
 
 
 # %%
@@ -487,6 +516,36 @@ plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
 F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
+
+# %%
+
+F = M.figure_axis_xy(8, 3, view_scale  =0.6)
+
+plt.subplot(1,2, 1)
+plt.title(track_name , loc ='left')
+for k in all_beams:
+    I = G_gFT[k]
+    I2 = Gd[k]
+    plt.plot(I['lon'], I['lat'], linewidth  =0.3)
+    plt.plot(I2['lons'], I2['lats'])
+
+
+plt.xlabel('lon')
+plt.xlabel('lat')
+
+plt.subplot(1,2, 2)
+
+for k in all_beams:
+    I = Gd[k]
+    plt.plot( I['x']/xscale  , I['y']/xscale , '.' , markersize = 0.3)
+    I2 = G_gFT[k]
+    plt.plot( I2.coords['x_coord']/xscale,  I2.coords['y_coord']/xscale, '*' , markersize = 0.7)
+
+plt.xlabel('x_coord')
+plt.ylabel('y_coord')
+
+F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_coord_check')
+
 
 # %% save fitting parameters
 MT.save_pandas_table(Pars_optm, save_name+'_params', save_path )
