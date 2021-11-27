@@ -22,6 +22,8 @@ import spectral_estimates as spec
 import m_tools_ph3 as MT
 import filter_regrid as regrid
 
+from numba import jit
+
 import concurrent.futures as futures
 
 # memory test
@@ -100,16 +102,10 @@ print('poleward track is ' , track_poleward)
 #ATL03[k+'/heights/ph_id_channel'][0:100]
 #accent = regrid.track_type( B[beams_list[0]] )
 
-
-
 # %%
-hist    = 'Beam stats'
-B       = dict()
-B1save  = dict()
-SEG     = dict()
-for k in beams:
-    #k = beams[0]
-    imp.reload(io)
+
+#for k in beams:
+def load_data_and_cut(k):
     print(k)
 
     T, seg = io.getATL03_beam(load_file, beam= k)
@@ -123,7 +119,7 @@ for k in beams:
     ho = MT.add_line_var(ho, 'by confidence levels:' + str(np.arange(0, 5)), [ (T['signal_confidence'] == i).sum() for i in np.arange(0, 5) ])
 
     # filter:
-    Tsel    = T[ (T['heights']<100)  & (T['heights'] > -100) ]# & (T['delta_time']>5) & (T['delta_time']<24) ]
+    Tsel    = T[ (T['heights']<100) & (T['heights'] > -100) ]# & (T['delta_time']>5) & (T['delta_time']<24) ]
 
     # if len(Tsel) == 0:
     #     ho  = MT.add_line_var(ho, 'no photons found', '')
@@ -140,19 +136,10 @@ for k in beams:
     rear_mask = np.array(Tsel.index) > -1 # True
     shape_old = Tsel.shape
     N_seg= 20
-
     cut_flag = True
-    while cut_flag:
-        dd= Tsel['heights_c'][rear_mask]
-        nsize = dd.size
-        stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
 
-        def get_var(sti):
-            return dd[sti[0]: sti[1]].var()
-
-        var_list = np.array(list(map(get_var, stencil_iter)))
-        #print(var_list)
-
+    #@jit(nopython=True, parallel= False)
+    def adjust_length(var_list, rear_mask, cut_flag, track_poleward):
         if track_poleward:
             if var_list[0:3].mean()*10 < var_list[-1]:
                 #print('cut last '+ str(100/N_seg) +'% of data')
@@ -167,8 +154,38 @@ for k in beams:
             else:
                 cut_flag =  False
 
+        return rear_mask, cut_flag
+
+    while cut_flag:
+        dd= Tsel['heights_c'][rear_mask]
+        nsize = dd.size
+        stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
+
+        #@jit(nopython=True, parallel= True)
+        def get_var(sti):
+            return dd[sti[0]: sti[1]].var()
+
+        var_list = np.array(list(map(get_var, stencil_iter)))
+        rear_mask, cut_flag = adjust_length(var_list, rear_mask, cut_flag, track_poleward)
 
     print( 'Tsel MB '  + get_size(Tsel) )
+
+    return k, rear_mask, Tsel, seg, ho
+
+hist    = 'Beam stats'
+B       = dict()
+B1save  = dict()
+SEG     = dict()
+k = beams[0]
+
+with futures.ProcessPoolExecutor(max_workers=Nworkers_process + Nworkers) as executor:
+    A = list( executor.map(load_data_and_cut, all_beams)  )
+
+print( 'A MB '  + get_size(A) )
+
+for I in A: # collect returns from from mapping
+    k, rear_mask, Tsel, seg, ho  = I
+
     Tsel['process_mask']  = rear_mask
     B1save[k]             = Tsel
     B[k]                  = Tsel[rear_mask].drop(columns='process_mask')
@@ -176,19 +193,21 @@ for k in beams:
 
     ho      = MT.add_line_var(ho, 'cutted ', str( np.round( 100 *(rear_mask.size -rear_mask.sum() ) / rear_mask.size, 0)) + '% in the back of the track' )
     ho      = MT.add_line_var(ho, 'selected size', str(Tsel.shape[0]))
-    ho      = MT.add_line_var(ho, 'final size ', str(Tsel_c.shape[0]))
+    #ho      = MT.add_line_var(ho, 'final size ', str(Tsel_c.shape[0]))
     print(ho)
     hist    = MT.write_log(hist, ho)
 
 print('done with 1st loop')
 
-del T
-del Tsel_c
+#del T
+#del Tsel_c
 del Tsel
+del A
 
 print( 'B_save MB '  + get_size(B1save) )
 print( 'B MB '  +  get_size(B) )
 print( 'SEG MB '  +  get_size(SEG) )
+
 
 
 # get_size(Tsel)
@@ -208,7 +227,6 @@ for k,I in SEG.items():
 total_segment_dist_x_min = min(total_segment_dist_x_min)
 
 # %%
-
 def make_x_coorindate(k):
 
     """
