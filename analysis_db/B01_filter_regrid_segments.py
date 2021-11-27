@@ -48,7 +48,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
 
 # equatorward track
 #track_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
@@ -134,40 +134,41 @@ def load_data_and_cut(k):
     ### cut data at the rear that has too much variance
     # cut last segments of data until variance is similar
     rear_mask = np.array(Tsel.index) > -1 # True
-    shape_old = Tsel.shape
+    nsize0 = Tsel.shape[0]
     N_seg= 20
     cut_flag = True
+    dd0 = np.array(Tsel['heights_c'])
+    print('inital length' , nsize0)
 
-    #@jit(nopython=True, parallel= False)
+    @jit(nopython=True, parallel= False)
     def adjust_length(var_list, rear_mask, cut_flag, track_poleward):
-        if track_poleward:
-            if var_list[0:3].mean()*10 < var_list[-1]:
-                #print('cut last '+ str(100/N_seg) +'% of data')
-                rear_mask[int(nsize* (N_seg-1) / N_seg):] = False
-            else:
-                cut_flag =  False
+
+        var_list = var_list if track_poleward else var_list[::-1]
+
+        if var_list[0:3].mean()*10 < var_list[-1]:
+            #print('cut last '+ str(100/N_seg) +'% of data')
+            rear_mask[int(nsize* (N_seg-1) / N_seg):] = False
         else:
-            if var_list[-3:].mean()*10 < var_list[0]:
-                #print('cut last '+ str(100/N_seg) +'% of data')
-                #int(nsize* (N_seg-1) / N_seg)
-                rear_mask[: int(nsize* 1 / N_seg)] = False
-            else:
-                cut_flag =  False
+            cut_flag =  False
+
+        rear_mask = rear_mask if track_poleward else rear_mask[::-1]
 
         return rear_mask, cut_flag
 
+    #@jit(nopython=True, parallel= True)
+    def get_var(sti):
+        return dd[sti[0]: sti[1]].var()
+
     while cut_flag:
-        dd= Tsel['heights_c'][rear_mask]
+        dd= dd0[rear_mask]
+        print('new length', dd.size)
         nsize = dd.size
         stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
-
-        #@jit(nopython=True, parallel= True)
-        def get_var(sti):
-            return dd[sti[0]: sti[1]].var()
-
         var_list = np.array(list(map(get_var, stencil_iter)))
-        print(k, var_list)
+        #print(k, var_list)
         rear_mask, cut_flag = adjust_length(var_list, rear_mask, cut_flag, track_poleward)
+
+        sum(rear_mask)
 
     print( 'Tsel MB '  + get_size(Tsel) )
 
@@ -179,7 +180,11 @@ B1save  = dict()
 SEG     = dict()
 k = beams[0]
 
-with futures.ProcessPoolExecutor(max_workers=Nworkers_process + Nworkers) as executor:
+# A = list()
+# for k in all_beams:
+#     A.append(load_data_and_cut(k))
+
+with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(load_data_and_cut, all_beams)  )
 
 print( 'A MB '  + get_size(A) )
