@@ -233,7 +233,7 @@ def get_mode(y, bins = np.arange(-5,5,  0.1)):
     hist, xbin = np.histogram(y, bins = bins )
     return xbin[hist.argmax()]
 
-@jit(nopython=True)
+@jit(nopython=True, parallel= True)
 def weighted_mean(x_rel, y):
     "returns the gaussian weighted mean for stencil"
 
@@ -269,16 +269,18 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
     """
     import pandas as pd
+    import numba
 
     x_data = np.array(T2[key_x_coord])
     y_data = np.array(T2[key])
+
     # apply this funcion to each stancil
     def calc_stencil_stats(istencil):
 
         "returns stats per stencil"
 
         i_mask      = (x_data >= istencil[0])  & (x_data < istencil[2])
-        Nphoton     = i_mask.sum()
+        Nphoton     = sum(i_mask)
 
         if Nphoton < Nphoton_min:
 
@@ -291,11 +293,11 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
             return istencil[1], Tmedian
 
-        Tmedian = T2[i_mask].median()
 
         x_rel   = (x_data[i_mask] - istencil[1])/ stancil_width
         y       = y_data[i_mask]
 
+        Tmedian                             = T2[i_mask].median()
         Tmedian[key+ '_weighted_mean']      = weighted_mean(x_rel, y)
         #Tmedian[key+ '_mode']               = get_mode(y)
         Tmedian['N_photos']                 = Nphoton
@@ -306,7 +308,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
     # apply func to all stancils
     map_func = map if map_func is None else map_func
-    D_filt   = dict(map_func(calc_stencil_stats,stencil_iter))
+    D_filt   = dict(map_func(calc_stencil_stats, stencil_iter))
 
     DF_filt         = pd.DataFrame.from_dict(D_filt, orient='index')
     DF_filt         = DF_filt.rename(columns={key: key+'_median', key_x_coord: 'median_'+key_x_coord})

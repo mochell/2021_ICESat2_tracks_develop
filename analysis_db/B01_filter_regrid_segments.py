@@ -24,7 +24,17 @@ import filter_regrid as regrid
 
 import concurrent.futures as futures
 
+# memory test
+#from guppy import hpy
 
+
+def get_size(x):
+    from pympler import asizeof
+    ss = asizeof.asizeof(x)/1e6
+    return str(ss)
+
+
+#get_size(hemis)
 
 #import s3fs
 #processed_ATL03_20190605061807_10380310_004_01.h5
@@ -69,8 +79,8 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers    = 4        # number of threads for parallel processing
-Nworkers_process = 3  # number of threads for parallel processing
+Nworkers    = 2        # number of threads for parallel processing # inner loop
+Nworkers_process = 3  # number of threads for parallel processing  # outer loop
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']
@@ -91,6 +101,7 @@ print('poleward track is ' , track_poleward)
 #accent = regrid.track_type( B[beams_list[0]] )
 
 
+
 # %%
 hist    = 'Beam stats'
 B       = dict()
@@ -102,11 +113,10 @@ for k in beams:
     print(k)
 
     T, seg = io.getATL03_beam(load_file, beam= k)
-
-
-
     print('loaded')
     T = T[T['mask_seaice']] # only take sea ice points, no ocean points
+    T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
+    print( 'T MB '  + get_size(T) )
 
     ho = k
     ho = MT.add_line_var(ho, 'size', str(T.shape[0]))
@@ -121,18 +131,19 @@ for k in beams:
 
     Tsel_c  = io.getATL03_height_correction(load_file)
     Tsel_c  = Tsel_c[Tsel_c['dem_h'] < 1e5] # cute out weird references
-    Tsel2 = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
+    # needs only dem_h and heihgts
+    Tsel = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
     print('height corrected')
 
     ### cut data at the rear that has too much variance
     # cut last segments of data until variance is similar
-    rear_mask = np.array(Tsel2.index) > -1 # True
-    shape_old = Tsel2.shape
+    rear_mask = np.array(Tsel.index) > -1 # True
+    shape_old = Tsel.shape
     N_seg= 20
 
     cut_flag = True
     while cut_flag:
-        dd= Tsel2['heights_c'][rear_mask]
+        dd= Tsel['heights_c'][rear_mask]
         nsize = dd.size
         stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
 
@@ -157,19 +168,33 @@ for k in beams:
                 cut_flag =  False
 
 
-    Tsel2['process_mask'] = rear_mask
-    B1save[k]             = Tsel2
-    B[k]                  = Tsel2[rear_mask].drop(columns='process_mask')
+    print( 'Tsel MB '  + get_size(Tsel) )
+    Tsel['process_mask']  = rear_mask
+    B1save[k]             = Tsel
+    B[k]                  = Tsel[rear_mask].drop(columns='process_mask')
     SEG[k]                = seg
 
     ho      = MT.add_line_var(ho, 'cutted ', str( np.round( 100 *(rear_mask.size -rear_mask.sum() ) / rear_mask.size, 0)) + '% in the back of the track' )
     ho      = MT.add_line_var(ho, 'selected size', str(Tsel.shape[0]))
     ho      = MT.add_line_var(ho, 'final size ', str(Tsel_c.shape[0]))
     print(ho)
-
     hist    = MT.write_log(hist, ho)
 
 print('done with 1st loop')
+
+del T
+del Tsel_c
+del Tsel
+
+print( 'B_save MB '  + get_size(B1save) )
+print( 'B MB '  +  get_size(B) )
+print( 'SEG MB '  +  get_size(SEG) )
+
+
+# get_size(Tsel)
+# Tsel
+# Tsel.dtypes
+#Tsel.memory_usage()
 
 # %% define x- coodindate
 
@@ -191,39 +216,40 @@ def make_x_coorindate(k):
     also adds the segment_ID to the main table T
     """
     print(k, ' make coodindate')
-    T, seg= B[k], SEG[k]
+    T, seg  = B[k], SEG[k]
 
     # make sure data is strictly ordered by delta_time
-    T = T.sort_values('delta_time').reset_index(drop=True)
+    T   = T.sort_values('delta_time').reset_index(drop=True)
 
     # find positions where segmetn length is reset
     # shifts segment length postions in time
-    delta_onehalf =  seg['delta_time'].diff()/2
-    delta_onehalf.iloc[0] = delta_onehalf.iloc[1]
-    seg['delta_half_time']= seg['delta_time']  - delta_onehalf - 1e-5
+    delta_onehalf           = seg['delta_time'].diff()/2
+    delta_onehalf.iloc[0]   = delta_onehalf.iloc[1]
+    seg['delta_half_time']  = seg['delta_time']  - delta_onehalf - 1e-5
 
     # cur phontos that are not in segmentns
-    T2 = T[ (T['delta_time'] > seg['delta_half_time'].iloc[0]) & (T['delta_time'] < seg['delta_half_time'].iloc[-1])]
-    bin_labels = np.digitize( T2['delta_time'], seg['delta_half_time'], right = True )
+    T           = T[ (T['delta_time'] > seg['delta_half_time'].iloc[0]) & (T['delta_time'] < seg['delta_half_time'].iloc[-1])]
+    bin_labels  = np.digitize( T['delta_time'], seg['delta_half_time'], right = True )
 
     # select relevant data
-    SS = seg['segment_dist_x']
-    SS_sid = seg['segment_id']
+    SS      = seg['segment_dist_x']
+    SS_sid  = seg['segment_id']
 
     repeats = np.bincount(bin_labels, minlength =SS.shape[0])
 
     # check if repeats sumup
-    if repeats.sum() != T2.shape[0]:
+    if repeats.sum() != T.shape[0]:
         print('repeats do not sum up')
 
     # repeat  segment dat accoridng to photons
-    SS = SS.repeat(repeats)
-    SS.index = T2.index
-    SS_sid = SS_sid.repeat(repeats)
-    SS_sid.index = T2.index
+    SS       = SS.repeat(repeats)
+    SS.index = T.index
+    SS_sid       = SS_sid.repeat(repeats)
+    SS_sid.index = T.index
+
     # define new coordinate
-    T2['x'] =  SS + T2['along_track_distance']
-    T2['segment_id'] =  SS_sid
+    T['x']          =  SS + T['along_track_distance']
+    T['segment_id'] =  SS_sid
 
     # find bad photons
     def find_anomalie_photons(Ti2, segi):
@@ -233,19 +259,20 @@ def make_x_coorindate(k):
         diff_x = abs(diff_x-diff_x.mean())
         return diff_x > 3 *diff_x.std() , x_interp
 
-    fail_mask, x_interp = find_anomalie_photons(T2, seg)
+    fail_mask, x_interp = find_anomalie_photons(T, seg)
 
     print('weird photon fraction:' ,  sum(fail_mask)/ fail_mask.size)
     # aply fail mask
-    #T2= T2[~fail_mask]
-    T2['x'][fail_mask] = x_interp[fail_mask]
+    #T= T[~fail_mask]
+    T['x'][fail_mask] = x_interp[fail_mask]
 
-    return k, T2
+    return k, T
 
 
 
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(make_x_coorindate, all_beams)  )
+
 
 # %%
 B= dict()
@@ -265,7 +292,12 @@ dist_list   = np.array([np.nan, np.nan])
 for k in B.keys():
     dist_list = np.vstack([ dist_list, [  B[k]['x'].iloc[0] , B[k]['x'].iloc[-1] ]  ])
 
+print( 'B MB '  + get_size(B) )
+
 del A
+del SEG
+#del T
+
 
 # define latitude limits
 # lat_lims, lon_lims, accent = lat_min_max(B, all_beams, accent = None)
@@ -292,7 +324,7 @@ if (np.array(p_densities_l).mean() < 0.5) & (np.array(p_densities_r).mean() < 0.
 
 
 # %% save corrected data and delete from cash
-#io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with distance coordinate
+io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with distance coordinate
 del B1save
 
 # for testing
@@ -342,6 +374,7 @@ F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_time_x
 ##### 1.) derive common axis for beams and filter out low density area at the beginning
 print('filter out low density area at the beginning')
 
+#@profile
 def derive_axis_and_boundaries(key):
     #key = 'gt3r'
     print(key)
@@ -392,6 +425,7 @@ def get_better_lower_boundary(Lmeter_large, dd):
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(derive_axis_and_boundaries, all_beams)  )
 
+
 # %%
 B2          = dict()
 dist_list   = np.array([np.nan, np.nan])
@@ -402,7 +436,10 @@ for I in A:
     dist_list = np.vstack([dist_list,I[2] ])
 
 del A
+del B
 track_dist_bounds     = [ np.nanmin(dist_list[:, 0], 0) , np.nanmax(dist_list[:, 1], 0) ]
+
+print( 'B2 MB '  + get_size(B2) )
 
 # for testing:
 #ts_s = np.copy(track_dist_bounds)
@@ -448,14 +485,16 @@ def regridding_wrapper(I):
     stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, track_dist_bounds, iter_flag=True )
     with futures.ThreadPoolExecutor(max_workers= Nworkers) as executor_sub:
         Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor_sub.map)
-    #B3[key] =
+
+    #print( 'Bi MB '  + get_size(Bi) )
     print(key, 'done')
     return key, Bi
-
 
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     B3 = dict( executor.map(regridding_wrapper, B2.items() )  )
 
+print( 'B3 MB '  + get_size(B3) )
+print( 'I MB '  + get_size(I) )
 # %% ---define start and end position and same in Json file
 
 #I = B3['gt2l'].copy()
