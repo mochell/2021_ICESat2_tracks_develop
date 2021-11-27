@@ -233,10 +233,11 @@ def get_mode(y, bins = np.arange(-5,5,  0.1)):
     hist, xbin = np.histogram(y, bins = bins )
     return xbin[hist.argmax()]
 
-@jit(nopython=True, parallel= True)
+@jit(nopython=True, parallel= False)
 def weighted_mean(x_rel, y):
     "returns the gaussian weighted mean for stencil"
 
+    #@jit(nopython=True, parallel= False)
     def weight_fnk(x):
         "returns gaussian weight given the distance to the center x"
         return np.exp(- (x/.5)**2 )
@@ -270,6 +271,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
     """
     import pandas as pd
     import numba
+    import time
 
     x_data = np.array(T2[key_x_coord])
     y_data = np.array(T2[key])
@@ -279,6 +281,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
         "returns stats per stencil"
 
+        tstart = time.time()
         i_mask      = (x_data >= istencil[0])  & (x_data < istencil[2])
         Nphoton     = sum(i_mask)
 
@@ -295,7 +298,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
 
         x_rel   = (x_data[i_mask] - istencil[1])/ stancil_width
-        y       = y_data[i_mask]
+        y   = y_data[i_mask]
 
         Tmedian                             = T2[i_mask].median()
         Tmedian[key+ '_weighted_mean']      = weighted_mean(x_rel, y)
@@ -303,7 +306,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
         Tmedian['N_photos']                 = Nphoton
         Tmedian[key+ '_std']                = y.std()
         #Tmedian[key+  '_median'][ np.isnan(Tmedian[key+ 'std']) ]= np.nan # replace median calculation with nans
-
+        print ( str( istencil[1]) + ' s' + str(time.time() - tstart))
         return istencil[1], Tmedian
 
     # apply func to all stancils

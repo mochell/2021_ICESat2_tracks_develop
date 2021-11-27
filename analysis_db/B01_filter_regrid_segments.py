@@ -49,13 +49,15 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
 #track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502033317_05170310_004_01', 'SH_batch02', False
+
 
 # equatorward track
 #track_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
 
 # poleward track
 #track_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
-#
+#conner
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -81,8 +83,8 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers    = 2        # number of threads for parallel processing # inner loop
-Nworkers_process = 3  # number of threads for parallel processing  # outer loop
+Nworkers    = 1        # number of threads for parallel processing # inner loop
+Nworkers_process = 6  # number of threads for parallel processing  # outer loop
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']
@@ -131,12 +133,14 @@ def load_data_and_cut(k):
     Tsel = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
     print('height corrected')
 
+
     ### cut data at the rear that has too much variance
     # cut last segments of data until variance is similar
     rear_mask = np.array(Tsel.index) > -1 # True
     nsize0 = Tsel.shape[0]
     N_seg= 20
     cut_flag = True
+    dd_old = -1
     dd0 = np.array(Tsel['heights_c'])
     print('inital length' , nsize0)
 
@@ -159,16 +163,23 @@ def load_data_and_cut(k):
     def get_var(sti):
         return dd[sti[0]: sti[1]].var()
 
+
     while cut_flag:
         dd= dd0[rear_mask]
-        print('new length', dd.size)
         nsize = dd.size
+        print('new length', nsize)
+
         stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
         var_list = np.array(list(map(get_var, stencil_iter)))
         #print(k, var_list)
         rear_mask, cut_flag = adjust_length(var_list, rear_mask, cut_flag, track_poleward)
 
-        sum(rear_mask)
+        if nsize == dd_old:
+            print('--- lengthen segments')
+            N_seg -=1
+            #cut_flag = False
+
+        dd_old = nsize
 
     print( 'Tsel MB '  + get_size(Tsel) )
 
@@ -507,8 +518,12 @@ def regridding_wrapper(I):
     key, Ti = I
     print(key, Ti.shape,2* Ti.shape[0]/Lmeter)
     stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, track_dist_bounds, iter_flag=True )
-    with futures.ThreadPoolExecutor(max_workers= Nworkers) as executor_sub:
-        Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor_sub.map)
+    print(str(stencil_iter)+'sec')
+    if Nworkers > 1:
+        with futures.ThreadPoolExecutor(max_workers= Nworkers) as executor_sub:
+            Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor_sub.map)
+    else:
+        Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = map)
 
     #print( 'Bi MB '  + get_size(Bi) )
     print(key, 'done')
