@@ -166,6 +166,7 @@ def load_data_and_cut(k):
             return dd[sti[0]: sti[1]].var()
 
         var_list = np.array(list(map(get_var, stencil_iter)))
+        print(k, var_list)
         rear_mask, cut_flag = adjust_length(var_list, rear_mask, cut_flag, track_poleward)
 
     print( 'Tsel MB '  + get_size(Tsel) )
