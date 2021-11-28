@@ -243,10 +243,119 @@ def weighted_mean(x_rel, y):
         return np.exp(- (x/.5)**2 )
 
     w = weight_fnk(x_rel)
-    return (w*y).sum()/w.sum()
+    return np.sum(w*y)/np.sum(w)
+
+# this function is applied to beam:
+def get_stencil_stats_shift( T2, stencil_iter,  key_var , key_x_coord, stancil_width ,  Nphoton_min = 5, plot_flag= False):
+
+    """
+    T2              pd.Dataframe with beam data needs at least 'dist' and key
+    stencil_iter    np.array that constains the stancil boundaries and center [left boundary, center, right boundary]
+    key_var         coloumn index used in T2
+    key_x_coord     coloumn index of x coordinate
+    stancil_width   width of stencil. is used to normalize photon positions within each stancil.
+    Nphoton_min     minimum required photots needed to return meaning full averages
+
+    returns:
+    pandas DataFrame with the same as T2 but not taken the median of each column
+    the following columns are also added:
+    key+ '_weighted_mean'   x-weighted gaussian mean of key for each stencil
+    key+ '_mode'            mode of key for each stencil
+    'N_photos'              Number of Photons for each stencil
+    key+ '_std'             standard deviation for each stencil
+
+    the column 'key' is rename to key+'_median'
+
+    """
+    import pandas as pd
+    stencil_1       = stencil_iter[:, ::2]
+    stencil_1half   = stencil_iter[:, 1::2]
+
+    def calc_stencil_stats(group, key,  key_x_coord, stancil_width, stancils):
+
+        "returns stats per stencil"
+        #import time
+        #tstart = time.time()
+        Nphoton     = group.shape[0]
+        istancil = group['x_bins'].iloc[int(Nphoton/2)]
+        stencil_center = stancils[1, istancil-1]
+
+
+        if Nphoton > Nphoton_min:
+
+            x_rel   = (group[key_x_coord] - stencil_center)/ stancil_width
+            y   = group[key]
+
+            #Tmedian[key+ '_weighted_mean']
+            key_weighted_mean = weighted_mean(np.array(x_rel), np.array(y))
+            key_std           = y.std()
+
+        else:
+
+            #Nphoton           = 0
+            key_weighted_mean = np.nan
+            #Tmedian[key+ '_mode']           = np.nan
+            key_std            = np.nan
+
+        #Tweight = pd.DataFrame([key_weighted_mean, key_std, Nphoton], index= [key+ '_weighted_mean', key+ '_std', 'N_photos' ])
+        Tweight = pd.Series([key_weighted_mean, key_std, Nphoton], index= [key+ '_weighted_mean', key+ '_std', 'N_photos' ])
+
+
+        #print ( str( istancil) + ' s' + str(time.time() - tstart))
+        return Tweight.T
+
+    T_sets = list()
+    stancil_set = stencil_1
+    for stancil_set in [stencil_1, stencil_1half]:
+
+        # select photons that are in bins
+        Ti_sel = T2[  (stancil_set[0,0] < T2['x']) &  (T2['x'] < stancil_set[2,-1]) ]
+
+        # put each photon in a bin
+        bin_labels  = np.searchsorted(stancil_set[0,:], Ti_sel['x'])
+        #bin_labels2 = np.digitize( Ti_sel['x'], stancil_set[0,:], right = True )
+
+        Ti_sel['x_bins'] =bin_labels
+        # group data by this bin
+        Ti_g = Ti_sel.groupby(Ti_sel['x_bins'], dropna= False , as_index = True )#.median()
+
+        # take median of the data
+        Ti_median = Ti_g.median()
+
+        # apply weighted mean and count photons
+        args = [ key_var, key_x_coord, stancil_width, stancil_set]
+
+        #%timeit -r 1 -n 1 Ti_weight  = Ti_g.apply(calc_stencil_stats, *args)
+        Ti_weight  = Ti_g.apply(calc_stencil_stats, *args)
+
+        #merge both datasets
+        T_merged = pd.concat( [Ti_median, Ti_weight], axis= 1)
+
+        # rename columns
+        T_merged             =  T_merged.rename(columns={key_var: key_var+'_median', key_x_coord: key_x_coord+ '_median'})
+        T_merged[ key_var+  '_median'][ np.isnan(T_merged[key_var+ '_std']) ] = np.nan # replace median calculation with nans
+
+        # set stancil center an new x-coodinate
+        T_merged['x'] =  stancil_set[1, T_merged.index-1]
+
+        T_sets.append(T_merged)
+
+    # mergeboth stancils
+    T3 = pd.concat(T_sets ).sort_values(by= 'x').reset_index()
+
+    if plot_flag:
+        Ti_1, Ti_1half =  T_sets
+
+        plt.plot( Ti_1half.iloc[0:60].x, Ti_1half.iloc[0:60]['heights_c_median'], '.' )
+        plt.plot( Ti_1.iloc[0:60].x, Ti_1.iloc[0:60]['heights_c_median'], '.' )
+        plt.plot( T3.iloc[0:120].x, T3.iloc[0:120]['heights_c_median'], '-' )
+
+
+    return T3
 
 
 # this function is applied to beam:
+#old version
 def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nphoton_min = 5, map_func=None):
 
     """

@@ -48,7 +48,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502033317_05170310_004_01', 'SH_batch02', False
 
 
@@ -83,7 +83,6 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers    = 1        # number of threads for parallel processing # inner loop
 Nworkers_process = 6  # number of threads for parallel processing  # outer loop
 # %%
 # test which beams exist:
@@ -511,19 +510,14 @@ F.save_light(path= plot_path +'../', name='B01_ALT03_'+track_name+'_tracks_all')
 #track_dist_bounds = ts_s[0] ,ts_s[0] + (ts_s[1] - ts_s[0]) /6
 
 # %%
-#imp.reload(regrid)
+imp.reload(regrid)
 ##### 2.) regridding and averaging
 print('regrid')
 def regridding_wrapper(I):
     key, Ti = I
     print(key, Ti.shape,2* Ti.shape[0]/Lmeter)
-    stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, track_dist_bounds, iter_flag=True )
-    print(str(stencil_iter)+'sec')
-    if Nworkers > 1:
-        with futures.ThreadPoolExecutor(max_workers= Nworkers) as executor_sub:
-            Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = executor_sub.map)
-    else:
-        Bi = regrid.get_stencil_stats( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min, map_func = map)
+    stencil_iter = create_chunk_boundaries_unit_lengths( Lmeter, track_dist_bounds, iter_flag=False )
+    Bi = regrid.get_stencil_stats_shift( Ti, stencil_iter, 'heights_c', 'x' , stancil_width= Lmeter/2, Nphoton_min=Nphoton_min)
 
     #print( 'Bi MB '  + get_size(Bi) )
     print(key, 'done')
@@ -541,7 +535,7 @@ D_info = dict()
 for k,I in B3.items():
 
     # reset x coordinate
-    I['median_dist']   = I['median_x'] - track_dist_bounds[0] #- Lmeter/2
+    I['median_dist']   = I['x_median'] - track_dist_bounds[0] #- Lmeter/2
     I['dist']          = I['x']        - track_dist_bounds[0] #- Lmeter/2
     #I['index']      = I['x']
     # rename y coordinate
@@ -557,7 +551,7 @@ for k,I in B3.items():
     D_info[k] = {'start':Di_s,  'end':Di_e , 'poleward': str(track_poleward) }
 
     # reorder indexes
-    column_names = ['index', 'x', 'y', 'median_x', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
+    column_names = ['x', 'y', 'x_median', 'median_dist', 'lons', 'lats' ,'heights_c_weighted_mean', 'heights_c_median', 'heights_c_std',  'N_photos', ]
     vars_ad = set(list(I[I['segment_id'] == I['segment_id'].iloc[0] ].mean().index)) - set(column_names)
     I = I.reindex(columns=column_names  + list(vars_ad))
 
@@ -579,6 +573,8 @@ if plot_flag:
     T2  = B2[key]
 
     dl = 4000
+    x_key= 'x'
+
     latlims = (Ti2['x'].iloc[0] , Ti2['x'].iloc[-1] )
     #chunk_list = np.arange(latlims[0],latlims[1], dl )
     #chunk_list = sample(  list(np.arange(latlims[0],latlims[1],dl )[0:80])  ,10)
@@ -587,11 +583,11 @@ if plot_flag:
     for ll in chunk_list:
         F = M.figure_axis_xy(7, 3, view_scale=0.8)
 
-        plt.plot( T2['x'], T2['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 )
+        plt.plot( T2[x_key], T2['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 )
         #plt.plot( ALT07['ref']['latitude'] , ALT07['heights']['height_segment_height'] , 'r.', markersize=0.8, alpha = 1, label ='ALT07 seg. heights')
 
-        plt.plot(Ti2['x'], Ti2['heights_c_weighted_mean'] +1, '.-', color='darkblue', linewidth=0.5, markersize=2,alpha=0.9, label='x-gauss weighted mean +1')
-        plt.plot(Ti2['x'], Ti2['heights_c_median'], 'r.-',  linewidth=0.5, markersize=2,alpha=0.9, label='median')
+        plt.plot(Ti2[x_key], Ti2['heights_c_weighted_mean'] -0.5, '.-', color='blue', linewidth=0.5, markersize=2,alpha=0.9, label='x-gauss weighted mean +1')
+        plt.plot(Ti2[x_key], Ti2['heights_c_median'] +0.5, 'r.-',  linewidth=0.5, markersize=2,alpha=0.9, label='median')
 
         #plt.plot(Ti2['x'], Ti2['heights_c_mode']-1, 'g.-',  linewidth=0.5, markersize=2,alpha=0.9, label='mode - 1')
 
