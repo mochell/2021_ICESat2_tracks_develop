@@ -32,7 +32,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
 
 
 
@@ -82,7 +82,7 @@ Gi =Gd[ list(Gd.keys())[0] ] # to select a test  beam
 T_max       = 40 #sec
 k_0         = (2 * np.pi/ T_max)**2 / 9.81
 x           = np.array(Gi['dist'])
-dx          =  np.diff(x).mean()
+dx          =  np.round(np.median(np.diff(x)), 1)
 min_datapoint =  2*np.pi/k_0/dx
 
 Lpoints     = int(np.round(min_datapoint) * 10 )
@@ -100,7 +100,7 @@ flim        = 1/T_min
 oversample  = 2
 dlambda     = Lmeters * oversample
 dk          = 2 * np.pi/ dlambda
-kk          =np.arange(0, 1/lambda_min,  1/dlambda) * 2*np.pi
+kk          = np.arange(0, 1/lambda_min,  1/dlambda) * 2*np.pi
 kk          = kk[k_0<=kk]
 #dk = np.diff(kk).mean()
 print('2 M = ',  kk.size *2 )
@@ -129,6 +129,22 @@ print('2 M = ',  kk.size *2 )
 
 # %%
 
+print('define global xlims')
+dist_list   = np.array([np.nan, np.nan])
+for k in all_beams:
+    print(k)
+    hkey= 'heights_c_weighted_mean'
+    x       = Gd[k]['dist']
+    print(x.iloc[0] , x.iloc[-1])
+    dist_list = np.vstack([ dist_list, [ x.iloc[0] , x.iloc[-1] ]  ])
+
+xlims   = np.nanmax(dist_list[:, 0]) - dx, np.nanmin(dist_list[:, 1])
+#xlims = xlims[0],xlims[1]/4
+print('set xlims: ', xlims)
+
+
+# %%
+
 G_gFT= dict()
 G_gFT_x = dict()
 G_rar_fft= dict()
@@ -138,11 +154,10 @@ imp.reload(spec)
 k=all_beams[2]
 for k in all_beams:
 
-    # %%
     # -------------------------------  use gridded data
     hkey= 'heights_c_weighted_mean'
     x       = Gd[k]['dist']
-    xlims   = x.iloc[0], x.iloc[-1]
+    #xlims   = x.iloc[0], x.iloc[-1]
     dd      = np.copy(Gd[k][hkey])
 
     dd_error = np.copy(Gd[k]['heights_c_std'])
@@ -150,7 +165,7 @@ for k in all_beams:
     #plt.hist(1/dd_weight, bins=40)
     F = M.figure_axis_xy(6, 3)
     plt.subplot(2, 1, 1)
-    plt.plot(x, dd, 'gray', label='displacement (m) ')
+    #plt.plot(x, dd, 'gray', label='displacement (m) ')
 
     # compute slope spectra !!
     dd      = np.gradient(dd)
@@ -166,19 +181,19 @@ for k in all_beams:
     x_no_nans  = x[~dd_nans]
     dd_error_no_nans = dd_error[~dd_nans]
 
-    plt.plot(x_no_nans, dd_no_nans, 'black', label='slope (m/m)')
+    plt.plot(x_no_nans, dd_no_nans, '.', color=  'black', markersize=1, label='slope (m/m)')
     plt.legend()
     plt.show()
-    #xlims = xlims[0],xlims[1]/3
 
 
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
+
     imp.reload(gFT)
     S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
     GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
 
-    # %%
+    # %
     def linear_gap_fill(F, key_lead, key_int):
 
         """
@@ -246,7 +261,6 @@ for k in all_beams:
             plt.ylim(ylims[0], ylims[-1])
             plt.show()
 
-
     #S.mean_spectral_error() # add x-mean spectal error estimate to xarray
     S.parceval(add_attrs= True, weight_data=False)
 
@@ -262,7 +276,7 @@ for k in all_beams:
     mapped_coords = spec.sub_sample_coords(Gd[k]['dist'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter , map_func = None )
 
     GG.coords['x_coord'] = GG_x.coords['x_coord'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,1], 1) )
-    GG.coords['y_coord'] = GG_x.coords['y_coord'] =  (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
+    GG.coords['y_coord'] = GG_x.coords['y_coord'] = (('x', 'beam' ), np.expand_dims(mapped_coords[:,2], 1) )
 
     # if data staarts with nans replace coords with nans again
     if (GG.coords['N_per_stancil'] == 0).squeeze()[0].data:
@@ -292,8 +306,8 @@ for k in all_beams:
     GG.coords['N_photons'] = (('x', 'beam' ), np.expand_dims(photon_list, 1))
 
     # Save to dict
-    G_gFT[k]    = GG
-    G_gFT_x[k]  = GG_x
+    G_gFT[k]     = GG
+    G_gFT_x[k]   = GG_x
     Pars_optm[k] = Params
 
     # plot
@@ -301,11 +315,13 @@ for k in all_beams:
     G_gFT_power = GG.gFT_PSD_data.squeeze()
     plt.plot(G_gFT_power.k, np.nanmean(G_gFT_power,1), 'gray', label='mean gFT power data ')
     G_gFT_power = GG.gFT_PSD_model.squeeze()
-    plt.plot(GG.k, np.nanmean(S.G, 1), 'k', label='mean LS power model')
+    plt.plot(GG.k, np.nanmean(S.G, 1), 'k', label='mean gFT power model')
 
     # standard FFT
     print('FFT')
     dd[dd_nans]    = 0
+    #xlim_mask  = (xlims[0] <= x) & (x <= xlims[1])
+    #print(x[xlim_mask])
     S = spec.wavenumber_spectrogram(x, dd, Lpoints)
     G = S.cal_spectrogram()
     S.mean_spectral_error() # add x-mean spectal error estimate to xarray
@@ -328,12 +344,16 @@ for k in all_beams:
     # repack such that all coords are associated with beam
     G.coords['N_per_stancil'] = (('x', 'beam' ), np.expand_dims(N_list, 1))
 
-    #save to dict
-    G_rar_fft[k] = G
+    #save to dict  and cut to the same size gFT
+    try:
+        G_rar_fft[k] = G.sel(x=   slice(GG.x[0] , GG.x[-1].data))
+    except:
+        G_rar_fft[k] = G.isel(x=    (GG.x[0].data < G.x.data) & (G.x.data < GG.x[-1].data))
 
-    # for plotting
-    G_rar_fft_p =G.squeeze()
-    plt.plot(G.k, G_rar_fft_p[:, G_rar_fft_p['N_per_stancil'] > 10 ].mean('x'), 'darkblue', label='mean FFT')
+
+    #for plotting
+    G_rar_fft_p = G.squeeze()
+    plt.plot(G_rar_fft_p.k, G_rar_fft_p[:, G_rar_fft_p['N_per_stancil'] > 10 ].mean('x'), 'darkblue', label='mean FFT')
     #plt.plot(G.k, GG.mean('x'), 'lightblue', label='mean FFT')
     plt.legend()
     plt.show()
@@ -361,6 +381,7 @@ def dict_weighted_mean(Gdict, weight_key):
 
     counter= 0
     for k,I in Gdict.items():
+        #print(k)
         I =I.squeeze()
         GSUM                += I.where( ~np.isnan(I), 0) * I[weight_key] #.sel(x=GSUM.x)
         N_per_stancil       += I[weight_key]
@@ -368,7 +389,7 @@ def dict_weighted_mean(Gdict, weight_key):
             N_photons    += I['N_photons']
         counter+=1
 
-    GSUM             = GSUM  / N_per_stancil /counter
+    GSUM             = GSUM  / N_per_stancil
 
     if 'N_photons' in GSUM.coords:
         GSUM.coords['N_photons'] = (('x', 'beam'), np.expand_dims(N_photons, 1) )
@@ -391,7 +412,7 @@ def plot_wavenumber_spectrogram(ax, Gi, clev, title= None, plot_photon_density=T
 
     if Gi.k[0] ==0:
         Gi= Gi.sel(k=Gi.k[1:])
-    x_lambda= 1/Gi.k
+    x_lambda= 2 * np.pi/Gi.k
     plt.pcolormesh(Gi.x/1e3, x_lambda , Gi, cmap=plt.cm.ocean_r , vmin = clev[0], vmax = clev[-1])
 
     ax.set_yscale('log')
@@ -413,7 +434,7 @@ Gmean = G_gFT_wmean.rolling(k=5, center=True).mean()
 #Gmean = Gmean.where(~np.isnan(Gmean), 0)
 k_max_range = Gmean.k[Gmean.mean('x').argmax().data].data* 0.75, Gmean.k[Gmean.mean('x').argmax().data].data* 1, Gmean.k[Gmean.mean('x').argmax().data].data* 1.25
 
-# %%
+# %
 font_for_print()
 F = M.figure_axis_xy(6.5, 5.6, container= True, view_scale =1)
 
@@ -423,7 +444,13 @@ gs = GridSpec(3,3,  wspace=0.2,  hspace=.5)#figure=fig,
 
 #%matplotlib inline
 
-clev = M.clevels( [Gmean.quantile(0.8).data * 1e4, Gmean.quantile(0.99).data * 1e4], 31)/ 1e4
+# define mean first for colorbar
+Gplot = G_gFT_wmean.squeeze().rolling(k=10, min_periods= 1, center=True).median().rolling(x=3, min_periods= 1, center=True).median()
+dd = 10 * np.log10(Gplot)
+dd= dd.where(~np.isinf(dd), np.nan )
+clev_log = M.clevels( [dd.quantile(0.01).data, dd.quantile(0.98).data * 1.2], 31)* 1
+
+#clev = M.clevels( [Gmean.quantile(0.6).data * 1e4, Gmean.quantile(0.99).data * 1e4], 31)/ 1e4
 
 xlims= Gmean.x[0]/1e3, Gmean.x[-1]/1e3
 
@@ -431,11 +458,9 @@ for pos, k, pflag in zip([gs[0, 0],gs[0, 1],gs[0, 2] ], high_beams, [True, False
     ax0 = F.fig.add_subplot(pos)
     Gplot = G_gFT_sel[k].squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
-
-    # #plt.pcolormesh(G.x/1e3, 1/G.k , G, norm=colors.LogNorm(vmin=G.min()*1e6, vmax=G.max()), cmap='PuBu')#, vmin = clev[0], vmax = clev[-1])
-    #
-    #np.log(Gplot).plot()
-    plot_wavenumber_spectrogram(ax0, Gplot,  clev, title =k,  plot_photon_density=True )
+    dd2 = 10 * np.log10(Gplot)
+    dd2= dd2.where(~np.isinf(dd2), np.nan )
+    plot_wavenumber_spectrogram(ax0, dd2,  clev_log, title =k + ' unsmoothed',  plot_photon_density=True )
     plt.xlim(xlims)
     #
     if pflag:
@@ -446,23 +471,20 @@ for pos, k, pflag in zip([gs[1, 0],gs[1, 1],gs[1, 2] ], low_beams, [True, False,
     ax0 = F.fig.add_subplot(pos)
     Gplot = G_gFT_sel[k].squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
-
-    # #plt.pcolormesh(G.x/1e3, 1/G.k , G, norm=colors.LogNorm(vmin=G.min()*1e6, vmax=G.max()), cmap='PuBu')#, vmin = clev[0], vmax = clev[-1])
-    #
-    plot_wavenumber_spectrogram(ax0, Gplot,  clev, title =k,  plot_photon_density=True )
+    dd2 = 10 * np.log10(Gplot)
+    dd2= dd2.where(~np.isinf(dd2), np.nan )
+    plot_wavenumber_spectrogram(ax0, dd2,  clev_log, title =k+ ' unsmoothed',  plot_photon_density=True )
     plt.xlim(xlims)
     #
     if pflag:
         plt.ylabel('Wave length\n(meters)')
         plt.legend()
 
-pos, k, pflag = gs[2, 0], 'Power(weighted mean) \n10 $\log_{10}( (m/m)^2 m )$', True
+pos, k, pflag = gs[2, 0], 'smoothed weighted mean \n10 $\log_{10}( (m/m)^2 m )$', True
 ax0 = F.fig.add_subplot(pos)
-Gplot = G_gFT_wmean.squeeze().rolling(k=5, min_periods= 1, center=True).median().rolling(x=3, min_periods= 1, center=True).median()
 
-dd = 10 * np.log10(Gplot)
-dd= dd.where(~np.isinf(dd), np.nan )
-clev_log = M.clevels( [dd.quantile(0.01).data, dd.quantile(0.98).data * 1.2], 31)* 1
+
+
 plot_wavenumber_spectrogram(ax0, dd, clev_log  , title =k, plot_photon_density= True)
 plt.xlim(xlims)
 
@@ -505,14 +527,14 @@ for k,I in G_rar_fft.items():
 
 Gplot= G_fft_wmean.squeeze()
 Gplot = Gplot[:,Gplot.N_per_stancil >=  Gplot.N_per_stancil.max().data*0.9]
-plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k') *1e3, '.', markersize=1.5 , c='blue', label= 'FFT')
+plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k') *1e3 , '.', markersize=1.5 , c='blue', label= 'FFT')
 
 Gplot= G_gFT_wmean.squeeze()
-plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k') *1e3 , '.' , markersize=1.5, c='red', label= 'gFT')
+plt.plot(Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k') *1e3  , '.' , markersize=1.5, c='red', label= 'gFT')
 
 plt.ylabel('1e-3 $(m)^2~m$')
 plt.legend()
-plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
+#plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
 plt.xlim(xlims)
 
 F.save_light(path=plot_path, name = 'B02_specs_' + track_name +'_L'+str(Lmeters))
@@ -535,6 +557,7 @@ plt.xlabel('lat')
 
 plt.subplot(1,2, 2)
 
+xscale= 1e3
 for k in all_beams:
     I = Gd[k]
     plt.plot( I['x']/xscale  , I['y']/xscale , '.' , markersize = 0.3)

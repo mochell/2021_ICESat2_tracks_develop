@@ -149,10 +149,9 @@ class wavenumber_spectrogram_gFT(object):
 
                 #plt.plot(k_fft[1:], Spec_fft.model_func(Spec_fft.freq, pars), 'b--' )
 
-                plt.plot(k, weight, zorder=12)
-                plt.plot(k_fft[1:], Spec_fft.data)
+                plt.plot(k, weight, zorder=12, label = 'weights')
+                plt.plot(k_fft[1:], Spec_fft.data, label='fft for prior')
                 plt.xlim(k[0],k[-1] )
-                plt.show()
 
 
             # peak normlize weight
@@ -230,10 +229,10 @@ class wavenumber_spectrogram_gFT(object):
                 col= 'blue'
 
             if plot_flag:
-                plt.plot(self.k, PSD, color=col )
+                plt.plot(self.k, PSD, color=col , label= 'gFT model fit')
                 plt.title( 'b_hat power, 2M='+ str(self.k.size*2) + ', N='+ str(x.size))
                 plt.xlim(self.k[0],self.k[-1])
-
+                plt.legend()
                 plt.show()
 
                 print('---------------------------------')
@@ -280,35 +279,36 @@ class wavenumber_spectrogram_gFT(object):
             GFT_model[I[0]]     = (I[1][0:self.k.size],  I[1][self.k.size:])
             Z_model[I[0]]       = Z = complex_represenation(I[1], self.k.size, Lpoints )
 
-            PSD_data, PSD_model =  Z_to_power_gFT(Z, self.dk, I[5], Lpoints )
+            PSD_data, PSD_model = Z_to_power_gFT(Z, self.dk, I[5], Lpoints )
             D_specs[I[0]]       = PSD_data
             D_specs_model[I[0]] = PSD_model
 
-            Pars[I[0]]         = I[2]
+            Pars[I[0]]          = I[2]
             y_model[I[0]]       = I[3]
-            y_data[I[0]]       = I[4]
+            y_data[I[0]]        = I[4]
             N_per_stancil.append(I[5])
 
+        print("# of x-coordinates" + str(len(Spec_returns)) )
 
-        self.N_per_stancil = N_per_stancil
-        chunk_positions = np.array(list(D_specs.keys()))
-        self.N_stancils    = len(chunk_positions) # number of spectral realizatiobs
+        self.N_per_stancil  = N_per_stancil
+        chunk_positions     = np.array(list(D_specs.keys()))
+        self.N_stancils     = len(chunk_positions) # number of spectral realizatiobs
 
         # repack data, create xarray
         # 1st LS spectal estimates
-        G_LS_power =dict()
+        G_LS_power = dict()
         for xi,I in D_specs.items():
             G_LS_power[xi] = xr.DataArray(I,  dims=['k'], coords={'k': self.k, 'x': xi } , name='gFT_PSD_data')
 
         G_LS_power = xr.concat(G_LS_power.values(), dim='x').T#.to_dataset()
 
-        G_LS_power_model =dict()
+        G_LS_power_model = dict()
         for xi,I in D_specs_model.items():
             G_LS_power_model[xi] = xr.DataArray(I,  dims=['k'], coords={'k': self.k, 'x': xi } , name='gFT_PSD_model')
 
         G_LS_power_model = xr.concat(G_LS_power_model.values(), dim='x').T#.to_dataset()
-        self.G = G_LS_power_model
-        self.G.name = 'gFT_PSD_model'
+        self.G           = G_LS_power_model
+        self.G.name      = 'gFT_PSD_model'
 
         #2nd FFT(Y_model)
         G_model =dict()
@@ -338,15 +338,15 @@ class wavenumber_spectrogram_gFT(object):
         eta   =  np.arange(0, self.Lmeters + self.dx, self.dx) - self.Lmeters/2
         for xi in y_model.keys():
             y_model_eta[xi] = xr.DataArray(y_model[xi],  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_model")
-            y_data_eta[xi]  = xr.DataArray(y_data[xi],  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_data")
+            y_data_eta[xi]  = xr.DataArray(y_data[xi] ,  dims=['eta'], coords={'eta': eta, 'x': xi } , name="y_data")
 
         y_model_eta = xr.concat(y_model_eta.values(), dim='x').T#.to_dataset()
-        y_data_eta = xr.concat(y_data_eta.values(), dim='x').T#.to_dataset()
+        y_data_eta  = xr.concat(y_data_eta.values() , dim='x').T#.to_dataset()
 
         # merge wavenumber datasets
         self.GG = xr.merge([G_LS_power, G_LS_power_model, G_model, GFT_model_coeff_A, GFT_model_coeff_B])
-        self.GG.attrs['ov'] = self.ov
-        self.GG.attrs['L'] = self.Lmeters
+        self.GG.attrs['ov']      = self.ov
+        self.GG.attrs['L']       = self.Lmeters
         self.GG.attrs['Lpoints'] = self.Lpoints
         self.GG.coords['N_per_stancil'] = ( ('x'), N_per_stancil)
 
@@ -391,7 +391,7 @@ class wavenumber_spectrogram_gFT(object):
                     I['model_error_x'] = I['model_error_x'][0:-1]# np.append(I['model_error_x'], I['model_error_x'][-1])
                     print('adjust y')
 
-                print(x_pos.size , I['model_error_x'].size)
+                #print(x_pos.size , I['model_error_x'].size)
                 x_err[x_pos] = I['model_error_x']
                 model_error_x[xi]    = xr.DataArray(x_err,  dims=['eta'], coords={'eta': eta, 'x': xi } , name='model_error_x')
 

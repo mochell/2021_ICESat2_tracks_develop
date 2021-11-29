@@ -164,7 +164,8 @@ def calc_freq_fft(x_grid, N):
             wavenumber) in cycles per unit of L """
 
     neven = True if (N%2) else False
-    dx=np.diff(x_grid).mean()
+    #dx=np.diff(x_grid).mean()
+    dx =     np.round(np.median(np.diff(x_grid) ), 1)
     df = 1./((N-1)*dx)
 
     if neven:
@@ -376,7 +377,7 @@ def sub_sample_coords(X, lons, lats, stancils, map_func =None):
 
 
 class wavenumber_spectrogram(object):
-    def __init__(self, x_grid, data, L, ov=None, window=None):
+    def __init__(self, x_grid, data, Lpoints, ov=None, window=None):
         """
         returns a wavenumber spectrogram with the resolution L-ov
         this uses standard fft and assumes equally gridded data
@@ -393,15 +394,20 @@ class wavenumber_spectrogram(object):
             other arributes are in the .attr dict.
         """
 
-        self.L      = L
-        self.ov = int(L/2) if ov is None else ov #when not defined in create_chunk_boundaries then L/2
+        self.Lpoints  = Lpoints
+        self.ov       = int(Lpoints/2) if ov is None else ov #when not defined in create_chunk_boundaries then L/2
 
-        self.data   = data
+        self.data     = data
 
         # create subsample k
-        self.k, self.dk  = calc_freq_fft(x_grid, L)
+        self.k, self.dk = calc_freq_fft(x_grid, Lpoints) # return 1/ unit of frid points
+        # to get the waveumber units (2  pi/ lambda), multiply by 2 pi
+        self.k, self.dk = self.k * 2 * np.pi, self.dk  * 2 * np.pi 
+
+        # print(self.k[0], self.k[-1])
+        # print(self.dk)
         # create window
-        self.win    = create_window(L)
+        self.win    = create_window(Lpoints)
 
     def cal_spectrogram(self, data=None, name=None):
 
@@ -411,7 +417,7 @@ class wavenumber_spectrogram(object):
         import xarray as xr
 
         DATA = self.data if data is None else data
-        L, dk = self.L, self.dk
+        Lpoints, dk = self.Lpoints, self.dk
         win =self.win
 
         def calc_spectrum_apply(stancil):
@@ -422,13 +428,13 @@ class wavenumber_spectrogram(object):
             idata = DATA[stancil[0]:stancil[-1]]
             idata = detrend(idata) * win
 
-            return stancil[1], calc_spectrum_fft(idata , dk, L)
+            return stancil[1], calc_spectrum_fft(idata , dk, Lpoints)
 
         # def test_func(i_stancil):
         #     return i_stancil[1], yy[i_stancil[0]:i_stancil[-1]].shape
 
         # %% derive L2 stancil
-        stancil_iter = create_chunk_boundaries(L, DATA.size, ov= self.ov)
+        stancil_iter = create_chunk_boundaries(Lpoints, DATA.size, ov= self.ov)
         # apply func to all stancils
         D_specs = dict(map(calc_spectrum_apply,stancil_iter))
 
@@ -446,7 +452,7 @@ class wavenumber_spectrogram(object):
             self.G = self.G[1:, :]
 
         self.G.attrs['ov'] = self.ov
-        self.G.attrs['L'] = self.L
+        self.G.attrs['L'] = self.Lpoints
 
         return self.G
 
@@ -475,7 +481,7 @@ class wavenumber_spectrogram(object):
     def parceval(self, add_attrs=True ):
         "test Parceval theorem"
         DATA = self.data
-        L = self.L
+        L = self.Lpoints
 
 
         # derive mean variances of stancils
