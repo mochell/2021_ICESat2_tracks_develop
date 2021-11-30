@@ -16,7 +16,7 @@ MKDIR_P = mkdir -p
 
 # define paths to analysis
 analysisfolder		= $(shell jq -r '.paths.base' ../config/config.json)analysis_db/#/home/mhell/2021_ICESat2_tracks/analysis_db/
-plotsfolder	     	= $(shell jq -r '.paths.plot' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/plots/
+plot_folder	     	= $(shell jq -r '.paths.plot' ../config/config.json)#/home/mhell/2021_ICESat2_tracks/plots/
 
 work_folder				= $(shell jq -r '.paths.work' ../config/config.json)#/work/mhell_work/2021_ICESat2_tracks/
 scratch_folder    = $(shell jq -r '.paths.scratch' ../config/config.json)#/scratch/mhell/2021_ICESat2_tracks/
@@ -116,21 +116,21 @@ endif
 B01_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
 B02_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/B02_spectra_SH/, B02_${i}_FFT.nc ) )
 
-.PHONY : B01 B02
+.PHONY : B01 B02# B03
 B01 : make_folder $(B01_targets)
 B02 : $(B02_targets)
 
-$(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_folder)/$(batch_key)/processed_ATL03_%.h5
+$(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_folder)/$(batch_key)/processed_ATL03_%.h5 $(analysisfolder)/B01_filter_regrid_segments.py
 					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(test_flag) > log/B01/$*.txt 2>&1
 
-$(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 $(analysisfolder)/B02_make_spectra.py
+$(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 #$(analysisfolder)/B02_make_spectra.py
 					sleep $${RANDOM:0:2}s
 					python $(analysisfolder)/B02_make_spectra_gFT.py $* $(batch_key) $(test_flag) > log/B02/$*.txt 2>&1
 
 B_collect : #B01 B02
-					${MKDIR_P} $(plotsfolder)$(hemis)/$(batch_key)/B02/
-					rm -fv $(plotsfolder)$(hemis)/$(batch_key)/B02/*
-					cp $(plotsfolder)$(hemis)/$(batch_key)/*/B_spectra/B02_specs_*.png $(plotsfolder)$(hemis)/$(batch_key)/B02/
+					${MKDIR_P} $(plot_folder)$(hemis)/$(batch_key)/B02/
+					rm -fv $(plot_folder)$(hemis)/$(batch_key)/B02/*
+					cp $(plot_folder)$(hemis)/$(batch_key)/*/B_spectra/B02_specs_*.png $(plot_folder)$(hemis)/$(batch_key)/B02/
 
 #### delete bad tracks ###
 
@@ -143,7 +143,7 @@ source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch
 #B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
 #B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
 
-plot_folders := $(foreach i, $(bad_beams) ,$(addprefix $(plotsfolder)/$(hemis)/tracks/, ${i} ) )
+plot_folders := $(foreach i, $(bad_beams) ,$(addprefix $(plot_folder)/$(hemis)/tracks/, ${i} ) )
 
 rm_bad_beams: #rm_B01_files
 					@echo "removing bad tracks in 5 sec"
@@ -154,13 +154,45 @@ rm_bad_beams: #rm_B01_files
 
 #rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 
+# B03 overview plots
+B02_path := $(work_folder)B02_spectra_$(hemis)/B02_
+# find sources
+B02_success := $(basename $(shell ls $(B02_path)*_gFT_x.nc) )
+#B02_fail := $(basename $(shell ls $(B02_path)*_fail.json) )
 
-# #beam_list := $(foreach i, $(beam_list_rar) , $(subst processed_ATL03_,,$(i))  )
+B03_path := $(plot_folder)$(hemis)/$(batch_key)/
+# write targets
+B03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
+B03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
+
+B03 : $(B03_targets) B03_mkdir B03_collect
+
+#.PHONY : B03_collect
+
+B03_mkdir :
+					${MKDIR_P} $(B03_collect_path)
+
+$(B03_targets) : $(B03_path)%/B03_success.json : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
+					python $(analysisfolder)/B03_plot_spectra_ov.py $* $(batch_key) $(test_flag) > log/B03/$*.txt 2>&1
+
+B03_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B03_ov/
+# search for all file and move, and rename them similar files
+B03_success := $(shell ls $(B03_path)*/B03_success.json)
+B03_collect_list := $(foreach i, $(B03_success) , $(subst $(B03_path),$(B03_collect_path),$(i) )  )
+#B03_collect_targets := $(foreach i, $(B03_collect_list) , $(subst /B03_success.json,_B03_success.json,$(i)) )
+B03_collect_targets := $(foreach i, $(B03_collect_list) , $(subst /B03_success.json,_B03_specs_L25000.png,$(i)) )
+
+B03_collect : $(B03_collect_targets)
+
+$(B03_collect_targets) : $(B03_collect_path)%_B03_specs_L25000.png : $(B03_path)%/B03_success.json
+					cp $(B03_path)$*/B03_specs_L25000.0.png $(B03_collect_path)$*_B03_specs_L25000.png
+
+#cp $(B03_path)$*/B03_spectra/B03_freq_reconst*.pdf $(B03_collect_path)$*_B03_freq_reconst.pdf
 
 # sync plots from batch key to gdrive folder.
 sync_gdrive :
-					rclone sync $(plotsfolder)$(hemis)/$(batch_key)/B02/ gdrive:Projects/2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)/B02/
-					#rclone sync $(plotsfolder)../movie_temp_files/$(key) gdrive:Projects/2020_moist_two_layer/plots/movie_temp_files/$(key)/
+					rclone sync $(plot_folder)$(hemis)/$(batch_key)/B02/ gdrive:Projects/2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)/B02/
+					#rclone sync $(plot_folder)../movie_temp_files/$(key) gdrive:Projects/2020_moist_two_layer/plots/movie_temp_files/$(key)/
 
 # for printing variables, used for debugging
 print-%  : ; @echo $* = $($*)

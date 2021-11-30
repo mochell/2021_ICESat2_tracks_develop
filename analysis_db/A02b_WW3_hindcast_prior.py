@@ -32,7 +32,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190217194220_07840212_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 track_name_short = track_name[0:-16]
 
 
@@ -71,6 +71,9 @@ for b in all_beams:
 
 G1 = pd.DataFrame.from_dict(G1).T
 
+
+# DEFINE SEARCH REGION AND SIZE OF BOXES FOR AVERAGES
+
 dlon_deg = 1 # degree range aroud 1st point
 dlat_deg = 30, 5 # degree range aroud 1st point
 dlat_deg_prior = 2, 1 # degree range aroud 1st point
@@ -87,9 +90,6 @@ time_range      = np.datetime64(timestamp) - np.timedelta64(dtime, 'h') , np.dat
 # create timestamp according to fiels on ftp server:
 # time_stamps_search = np.arange(time_range[0].astype('datetime64[3h]') - np.timedelta64(12*24, 'h') , time_range[1].astype('datetime64[3h]') +  np.timedelta64(3, 'h'), np.timedelta64(3, 'h'))
 # time_stamps_search_str = [str(t).replace('-', '') for t in time_stamps_search]
-
-# delete to save memory
-#del Gd
 
 # %%
 import glob
@@ -108,6 +108,9 @@ else:
 print(f_list)
 
 def sel_data(I, lon_range, lat_range, timestamp = None):
+    """
+    this method returns the selected data inthe lon-lat  box at an interpolated timestamp
+    """
     lon_flag = (lon_range[0] < I.longitude.data) & (I.longitude.data < lon_range[1])
     lat_flag = (lat_range[0] < I.latitude.data) & (I.latitude.data < lat_range[1])
     time_flag = (time_range[0] < I.time.data) & (I.time.data < time_range[1])
@@ -133,7 +136,7 @@ def sel_data(I, lon_range, lat_range, timestamp = None):
 
 
 try:
-
+    # load file and load WW# data
     Gww3 = xr.open_mfdataset(f_list)
     G_beam  = sel_data(Gww3     , lon_range, lat_range      , timestamp).load()
     G_prior = sel_data(G_beam   , lon_range, lat_range_prior)
@@ -148,13 +151,13 @@ try:
     #     print('all points in ice mask')
     #     lat_range_prior
     #     lat_range_prior = lat_range_prior, lat_range_prior[1] + 2
-
-        #ice_mask.sel(latitude=G1.mean()['lats'], longitude =G1.mean()['lons'], method ='nearest')
+    #ice_mask.sel(latitude=G1.mean()['lats'], longitude =G1.mean()['lons'], method ='nearest')
 
     # mask all latitudes that are completely full with sea ice.
     lats = list(ice_mask.latitude.data)
     lats.sort(reverse= True)
     #(ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)
+
     # find 1st latitude that is completely full with sea ice.
     ice_lat_pos = next((i for i, j in enumerate((ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)) if j), None)
     # recreate lat mask based on this criteria
@@ -162,23 +165,20 @@ try:
     lat_mask = xr.DataArray( lat_mask.repeat(ice_mask.longitude.size ).reshape(ice_mask.shape), dims = ice_mask.dims, coords = ice_mask.coords )
     lat_mask['latitude'] =lats
 
+    # combine ice mask and new lat mask
     ice_mask = ice_mask + lat_mask
 
 
-    # for vv in list(G_prior.variables.keys()):
-    #     print(vv, '  ', G_prior[vv].long_name)
-    # %
-    #print(FWi.load().time.min().data, FWi.load().time.max().data )
+    # plot 1st figure
     def draw_range(lon_range, lat_range, *args, **kargs):
         plt.plot( [lon_range[0], lon_range[1], lon_range[1], lon_range[0], lon_range[0]] , [lat_range[0], lat_range[0], lat_range[1], lat_range[1], lat_range[0]] , *args, **kargs)
 
-    # G_beam.dp.plot()
-    # G_beam.ice.plot()
-
-
+    dir_clev= np.arange(0, 380, 20)
+    f_clev = np.arange(1/40, 1/5, 0.01)
     fvar = ['ice',          'dir',                   'dp',       'spr',      'fp',    'hs']
-    fcmap =[plt.cm.Blues_r, col.circle_medium_triple, plt.cm.Blues, plt.cm.Blues, plt.cm.Blues, plt.cm.Blues  ]
+    fcmap =[plt.cm.Blues_r, col.circle_medium_triple, col.circle_medium_triple, plt.cm.Blues, plt.cm.Blues, plt.cm.Blues  ]
     fpos = [0, 1, 2, 3, 4, 5]
+    clevs = [np.arange(0, 1, 0.2), dir_clev,           dir_clev,                 np.arange(0, 90, 10), f_clev, np.arange(.5, 9, 0.5) ]
 
     font_for_print()
     #plt.rc('pcolor', shading = 'auto')
@@ -189,7 +189,7 @@ try:
     gs = GridSpec(9,6,  wspace=0.1,  hspace=0.4)#figure=fig,
     #pos0,pos1,pos2 = gs[0:3, 0],gs[3, 0],gs[4, 0]#,gs[3, 0]
 
-    for fv, fp, fc in zip(fvar, fpos, fcmap):
+    for fv, fp, fc, cl in zip(fvar, fpos, fcmap, clevs):
 
         ax1 = F.fig.add_subplot(gs[0:7, fp]) #plt.subplot(1, 6, fp)
         if fp ==0:
@@ -205,10 +205,10 @@ try:
         draw_range(lon_range, lat_range, c='blue', linewidth = 0.7, zorder=10)
         #G_beam.ice.plot(cmap=plt.cm.Blues_r, )
         if fv != 'ice':
-            cm = plt.pcolor(lon, lat,G_beam[fv].where(~ice_mask, np.nan), cmap=fc)
+            cm = plt.pcolor(lon, lat,G_beam[fv].where(~ice_mask, np.nan), vmin=cl[0], vmax=cl[-1] , cmap=fc)
             plt.contour(lon, lat,G_beam.ice, colors= 'black', linewidths = 0.6)
         else:
-            cm =plt.pcolor(lon, lat,G_beam[fv], cmap=fc)
+            cm =plt.pcolor(lon, lat,G_beam[fv], vmin=cl[0], vmax=cl[-1],  cmap=fc)
 
         #plt.title(fv, loc='center')
         plt.title(G_beam[fv].long_name.replace(' ', '\n') +'\n'+ fv, loc='left')
@@ -216,7 +216,12 @@ try:
 
         ax2 = F.fig.add_subplot(gs[-1, fp]) #plt.subplot(1, 6, fp)
         #plt.axis('off')
-        plt.colorbar(cm, cax= ax2, orientation = 'horizontal', aspect= 1, fraction=1)
+        cbar = plt.colorbar(cm, cax= ax2, orientation = 'horizontal', aspect= 1, fraction=1)
+        cl_ticks = np.linspace(cl[0], cl[-1] , 3)
+
+        cbar.set_ticks(  np.round( cl_ticks, 3) )
+        #[str(i) for i in np.round( cl_ticks, 1)  ]
+        cbar.set_ticklabels(  np.round( cl_ticks, 2))
 
     F.save_pup(path= plot_path, name =plot_name+'_hindcast_data')
 
@@ -241,24 +246,83 @@ try:
 
 
 
-    # make pandas table with obs track end postitions
+    ### make pandas table with obs track end postitions
+
     key_list = list(G_prior_masked.keys())
-    Tend = pd.DataFrame(index = key_list)
+    # define directional and amplitude pairs
+    # pack as  (amp, angle)
+    key_list_pairs = {
+      'mean': ( 'hs', 'dir'),
+      'peak': ( 'hs', 'dp'),
+      'partion0': ('phs0', 'pdp0'),
+      'partion1': ('phs1', 'pdp1'),
+      'partion2': ('phs2', 'pdp2'),
+      'partion3': ('phs3', 'pdp3'),
+      'partion4': ('phs4', 'pdp4') }
 
-    dlist = list()
-    for kk in key_list:
-        dlist.append( G_prior_masked[kk].mean().data)
-    Tend['mean']  = dlist
 
-    dlist = list()
-    for kk in key_list:
-        dlist.append( G_prior_masked[kk].std().data)
-    Tend['std']  = dlist
+    key_list_pairs2 =list()
+    for k in key_list_pairs.values():
+        key_list_pairs2.append(k[0])
+        key_list_pairs2.append(k[1])
 
-    dlist = list()
-    for kk in key_list:
-        dlist.append( G_prior_masked[kk].long_name)
-    Tend['name']  = dlist
+    key_list_scaler = set(key_list) - set(key_list_pairs2)
+
+
+    ### derive angle avearge
+    def to_vec(amp, angle, deg = True):
+
+        "from anlge deg to vect"
+        if deg:
+            u, v  = amp * np.cos(angle * np.pi/180), amp * np.sin(angle * np.pi/180)
+        else:
+            u, v  = amp * np.cos(angle ), amp * np.sin(angle )
+
+        return u,v
+
+    def to_deg(u,v, deg = True):
+
+        """
+        from vect to angle, amp
+        angle is -180 to 180
+        this is a different definiton then WW3 [0, 360 ), but (-180, 180] is more convient for the problem
+        """
+        amp = np.sqrt(u**2 + v**2)
+        angle = np.arctan2(v, u)# + 2 * np.pi
+
+        # nan_mask = np.isnan(angle)
+        # angle= np.where(angle > np.pi, angle - 2 * np.pi , angle)
+        # angle= np.where(angle <= - np.pi, angle + 2 * np.pi , angle)
+        # angle= np.where(nan_mask, np.nan , angle)
+
+        if deg:
+            angle = angle * 180/np.pi
+        return amp, angle
+
+    def get_ave_amp_angle(amp, angle):
+
+        u,v =  to_vec(amp, angle , deg= True)
+        # average angle in vector space
+        #print(u, v)
+        _ , ave_deg = to_deg( np.nanmean(u) , np.nanmean(v) )
+        _ , std_deg = to_deg( np.nanstd(u) , np.nanstd(v) )
+
+        #average amp in angle space
+        ave_amp = np.nanmean(amp)
+        std_amp = np.nanstd(amp)
+
+        return ave_amp, ave_deg, std_amp, std_deg
+
+    Tend = pd.DataFrame(index =key_list, columns = ['mean', 'std', 'name'] )
+
+    for k, pair in key_list_pairs.items():
+        ave_amp, ave_deg, std_amp, std_deg = get_ave_amp_angle(G_prior_masked[pair[0]].data, G_prior_masked[pair[1]].data)
+        Tend.loc[pair[0]] = ave_amp, std_amp, G_prior_masked[pair[0]].long_name
+        Tend.loc[pair[1]] = ave_deg, std_deg, G_prior_masked[pair[1]].long_name
+        #key_list_pairs[k] = {pair[0]:ave_amp, pair[1]:ave_deg }
+
+    for k in key_list_scaler:
+        Tend.loc[k] = G_prior_masked[k].mean().data, G_prior_masked[k].std().data, G_prior_masked[k].long_name
 
 
     Tend = Tend.T
@@ -266,14 +330,11 @@ try:
     Tend['lat'] = [ice_mask_prior.latitude[ice_mask_prior.sum('longitude') ==0].mean().data ,ice_mask_prior.latitude[ice_mask_prior.sum('longitude') ==0].std().data , 'latitude']
     Tend = Tend.T
 
-
-
     Prior = dict()
-
     Prior['incident_angle'] = {'value': Tend['mean']['dp'].astype('float') , 'name': Tend['name']['dp']}
-    Prior['spread'] = {'value': Tend['mean']['spr'].astype('float') , 'name': Tend['name']['spr']}
-    Prior['Hs'] = {'value': Tend['mean']['hs'].astype('float') , 'name': Tend['name']['hs']}
-    Prior['peak_period'] = {'value': 1/Tend['mean']['fp'].astype('float') , 'name': '1/' +Tend['name']['fp']}
+    Prior['spread']         = {'value': Tend['mean']['spr'].astype('float') , 'name': Tend['name']['spr']}
+    Prior['Hs']             = {'value': Tend['mean']['hs'].astype('float') , 'name': Tend['name']['hs']}
+    Prior['peak_period']    = {'value': 1/Tend['mean']['fp'].astype('float') , 'name': '1/' +Tend['name']['fp']}
 
     Prior['center_lon'] = {'value': Tend['mean']['lon'].astype('float') , 'name': Tend['name']['lon']}
     Prior['center_lat'] = {'value': Tend['mean']['lat'].astype('float') , 'name': Tend['name']['lat']}
@@ -287,7 +348,6 @@ try:
         axx.plot(Prior['center_lon']['value'], Prior['center_lat']['value'] , '.', markersize= 6, zorder =12, alpha = 1, color = 'black' )
         tstring=  ' ' +str(np.round(  Prior['peak_period']['value'], 1) )+'sec \n ' +  str( np.round(Prior['Hs']['value'], 1) )+'m\n ' + str(np.round(angle, 1)) +'deg'
         plt.text(lon_range[1], Prior['center_lat']['value'], tstring)
-
 
 
     font_for_print()
@@ -305,9 +365,9 @@ try:
 
     str_list = list()
     for i in np.arange(0, 6):
-        str_list.append(str(np.round(Tend.loc['phs'+str(i)]['mean'], 1)) +'m '+str(np.round(Tend.loc['pdp'+str(i)]['mean'], 1))+'deg')
+        str_list.append(' ' + str(np.round(Tend.loc['ptp'+str(i)]['mean'], 1)) +'sec\n ' + str(np.round(Tend.loc['phs'+str(i)]['mean'], 1)) +'m '+str(np.round(Tend.loc['pdp'+str(i)]['mean'], 1))+'d')
 
-    plt.text(lon_range[1], lat_range[0], '  \n'.join(str_list) )
+    plt.text(lon_range[1], lat_range[0], '\n '.join(str_list) )
 
     for vv in zip(['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5'],['phs0','phs1','phs3','phs4','phs5']) :
 
@@ -331,6 +391,7 @@ try:
     #plt.title(fv, loc='center')
     plt.title('Prior\n' + file_name_base[0:-1].replace('_', ' ') +'\n'+ track_name_short + '\nIncident angle', loc='left')
     ax1.axis('equal')
+
 
     F.save_pup(path= plot_path, name =plot_name+'_hindcast_prior')
 

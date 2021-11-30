@@ -48,7 +48,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-track_name, batch_key, test_flag = '20190207235856_06340212_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502033317_05170310_004_01', 'SH_batch02', False
 
 
@@ -112,7 +112,8 @@ def load_data_and_cut(k):
     T, seg = io.getATL03_beam(load_file, beam= k)
     print('loaded')
     T = T[T['mask_seaice']] # only take sea ice points, no ocean points
-    T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
+    #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
+    T = T.drop(labels=[ 'ph_id_count', 'mask_seaice'], axis= 1)
     print( 'T MB '  + get_size(T) )
 
     ho = k
@@ -424,8 +425,16 @@ def derive_axis_and_boundaries(key):
 
 def get_better_lower_boundary(Lmeter_large, dd):
 
-    # T2         = regrid.derive_axis(B[key], lat_lims)
-    #dd = np.array(T2['x'])
+    #T2         = regrid.derive_axis(B[key], lat_lims)
+    #dd = np.array(B['gt1l']['x'])
+
+    stencil_iter = spec.create_chunk_boundaries_unit_lengths( Lmeter_large, [ dd.min(), dd.max()],ov =0, iter_flag= False)
+    if stencil_iter.shape[1] == 0:
+        while stencil_iter.shape[1] == 0:
+            Lmeter_large = int(Lmeter_large/2)
+            print( 'new Lmeter_large' + str(Lmeter_large))
+            stencil_iter = spec.create_chunk_boundaries_unit_lengths( Lmeter_large, [ dd.min(), dd.max()],ov =0, iter_flag= False)
+
     stencil_iter = spec.create_chunk_boundaries_unit_lengths( Lmeter_large, [ dd.min(), dd.max()],ov =0, iter_flag= True)
 
     def get_density(sti):
@@ -438,6 +447,7 @@ def get_better_lower_boundary(Lmeter_large, dd):
     var_list = np.array(var_list)
     #var_list[:,0] = np.random.rand(10)
     #sort var_list
+    print(var_list)
     var_list = var_list[var_list[:,0].argsort(), :]
     #print(var_list)
     if sum(var_list[:,1] > minium_photon_density) > 1:
@@ -459,6 +469,8 @@ def get_better_lower_boundary(Lmeter_large, dd):
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(derive_axis_and_boundaries, all_beams)  )
 
+# for k in all_beams:
+#     A = derive_axis_and_boundaries(k)
 
 # %%
 B2          = dict()
