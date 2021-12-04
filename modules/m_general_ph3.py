@@ -24,7 +24,7 @@ import datetime as DT
 #from cdo import *   # python version
 import m_tools_ph3 as MT
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 
 class color(object):
@@ -173,6 +173,7 @@ class subplot_routines(figure_axis_xy):
 
 class plot_sprecta(object):
             def __init__(self,fs, Xdata,sample_unit=None,data_unit=None):
+
                 self.fs=fs
                 self.Xdata=Xdata
                 self.sample_unit=sample_unit if sample_unit is not None else 'df'

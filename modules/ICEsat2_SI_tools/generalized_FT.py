@@ -664,6 +664,17 @@ class get_prior_spec(object):
             self.freq_cut_flag= False
 
     def set_parameters(self, flim=None):
+
+        """
+        sets parameters fpr optimization
+        setf.freq   freq grid used for optimization
+        self.data   data used for optimzation
+        flim        maximum freq upto which frequecy maximu is found
+
+        retruns:
+        self.params LMfit.parameters class needed for optimization 
+
+        """
         import numpy as np
         params = self.LM.Parameters()
 

@@ -15,8 +15,6 @@ def ase_to_json(path):
     import swatch
     A=swatch.parse(path)
 
-
-
     for i in A[0]['swatches']:
         print(i['name'] + '  ' + str(i['data']['values']))
 
@@ -171,15 +169,15 @@ class color(object):
             for key in self.__dict__.keys():
                 print(key)
 
-            print('  colors dict:')
-            for key in self.colors.keys():
+            print('  rels dict:')
+            for key in self.rels.keys():
                 print('  '+key)
 
             #print(self.__dict__)
         def plot(self):
             dd=self.__dict__.copy()
-            dd_colors=dd['colors']
-            del dd['colors']
+            dd_colors=dd['rels']
+            del dd['rels']
 
             Y=2.0
             coldd=dd
@@ -190,7 +188,7 @@ class color(object):
             y=np.arange(0, 1, dy)
 
             j=0
-            for k,I in coldd.iteritems():
+            for k,I in coldd.items():
                 r1 = mpatch.Rectangle((0, y[j]), 1, dy, color=I)
                 txt = ax.text(1.1, y[j]+dy*.5, ' '+k, va='center', fontsize=10,
                               weight='regular')
@@ -206,7 +204,7 @@ class color(object):
             y=np.arange(0, 1, dy)
 
             j=0
-            for k,I in coldd.iteritems():
+            for k,I in coldd.items():
                 r1 = mpatch.Rectangle((0, y[j]), 1, dy, color=I)
                 txt = ax1.text(1.1, y[j]+dy*.5, ' '+k, va='center', fontsize=10,
                               weight='regular')

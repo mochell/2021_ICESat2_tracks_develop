@@ -379,7 +379,6 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
     """
     import pandas as pd
-    import numba
     import time
 
     x_data = np.array(T2[key_x_coord])

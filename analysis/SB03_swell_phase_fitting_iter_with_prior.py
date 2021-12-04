@@ -33,7 +33,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190601093502_09790310_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -53,17 +53,18 @@ bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
+beam_groups = mconfig['beams']['groups']
+
 #Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 
 load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 G_binned      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
 load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
-Gd_x      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_x.nc' )  #
+Gx      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_x.nc' )  #
 
-Gd      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_k.nc' )  #
-Gdi = Gd.sel(beam = 'gt1r').isel(x = 1).sel(k =slice(0, 0.06))
-Gdi.gFT_PSD_data.plot()
+Gk      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_k.nc' )  #
+
 
 # %% load prior information
 load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
@@ -85,80 +86,67 @@ Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindca
 
 
 # %% select data
-Gd.keys()
-for b in Gd.beam:
-    B = Gd.sel(beam= b)
-    plt.plot(B['lon'], B['lat'])
+for b in Gx.beam:
+    B = Gx.sel(beam= b)
+    plt.plot(B['x_coord'], B['y_coord'], '.')
 
-# %%
-
-for b in Gd.beam[2:4]:
-    print(b)
-    B = Gd.sel(beam= b)
-    plt.plot(B['lon'], B['lat'], '.')
-
-plt.axis('equal')
 plt.grid()
 # %%
 
-B1 = Gd.sel(beam =  'gt2r')
-B2 = Gd.sel(beam =  'gt2l')
+# for group in beam_groups:
+#     B1 = Gd.sel(beam =  group[0])
+#     B2 = Gd.sel(beam =  group[1])
+#
+#     dist = np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 )
+#     print(group, dist.data)
 
-dist_y_mean = np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 ).mean()
+#     B1.coords['dist_y'] = 0
+#     B2.coords['dist_y'] = dist
 
-np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 )
-B1 = Gd.sel(beam =  'gt1r')
-B2 = Gd.sel(beam =  'gt2r')
-#dist_y_mean = np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 ).mean()
-plt.plot( np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 ) ,'.')
-
-
-
-
-B1 = Gd.sel(beam =  'gt1r')
-B2 = Gd.sel(beam =  'gt3r')
-#dist_y_mean = np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 ).mean()
-plt.plot( np.sqrt( (B1['x_coord']-B2['x_coord'])**2 + (B1['y_coord']-B2['y_coord'])**2 ), '.')
-
-
-dist_y_mean
-
-B1.coords['dist_y'] = 0
-B2.coords['dist_y'] = dist_y_mean
-
-GG0 = xr.concat( [B1.expand_dims('dist_y'), B2.expand_dims('dist_y')] , dim= 'dist_y')
-
-
-#plt.plot( GG0['x']/1e3 , GG0['y']/1e3)
-plt.plot( GG0['x_coord']/1e3 , GG0['y_coord']/1e3, '^')
-plt.axis('equal')
+# isolate case
+xi = 2
+group = beam_groups[0]
+GGx = Gx.sel(beam= group).isel(x = 2)
+GGk = Gk.sel(beam= group).isel(x = 2)
 
 # %%
-GG0.gFT_PSD_model.isel(dist_y= 1).rolling(x=2, k =30).mean().plot()
+GGk.gFT_PSD_model.mean('beam').plot()
 
-# %% select pair
-Gi = GG0.sel(x = 2.05e6 , method= 'nearest')
-G_x = Gd_x.sel(x = Gi.x, beam =Gi.beam)
-
-Gi.gFT_PSD_data.mean('dist_y').plot()
 # %%
 data_plot_karg = {'linewidth':2, 'color':'k', 'alpha' :0.5}
 model_plot_karg = {'linewidth':1, 'color':'r', 'alpha' :1}
 
-
+G_x = GGx.isel(beam = 0)
 y_offset= 0.5
-plt.plot(G_x.eta,G_x.y_model+y_offset *G_x.dist_y/np.diff(G_x.dist_y), **model_plot_karg)
-plt.plot(G_x.eta,G_x.y_data+y_offset * G_x.dist_y/np.diff(G_x.dist_y), **data_plot_karg)
+plt.plot(G_x.eta,G_x.y_model , **model_plot_karg)
+plt.plot(G_x.eta,G_x.y_data, **data_plot_karg)
 
-#plt.xlim(-500, 500)
+plt.xlim(-500, 1000)
 
 # %%
 
-dd = Gi.mean('dist_y')['gFT_PSD_data']
-m = 3
-variance_frac = 0.5
+# dd = GGk['gFT_PSD_data']
+# m = 3
+# variance_frac = 0.5
+
 def define_wavenumber_weights_tot_var(dd, m = 3, variance_frac = 0.33, verbose=False):
 
+    """
+    return peaks of a power spectrum dd that in the format such that they can be used as weights for the frequencies based fitting
+
+    inputs:
+    dd             xarray with PSD as data amd coordindate wavenumber k
+    m               running mean half-width in gridpoints
+    variance_frac  (0 to 1) How much variance should be explained by the returned peaks
+    verbose        if true it plots some stuff
+
+
+    return:
+    mask           size of dd. where True the data is identified as having significant amplitude
+    k              wanumbers where mask is true
+    dd_rm          smoothed version of dd
+    positions      postions where of significant data in array
+    """
     dd_rm   = M.runningmean(dd, m, tailcopy=True)
     k      =  dd.k[~np.isnan(dd_rm)].data
     dd_rm   =  dd_rm[~np.isnan(dd_rm)]
@@ -206,7 +194,7 @@ def define_wavenumber_weights_threshold(dd, m = 3, Nstd= 2, verbose=False):
 #plt.plot(k[mask], weights[mask], 'g*', markersize=20)
 # plt.show()
 
-mask, k, weights, positions = define_wavenumber_weights_tot_var( Gi.mean('dist_y')['gFT_PSD_data'], m= 3,  variance_frac = 0.33 , verbose= True)
+mask, k, weights, positions = define_wavenumber_weights_tot_var( GGk.mean('beam')['gFT_PSD_data'], m= 3,  variance_frac = 0.33 , verbose= True)
 #plt.xlim(k_list.min()*.9, k_list.max()*1.1)
 
 # group wavenumbers
@@ -256,8 +244,6 @@ def get_z_model(x_positions, y_position, K_prime, K_amp,  alpha_rad, group_phase
     l = K_abs * np.sin(alpha_rad)
 
     return wavemodel( x_positions,y_position, k, l, np.array(K_amp ), group_phase= group_phase)
-
-
 
 
 
@@ -321,15 +307,26 @@ def plot_brute_force(fitter_brute):
 
 # %% normalize data
 key = 'y_data'
-G_x[key +'_normed']= amp_Z = (G_x[key] - G_x[key].mean('eta'))/G_x[key].std('eta')
+amp_Z = G_x[key +'_normed']=  (GGx[key] - GGx[key].mean(['eta']) )/GGx[key].std(['eta'])
 N = G_x[key +'_normed'].shape[0]
 
-# repack as np arrays
-x_concat = np.concatenate([amp_Z.eta, amp_Z.eta])
-y_concat = np.concatenate([amp_Z.isel(dist_y= 0).dist_y+ amp_Z.eta*0 , amp_Z.isel(dist_y= 1).dist_y+ amp_Z.eta*0 ] )
-z_concat = np.concatenate([amp_Z.isel(dist_y= 0).data, amp_Z.isel(dist_y= 1).data])
+eta_2d = GGx.eta + GGx.x_coord - GGx.x_coord.mean()
+nu_2d = GGx.eta * 0 + GGx.y_coord - GGx.y_coord.mean()
 
-# plt.plot(x_concat, y_concat/1e3 +z_concat)
+amp_Z.shape
+
+# repack as np arrays
+x_concat = eta_2d.data.T.flatten()
+y_concat = nu_2d.data.T.flatten()
+z_concat = amp_Z.data.flatten()
+
+# repack as np arrays
+# x_concat = np.concatenate([amp_Z.eta, amp_Z.eta])
+# y_concat = np.concatenate([amp_Z.isel(dist_y= 0).dist_y+ amp_Z.eta*0 , amp_Z.isel(dist_y= 1).dist_y+ amp_Z.eta*0 ] )
+# z_concat = np.concatenate([amp_Z.isel(dist_y= 0).data, amp_Z.isel(dist_y= 1).data])
+
+# test
+#plt.plot(x_concat, 1*y_concat +z_concat)
 # plt.plot(G_x_model.eta, G_x_model.y_data/G_x_model.y_data.std()  +y_offset * G_x_model.dist_y/np.diff(G_x_model.dist_y), **data_plot_karg)
 # plt.xlim(-1000, 1000)
 
@@ -345,6 +342,7 @@ z_concat= z_concat[~np.isnan(z_concat)]
 if np.isnan(z_concat).sum() != 0:
     raise ValueError('There are still nans')
 
+# %%
 
 
 def objective_func(pars, x, y, z, test_flag= False , prior= None ):
@@ -360,69 +358,101 @@ def objective_func(pars, x, y, z, test_flag= False , prior= None ):
     if test_flag:
         return z_model
     else:
-        return np.concatenate([cost , 3 * penalties])
+        return np.concatenate([cost , 2 * penalties])
 
 
 import lmfit as LM
 params0 = LM.Parameters()
-params0.add('alpha', 0       ,  vary=True  , min=-0.95 * np.pi /2, max=0.95 * np.pi /2)
-params0.add('group_phase', 0 ,  vary=True  , min=0, max= 2*np.pi)
+
+d_alpha, d_phase= np.pi/90, 2 *np.pi/90
+alpha_grid = np.arange(-0.9 * np.pi /2, 0.9 * np.pi /2+ d_alpha, d_alpha)
+phase_grid = np.arange(0              , 2*np.pi+d_phase, d_phase)
+
+params0.add('alpha', 0       ,  vary=True  , min=alpha_grid[0], max=alpha_grid[-1], brute_step= d_alpha)
+params0.add('group_phase', 0 ,  vary=True  , min=phase_grid[0], max= phase_grid[-1]+d_phase, brute_step= d_phase)
 
 fitting_args = (x_concat, y_concat, z_concat)
-prior_sel= {'alpha': ( Prior.loc['dp']['mean'] *np.pi/180 , Prior.loc['dp']['std'] *np.pi/180) }
+
+
+Prior2              = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
+# dominat_period      = Prior2[Prior2.max() ==Prior2]
+# dominant_dir        = Prior.loc[list(dominat_period.index)[0].replace('ptp', 'pdp' )]['mean']
+# dominant_dir_spread = Prior.loc[list(dominat_period.index)[0].replace('ptp', 'pspr' )]['mean']
+#
+# prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
+#
+import ICEsat2_SI_tools.wave_tools as waves
+
+
+dominat_period      = Prior2[Prior2.max() ==Prior2]
+aa = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
+dominant_dir        = waves.get_ave_amp_angle(aa *0+1,aa  )[1]
+dominant_dir_spread = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean'].median()
+
+#prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
+prior_sel= {'alpha': ( 1 , dominant_dir_spread *np.pi/180) } # to radiens
+
+#prior_sel= {'alpha': ( Prior.loc['dp']['mean'] *np.pi/180 , Prior.loc['spr']['mean'] *np.pi/180) }
 
 #fitting_kargs = {'prior': None}
 fitting_kargs = {'prior': prior_sel  }
 angle_list  = list()
+cost_list  = list()
 cost_stack = dict()
 #fitting_kargs = {'size' :1}
 L = pd.DataFrame(index=['alpha', 'group_phase', 'K_prime', 'K_amp'] )
 
+
 k_list, weight_list =  k[mask], weights[mask]
 
 
-
-N_grid = 90
+N_grid = 30
 N_data = x_concat.size
 
-for k_prime_max,Z_max in zip(k_list[::5], weight_list[::5]):
+#k_prime_max, Z_max = k_list[0], weight_list[0]
+#k_list[:4]
+for k_prime_max,Z_max in zip(k_list[::4], weight_list[::4]):
 
+    print('#-------------------------------------------------------------#')
     print(k_prime_max)
     amp_enhancement = 1
-    amp_Z = 1 #amp_enhancement * abs(Z_max)**2 /N
+    amp_Z = 0.5 #amp_enhancement * abs(Z_max)**2 /N
 
     params = params0.copy()
     params.add('K_prime', k_prime_max ,  vary=False  , min=k_prime_max*0.5, max=k_prime_max*1.5)
-    params.add('K_amp', amp_Z         ,  vary=False  , min=amp_Z*.5       , max=amp_Z*5)
+    params.add('K_amp', amp_Z         ,  vary=False  , min=amp_Z*.0       , max=amp_Z*5)
 
     #fitter = LM.minimize(objective_func, params, args=fitting_args, method='dual_annealing',max_nfev=None)
     fitter_brute = LM.minimize(objective_func, params, \
-                    args=fitting_args, kws=fitting_kargs ,  method='brute', Ns=N_grid, )
+                    args=fitting_args, kws=fitting_kargs ,  method='brute', workers=3 )
+    print(LM.report_fit(fitter_brute))
 
-    fitter_brute.params['K_amp'].vary = True
-    fitter = LM.minimize(objective_func, fitter_brute.params, \
-                    args=fitting_args, kws=fitting_kargs ,  method='differential_evolution',max_nfev=None)
+    params['K_amp'].vary = False
+    fitter = LM.minimize(objective_func, params, \
+                    args=fitting_args, kws=fitting_kargs ,  method='dual_annealing',max_nfev=None)
+
+    print(LM.report_fit(fitter))
 
     z_model = objective_func(fitter.params, *fitting_args , test_flag= True)
-    #angle_list.append(fitter.params['alpha'].value)
-
+    angle_list.append(fitter.params['alpha'].value)
+    cost_list.append( (fitter.residual**2).sum()/(z_concat**2).sum() )
     # add prior:
-    fitting_kargs = {'prior': prior_sel  }
+    #fitting_kargs = {'prior': None}
     #fitter=None, F = plot_instance(GG, 'slopes', 'z_model', fitter = fitter_brute, view_scale = 0.5, non_dim=True )
     F = plot_instance(z_model, fitting_args, 'y_data_normed' , fitter = fitter_brute ,title_str =  str(k_prime_max),  view_scale = 0.6)
     F.ax3.axhline(prior_sel['alpha'][0], color='k', linewidth = 1.5)
     #F.ax3.axhspan(prior_sel['alpha'][0]- prior_sel['alpha'][1], prior_sel['alpha'][0]+ prior_sel['alpha'][1], color='gray', alpha=0.3)
     F.ax3.axhline(prior_sel['alpha'][0]- prior_sel['alpha'][1], color='k', linewidth = 0.7)
     F.ax3.axhline(prior_sel['alpha'][0]+ prior_sel['alpha'][1], color='k', linewidth = 0.7)
-
     plt.plot(fitter.params['group_phase'].value, fitter.params['alpha'].value, '.r', markersize=20)
-    prior_sel
 
     print(fitting_kargs)
     print(fitter.params.pretty_print())
     plt.show()
 
-    cost_stack[k_prime_max] = xr.DataArray( fitter_brute.brute_Jout/N_data, dims= ('angle', 'phase'),  coords = {'angle':np.linspace(-np.pi/2, np.pi/2, N_grid), 'phase':np.linspace(0, 2* np.pi, N_grid) } )
+    #cost_stack[k_prime_max] = xr.DataArray( fitter_brute.brute_Jout/N_data, dims= ('angle', 'phase'),  coords = {'angle':np.linspace(-np.pi/2, np.pi/2, N_grid), 'phase':np.linspace(0, 2* np.pi, N_grid) } )
+    cost_stack[k_prime_max] = xr.DataArray( fitter_brute.brute_Jout/N_data, dims= ('angle', 'phase'),  coords = {'angle':alpha_grid, 'phase':phase_grid } )
+
     cost_stack[k_prime_max].coords['k']  = np.array(k_prime_max) #( ('k'), np.array(k_prime_max) )
 
 
@@ -432,6 +462,8 @@ for k_prime_max,Z_max in zip(k_list[::5], weight_list[::5]):
 
 cost_stack = xr.concat(cost_stack.values(), dim='k'  ).sortby('k')
 L = L.T.sort_values('K_prime')
+
+
 # %%
 
 cost_stack2 = cost_stack #/ cost_stack.mean('angle').mean('phase').mean()
@@ -448,24 +480,98 @@ for kindex in L.index:
     shift_list.append(shift)
     cost_stack_rolled[ii, :,:]= cost_stack.sel(k= kindex).roll(phase = shift, roll_coords='phase').data
 
-    M.figure_axis_xy(7, 3, view_scale= 0.5)
-    plt.subplot(1, 2,1)
-    cost_stack.sel(k= kindex).plot(cmap =plt.cm.Blues_r)
-    plt.plot(L.T[kindex]['group_phase'], L.T[kindex]['alpha'], '.r', markersize=20)
-
-    plt.subplot(1, 2,2)
-    cost_stack_rolled[ii, :,:].plot(cmap =plt.cm.Blues_r)
-    plt.show()
+    # M.figure_axis_xy(7, 3, view_scale= 0.5)
+    # plt.subplot(1, 2,1)
+    # cost_stack.sel(k= kindex).plot(cmap =plt.cm.Blues_r)
+    # plt.plot(L.T[kindex]['group_phase'], L.T[kindex]['alpha'], '.r', markersize=20)
+    #
+    # plt.subplot(1, 2,2)
+    # cost_stack_rolled[ii, :,:].plot(cmap =plt.cm.Blues_r)
+    # plt.show()
 
 cost_stack_rolled['phase'] = cost_stack_rolled['phase'] - np.pi
 
+# %%
 #weights = xr.DataArray(Z_max_list_gauss, dims ='k', coords = {'k': k_list_gauss})
-weights = xr.DataArray(weight_list, dims ='k', coords = {'k': k_list})
-weights = weights/weights.std()
-plt.plot(weights)
-data_normed  = cost_stack_rolled #/cost_stack_rolled.std(['angle', 'phase'])
-cost_wmean  = (weights * data_normed /weights.sum() ).sum('k')
-# %% cross correlation
+weights_costs = xr.DataArray(weight_list, dims ='k', coords = {'k': k_list})
+weights_costs = weights_costs/weights_costs.max()
+weights_costs = weights_costs.sel(k= cost_stack_rolled.k)
+
+weight_k = (1/weights_costs.k)
+weight_k = weight_k/weight_k.max()
+
+weights_sum= weights_costs * weight_k.data**2
+plt.plot(weights_sum)
+
+
+data_normed  = cost_stack_rolled#/cost_stack_rolled.std(['angle', 'phase'])
+cost_wmean  = (weights_sum * data_normed /weights_sum.sum() ).interp(phase= 0)#.sum('k')
+
+#cost_wmean  = data_normed.sel(phase = 0 , method='nearest')
+#plt.plot( cost_wmean.T )
+
+best_guess = cost_wmean.angle[cost_wmean.mean('k').argmin()].data
+
+best_guess * 180/ np.pi
+
+
+
+# %% 2nd step optimization
+F = M.figure_axis_xy(5, 3, view_scale= 0.7, container = True)
+
+gs = GridSpec(1,5,  wspace=0.25,  hspace=.2)#figure=fig,
+
+ax0 = F.fig.add_subplot(gs[0, -1])
+ax0.tick_params(labelleft=False)
+
+
+klims = k_list.min()*0.8 , k_list.max()*1.2
+
+col_dict = col.rels
+for g in group:
+    plt.plot(  GGk.sel(beam=g)['gFT_PSD_data'].data,GGk.k,   '-k', color= col_dict[g], markersize= 20, linewidth = 0.8)
+
+plt.plot(weights, k,  '-b', linewidth=0.9)
+plt.plot(weight_list, k_list,  '.r', markersize= 5, zorder=12)
+
+plt.ylim(klims)
+
+ax1 = F.fig.add_subplot(gs[0 , 0:-1])
+
+plt.scatter( np.array(angle_list)*  180 /np.pi, np.array(k_list), s= (np.array(weight_list)*4e1)**3 , c=col.rascade1, label ='min per freq.')
+
+cost_dd = cost_wmean.mean('k')
+plt.plot(cost_wmean.angle *  180 /np.pi, k_list.mean() * cost_dd/cost_dd.mean() ,  c=col.rascade3, label ='weighted mean BF')
+
+lflag= 'paritions ww3'
+for i in np.arange(6):
+    i_dir, i_period = Prior.loc['pdp'+ str(i)]['mean'], Prior.loc['ptp'+ str(i)]['mean']
+    i_k = (2 * np.pi/ i_period)**2 / 9.81
+    i_dir = [i_dir -360 if i_dir > 180 else i_dir][0]
+    i_dir = [i_dir +360 if i_dir < -180 else i_dir][0]
+
+    plt.plot(i_dir, i_k,  '.', markersize = 10, color= col.green, label= lflag)
+    lflag = None
+
+ax1.axvline(  best_guess * 180/ np.pi , color=col.blue, linewidth = 1.5, label ='best guess fitting')
+
+ax1.axvline(  (prior_sel['alpha'][0])  *  180 /np.pi, color='k', linewidth = 1.5, label ='prior')
+ax1.axvline(  (prior_sel['alpha'][0]- prior_sel['alpha'][1])  *  180 /np.pi, color='k', linewidth = 0.7, label ='prior uncertrainty')
+ax1.axvline(  (prior_sel['alpha'][0]+ prior_sel['alpha'][1]) *  180 /np.pi , color='k', linewidth = 0.7)
+
+
+plt.legend()
+plt.xlabel('Angle (deg)')
+plt.ylabel('wavenumber (deg)')
+plt.xlim(- 125, 125)
+plt.ylim(klims)
+
+
+# _%%%%%%%%%%%%%%%%%%%%%%%%%% upto  here
+ # %%
+#plt.plot( k_list, cost_list, '.')
+
+## %% cross correlation
 
 # A1 = GG[GG['y_prime'] == 0]
 # A2 = GG[GG['y_prime'] == 300]

@@ -1,13 +1,13 @@
 #%matplotlib inline
 
-execfile(os.environ['PYTHONSTARTUP'])
-execfile(STARTUP_2019_surfacemom)
+exec(open(os.environ['PYTHONSTARTUP']).read())
+exec(open(STARTUP_2021_IceSAT2).read())
 
-import m_colormanager as m_col
+import m_colormanager_ph3 as M_color
 
 mconfig['paths']
 path=mconfig['paths']['config']
-A = m_col.ase_to_json(path+'color_def.ase')
+A = M_color.ase_to_json(path+'color_def.ase')
 
 B=dict()
 for i in A[0]['swatches']:
@@ -45,6 +45,19 @@ rels['rascade3']=B['rascade3']
 rels['aug1']=B['orange']
 rels['aug2']=B['green']
 
+rels['gt1l']=B['rascade1']
+rels['gt1r']=B['rascade3']
+
+rels['gt2l']=B['green1']
+rels['gt2r']=B['green2']
+
+rels['gt3l']=B['cascade1']
+rels['gt3r']=B['blue']
+
+rels['group1']=B['rascade1']
+rels['group2']=B['green1']
+rels['group3']=B['cascade1']
+
 B['rels']=rels
 
-m_col.json_save('color_def', path, B)
+M_color.json_save('color_def', path, B)

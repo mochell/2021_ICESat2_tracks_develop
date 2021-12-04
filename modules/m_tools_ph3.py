@@ -43,6 +43,13 @@ def freq_lim_string(low, high):
 
 	return a[0:3] +'-'+ b +' Hz'
 
+def float_to_str(flt, r= 1):
+    return str(np.round(flt, r))
+
+def num_to_str(flt):
+    return str(int(np.round(flt, 0)))
+
+
 def mkdirs_r(path):
     import os
     if not os.path.exists(path):
