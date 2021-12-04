@@ -15,6 +15,8 @@ import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import h5py
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
+import ICEsat2_SI_tools.wave_tools as waves
+
 
 import imp
 import copy
@@ -270,53 +272,10 @@ try:
 
 
     ### derive angle avearge
-    def to_vec(amp, angle, deg = True):
-
-        "from anlge deg to vect"
-        if deg:
-            u, v  = amp * np.cos(angle * np.pi/180), amp * np.sin(angle * np.pi/180)
-        else:
-            u, v  = amp * np.cos(angle ), amp * np.sin(angle )
-
-        return u,v
-
-    def to_deg(u,v, deg = True):
-
-        """
-        from vect to angle, amp
-        angle is -180 to 180
-        this is a different definiton then WW3 [0, 360 ), but (-180, 180] is more convient for the problem
-        """
-        amp = np.sqrt(u**2 + v**2)
-        angle = np.arctan2(v, u)# + 2 * np.pi
-
-        # nan_mask = np.isnan(angle)
-        # angle= np.where(angle > np.pi, angle - 2 * np.pi , angle)
-        # angle= np.where(angle <= - np.pi, angle + 2 * np.pi , angle)
-        # angle= np.where(nan_mask, np.nan , angle)
-
-        if deg:
-            angle = angle * 180/np.pi
-        return amp, angle
-
-    def get_ave_amp_angle(amp, angle):
-
-        u,v =  to_vec(amp, angle , deg= True)
-        # average angle in vector space
-        #print(u, v)
-        _ , ave_deg = to_deg( np.nanmean(u) , np.nanmean(v) )
-        _ , std_deg = to_deg( np.nanstd(u) , np.nanstd(v) )
-
-        #average amp in angle space
-        ave_amp = np.nanmean(amp)
-        std_amp = np.nanstd(amp)
-
-        return ave_amp, ave_deg, std_amp, std_deg
-
     Tend = pd.DataFrame(index =key_list, columns = ['mean', 'std', 'name'] )
 
     for k, pair in key_list_pairs.items():
-        ave_amp, ave_deg, std_amp, std_deg = get_ave_amp_angle(G_prior_masked[pair[0]].data, G_prior_masked[pair[1]].data)
+        ave_amp, ave_deg, std_amp, std_deg = waves.get_ave_amp_angle(G_prior_masked[pair[0]].data, G_prior_masked[pair[1]].data)
         Tend.loc[pair[0]] = ave_amp, std_amp, G_prior_masked[pair[0]].long_name
         Tend.loc[pair[1]] = ave_deg, std_deg, G_prior_masked[pair[1]].long_name
         #key_list_pairs[k] = {pair[0]:ave_amp, pair[1]:ave_deg }

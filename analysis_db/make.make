@@ -167,10 +167,14 @@ B03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i))
 
 B03 : $(B03_targets) B03_mkdir B03_collect
 
+reset_B03 :
+					ls $(B03_path)*/B03_success.json
+					rm -rf $(B03_path)*/B03_success.json
 #.PHONY : B03_collect
 
 B03_mkdir :
 					${MKDIR_P} $(B03_collect_path)
+					${MKDIR_P} $(B03_collect_path)coord_check
 
 $(B03_targets) : $(B03_path)%/B03_success.json : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
 					python $(analysisfolder)/B03_plot_spectra_ov.py $* $(batch_key) $(test_flag) > log/B03/$*.txt 2>&1
@@ -186,8 +190,18 @@ B03_collect : $(B03_collect_targets)
 
 $(B03_collect_targets) : $(B03_collect_path)%_B03_specs_L25000.png : $(B03_path)%/B03_success.json
 					cp $(B03_path)$*/B03_specs_L25000.0.png $(B03_collect_path)$*_B03_specs_L25000.png
-
+					cp $(B03_path)$*/B03_specs_coord_check.png $(B03_collect_path)coord_check/$*_B03_specs_coord_check.png
 #cp $(B03_path)$*/B03_spectra/B03_freq_reconst*.pdf $(B03_collect_path)$*_B03_freq_reconst.pdf
+
+
+
+
+B04_targets := $(foreach i, $(B03_success) , $(subst B03_success,B04_success,$(i)) )
+
+B04 : $(B04_targets)
+
+$(B04_targets) : $(B03_path)%/B04_success.json : $(B03_path)%/B03_success.json $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json
+					python $(analysisfolder)/B04_angle.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
 
 # sync plots from batch key to gdrive folder.
 sync_gdrive :

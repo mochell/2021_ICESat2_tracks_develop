@@ -64,31 +64,45 @@ col.colormaps2(21)
 
 # %% check paths (again)
 
-F = M.figure_axis_xy(8, 3, view_scale  =0.6)
+col_dict= col.rels
+F = M.figure_axis_xy(9, 3, view_scale  =0.5)
 
-plt.subplot(1,2, 1)
+plt.subplot(1,3, 1)
 plt.title(track_name , loc ='left')
 for k in all_beams:
     I = Gk.sel(beam=k)
     I2 = Gx.sel(beam=k)
-    plt.plot(I['lon'], I['lat'], '.',  markersize = 0.7, linewidth  =0.3)
-    plt.plot(I2['lon'], I2['lat'], '|',  markersize = 0.7 )
+    plt.plot(I['lon'], I['lat'], '.', c= col_dict[k],  markersize = 0.7, linewidth  =0.3)
+    plt.plot(I2['lon'], I2['lat'], '|', c= col_dict[k],  markersize = 0.7 )
 
 
 plt.xlabel('lon')
-plt.xlabel('lat')
+plt.ylabel('lat')
 
-plt.subplot(1,2, 2)
+plt.subplot(1,3, 2)
 
 xscale= 1e3
 for k in all_beams:
     I = Gk.sel(beam=k)
-    plt.plot( I['x_coord']/xscale  , I['y_coord']/xscale , '-' , linewidth = 0.8)
+    plt.plot( I['x_coord']/xscale  , I['y_coord']/xscale, '.'  , c= col_dict[k] , linewidth = 0.8,  markersize = 0.8 )
     # I2 = G_gFT[k]
     # plt.plot( I2.coords['x_coord']/xscale,  I2.coords['y_coord']/xscale, '*' , markersize = 0.7)
 
-plt.xlabel('x_coord')
-plt.ylabel('y_coord')
+plt.xlabel('x_coord (km)')
+plt.ylabel('y_coord (km)')
+
+plt.subplot(1,3, 3)
+
+xscale= 1e3
+for k in all_beams:
+    I = Gk.sel(beam=k)
+    plt.plot( I['x_coord']/xscale  , (I['y_coord']-I['y_coord'][0]), '.'  , c= col_dict[k], linewidth = 0.8,  markersize = 0.8)
+    # I2 = G_gFT[k]
+    # plt.plot( I2.coords['x_coord']/xscale,  I2.coords['y_coord']/xscale, '*' , markersize = 0.7)
+
+plt.xlabel('x_coord (km)')
+plt.ylabel('y_coord deviation (m)')
+
 
 F.save_light(path=plot_path, name = 'B03_specs_coord_check')
 
