@@ -104,23 +104,93 @@ except:
 
 #### Define Prior
 # Use partitions
-Prior2              = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
-dominat_period      = Prior2[Prior2.max() ==Prior2]
-aa = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
-dominant_dir        = waves.get_ave_amp_angle(aa *0+1,aa  )[1]
-dominant_dir_spread = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean'].median()
-
-prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
+# Prior2              = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
+# dominat_period      = Prior2[Prior2.max() ==Prior2]
+# aa = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
+# dominant_dir        = waves.get_ave_amp_angle(aa *0+1,aa  )[1]
+# dominant_dir_spread = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean'].median()
+#
+# prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
 #prior_sel= {'alpha': ( -60 *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
 
-prior_angle =prior_sel['alpha'][0] * 180/np.pi
-if abs(prior_angle) > 80:
-    print('Prior angle is ', prior_angle, '. quit.')
-    prior_sel['time'] = time.asctime( time.localtime(time.time()) )
-    prior_sel['angle'] =  prior_angle
-    MT.json_save('B04_fail', plot_path, prior_sel)
+
+Pperiod     = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
+Pdir        = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
+Pspread     = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean']
+
+# reset dirs:
+Pdir[Pdir > 180]    =  Pdir[Pdir > 180] - 360
+Pdir[Pdir < -180]   =  Pdir[Pdir < -180] + 360
+
+# reorder dirs
+dir_best = [0]
+for dir in Pdir:
+    ip = np.argmin([ abs(dir_best[-1] - dir), abs(dir_best[-1] - (dir - 360 )), abs(dir_best[-1] - (dir + 360 )) ] )
+    new_dir = np.array([ dir, (dir - 360 ) , (dir + 360 ) ])[ip]
+    dir_best.append(new_dir)
+dir_best = np.array(dir_best[1:])
+
+# %%
+
+Pwavenumber     = (2 * np.pi / Pperiod  )**2 / 9.81
+kk              = Gk.k
+dir_interp      = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , dir_best[Pwavenumber.argsort()] )
+dir_interp_smth = M.runningmean(dir_interp, 30, tailcopy= True)
+dir_interp_smth[-1] = dir_interp_smth[-2]
+
+spread_interp   = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , Pspread[Pwavenumber.argsort()].astype('float')  )
+spread_smth     = M.runningmean(spread_interp, 30, tailcopy= True)
+spread_smth[-1] = spread_smth[-2]
+
+
+font_for_pres()
+
+F = M.figure_axis_xy(5, 4.5, view_scale= 0.5)
+plt.subplot(2, 1, 1)
+plt.title('Prior angle smoothed\n'+ track_name, loc ='left')
+
+
+plt.plot(  Pwavenumber , dir_best, '.r', markersize = 8)
+plt.plot( kk , dir_interp, '-', color= 'red', linewidth = 0.8, zorder=11)
+plt.plot( kk , dir_interp_smth  , color=col.green1)
+
+plt.fill_between(kk, dir_interp_smth -spread_smth, dir_interp_smth +spread_smth, zorder= 1, color=col.green1, alpha = 0.2 )
+plt.ylabel('Angle (deg)')
+#plt.xlabel('wavenumber ($2 \pi/\lambda$)')
+
+ax2 = plt.subplot(2, 1, 2)
+plt.title('Prior angle adjusted ', loc ='left')
+
+# adjust angle def:
+dir_interp_smth[dir_interp_smth> 180] = dir_interp_smth[dir_interp_smth> 180]- 360
+dir_interp_smth[dir_interp_smth< -180] = dir_interp_smth[dir_interp_smth< -180]+ 360
+
+plt.fill_between(kk, dir_interp_smth -spread_smth, dir_interp_smth +spread_smth, zorder= 1, color=col.green1, alpha = 0.2 )
+plt.plot( kk , dir_interp_smth , '.', markersize = 1 , color=col.green1)
+
+ax2.axhline(85, color='gray', linewidth= 2)
+ax2.axhline(-85, color='gray', linewidth= 2)
+
+plt.ylabel('Angle (deg)')
+plt.xlabel('wavenumber ($2 \pi/\lambda$)')
+
+F.save_light(path= plot_path, name = 'B04_prior_angle')
+
+
+# save
+dir_interp_smth = xr.DataArray(data=dir_interp_smth * np.pi/180 , dims='k', coords ={'k':kk}, name='Prior_direction')
+spread_smth     = xr.DataArray(data=spread_smth* np.pi/180      , dims='k', coords ={'k':kk}, name='Prior_spread')
+Prior_smth      = xr.merge([dir_interp_smth, spread_smth])
+
+# %%
+prior_angle =Prior_smth.Prior_direction * 180/np.pi
+if (abs(prior_angle) > 80).all():
+    print('Prior angle is ', prior_angle.min().data,   prior_angle.max().data, '. quit.')
+    dd_save = {'time' : time.asctime( time.localtime(time.time()) ),
+     'angle': list([ float(prior_angle.min().data),   float(prior_angle.max().data), float(prior_angle.median()) ]) }
+    MT.json_save('B04_fail', plot_path, dd_save)
     print('exit()')
-    exit()
+    #exit()
 
 # Use fake
 #prior_sel= {'alpha': ( 0.6 , dominant_dir_spread *np.pi/180) } # to radiens
@@ -143,7 +213,7 @@ brute_flag      = False
 plot_flag       = False
 
 Nworkers        = 6
-N_sample_chain  = 200
+N_sample_chain  = 300
 
 def make_fake_data(xi,group ):
     ki= Gk.k[0:2]
@@ -348,11 +418,10 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     GGx = Gx.sel(beam= group).sel(x = xi)
     GGk = Gk.sel(beam= group).sel(x = xi)
 
-
     ### define data
     # normalize data
     key = 'y_data'
-    amp_Z =  (GGx[key] - GGx[key].mean(['eta']) )/GGx[key].std(['eta'])
+    amp_Z =  (GGx[key] - GGx[key].mean(['eta'])) /GGx[key].std(['eta'])
     N = amp_Z.shape[0]
 
     # define x,y positions
@@ -372,7 +441,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     if np.isnan(z_concat).sum() != 0:
         raise ValueError('There are still nans')
 
-    mean_dist = (nu_2d.isel(beam= 0) - nu_2d.isel(beam= 1)).mean().data
+    mean_dist    =  (nu_2d.isel(beam= 0) - nu_2d.isel(beam= 1)).mean().data
     k_upper_lim  =  2 *np.pi / ( mean_dist *1 )
 
     print('k_upper_lim ', k_upper_lim)
@@ -381,11 +450,8 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     #plt.plot(k[mask], weights[mask], 'g*', markersize=20)
     # plt.show()
 
-
-
     #variance method
     amp_data = np.sqrt(GGk.gFT_cos_coeff**2 + GGk.gFT_sin_coeff**2)
-
     mask, k, weights, positions = define_wavenumber_weights_tot_var(amp_data, m= 1, k_upper_lim= k_upper_lim, variance_frac = 0.20 , verbose= False)
     #plt.xlim( k[mask].min()*0.8 ,max(k_upper_lim,  k[mask].max()*1.2) )
     #plt.xlim( k[mask].min()*0.8 ,k[mask].max()*1.4 )
@@ -413,21 +479,22 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     # z2 = angle_optimizer.wavemodel_single_wave(x_concat, y_concat, k,l, pars['K_amp'].value, group_phase= pars['phase'].value )
     # %timeit z2 = angle_optimizer.get_z_model_single_wave(x_concat, y_concat, k,l, pars['K_amp'].value, group_phase= pars['phase'].value  )
 
-
     #### prepare loop
-    # init object
+    # init object and test
     #imp.reload(angle_optimizer)
 
     SM = angle_optimizer.sample_with_mcmc(params_dict)
     SM.set_objective_func(angle_optimizer.objective_func)
 
     SM.fitting_args = fitting_args = (x_concat, y_concat, z_concat)
-    SM.fitting_kargs = fitting_kargs = {'prior': prior_sel , 'prior_weight' : 3 }
-    #SM.fitting_kargs = fitting_kargs = {'prior': None , 'prior_weight' : 1 }
 
-    # test if it works
+    # test:
     k_prime_max= 0.02 #[mask][0] # chose a test wavenumber
     amp_Z= 1
+    prior_sel= {'alpha': ( Prior_smth.sel(k =k_prime_max, method='nearest').Prior_direction.data,
+                         Prior_smth.sel(k =k_prime_max, method='nearest').Prior_spread.data) }
+    SM.fitting_kargs = fitting_kargs = {'prior': prior_sel , 'prior_weight' : 3 }
+    # test if it works
     SM.params.add('K_prime', k_prime_max ,  vary=False  , min=k_prime_max*0.5, max=k_prime_max*1.5)
     SM.params.add('K_amp', amp_Z         ,  vary=False  , min=amp_Z*.0       , max=amp_Z*5)
     try:
@@ -445,10 +512,16 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
         k_prime_max,Z_max = k_pair
         #print(np.round(k_prime_max, 4))
 
-        amp_Z = 0.5 #amp_enhancement * abs(Z_max)**2 /N
+        prior_sel= {'alpha': ( Prior_smth.sel(k =k_prime_max, method='nearest').Prior_direction.data,
+                             Prior_smth.sel(k =k_prime_max, method='nearest').Prior_spread.data) }
+
+        SM.fitting_kargs = fitting_kargs = {'prior': prior_sel , 'prior_weight' : 2 }
+        #SM.fitting_kargs = fitting_kargs = {'prior': None , 'prior_weight' : 1 }
+
+        amp_Z = 1##z_concat.var()#Z_max#0.5 #amp_enhancement * abs(Z_max)**2 /N
 
         SM.params.add('K_prime', k_prime_max ,  vary=False  , min=k_prime_max*0.5, max=k_prime_max*1.5)
-        SM.params.add('K_amp', amp_Z         ,  vary=False  , min=amp_Z*.0       , max=amp_Z*5)
+        SM.params.add('K_amp'  , amp_Z       ,  vary=False  , min=amp_Z*.0       , max=amp_Z*5)
         #print(SM.params.pretty_print())
         L_sample_i = None
         L_optimize_i = None
@@ -476,21 +549,36 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
 
         if plot_flag:
 
-            F = plot_instance(z_model, fitting_args, 'y_data_normed' , SM, brute = brute_flag , optimze= optimize_flag, sample= sample_flag, title_str =  str(k_prime_max),  view_scale = 0.6)
+            F = plot_instance(z_model, fitting_args, 'y_data_normed' , SM, brute = brute_flag , optimze= optimize_flag, sample= sample_flag, title_str =  'k='+ str(np.round(k_prime_max, 4)),  view_scale = 0.6)
 
             if (fitting_kargs['prior'] is not None):
-                F.ax3.axhline(prior_sel['alpha'][0], color='k', linewidth = 1.5)
+                F.ax3.axhline(prior_sel['alpha'][0], color='green', linewidth = 2, label ='Prior')
                 #F.ax3.axhspan(prior_sel['alpha'][0]- prior_sel['alpha'][1], prior_sel['alpha'][0]+ prior_sel['alpha'][1], color='gray', alpha=0.3)
-                F.ax3.axhline(prior_sel['alpha'][0]- prior_sel['alpha'][1], color='k', linewidth = 0.7)
-                F.ax3.axhline(prior_sel['alpha'][0]+ prior_sel['alpha'][1], color='k', linewidth = 0.7)
+                F.ax3.axhline(prior_sel['alpha'][0]- prior_sel['alpha'][1], color='green', linewidth = 0.7)
+                F.ax3.axhline(prior_sel['alpha'][0]+ prior_sel['alpha'][1], color='green', linewidth = 0.7)
 
+            F.ax3.axhline(fitter.params['alpha'].min, color='gray', linewidth = 2, alpha = 0.6)
+            F.ax3.axhline(fitter.params['alpha'].max, color='gray', linewidth = 2, alpha = 0.6)
+
+            plt.sca(F.ax3)
             plt.legend()
+            plt.xlabel('Phase')
+            plt.ylabel('Angle')
+            plt.xlim(0, np.pi*2)
+
             plt.sca(F.ax4)
+            plt.xlabel('Density')
             plt.stairs(y_hist, bins, orientation='horizontal', color='k')
-            F.ax3.set_ylim(-np.pi /2, np.pi /2)
-            F.ax4.set_ylim(-np.pi /2, np.pi /2)
+
+            F.ax4.axhline(fitter.params['alpha'].min, color='gray', linewidth = 2, alpha = 0.6)
+            F.ax4.axhline(fitter.params['alpha'].max, color='gray', linewidth = 2, alpha = 0.6)
+
+            F.ax3.set_ylim(min( -np.pi /2, prior_sel['alpha'][0]- 0.2 ) , max(np.pi /2, prior_sel['alpha'][0] + 0.2 ) )
+            F.ax4.set_ylim(min( -np.pi /2, prior_sel['alpha'][0]- 0.2 )  , max(np.pi /2, prior_sel['alpha'][0]+ 0.2 )  )
+
+
             plt.show()
-            #F.save_light(path= plot_path, name = key_name + '_fit_k' + str(k_prime_max))
+            F.save_light(path= plot_path, name = track_name + '_fit_k' + str(k_prime_max))
 
         marginal_stack_i = xr.DataArray( y_hist, dims= ('angle'),  coords = {'angle':bins_pos } )
         marginal_stack_i.coords['k']  = np.array(k_prime_max) #( ('k'), np.array(k_prime_max) )
@@ -551,7 +639,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     ikey        = str(xi) +'_' +  '_'.join(group)
 
     #marginal_stack.coords['cost']        = (('k'), np.expand_dims(np.expand_dims(list(cost_stack.values()), 1), 2) )
-    marginal_stack.name                 = 'marginals'
+    marginal_stack.name           = 'marginals'
     marginal_stack                = marginal_stack.to_dataset()
     marginal_stack['cost']        = (('k'), list(cost_stack.values()) )
     marginal_stack['weight']      = (('k'), weight_list )
@@ -561,6 +649,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     marginal_stack.coords['x']          = xi
 
     Marginals[ikey]                     = marginal_stack.expand_dims(dim = 'x', axis = 0).expand_dims(dim = 'beam_group', axis = 1)
+    Marginals[ikey].coords['N_data']    = ( ('x', 'beam_group'), np.expand_dims(np.expand_dims(N_data, 0), 1) )
     # L_brute
     # L_optimize
 
@@ -608,31 +697,50 @@ for g in MM.beam_group:
     plt.scatter( angle_list, kk_list, s= (weight_list_i*8e1)**2 , c=col_dict[str(g.data)], label ='mode ' + str(g.data) )
 
 
-lflag= 'paritions ww3'
-for i in np.arange(6):
-    i_dir, i_period = Prior.loc['pdp'+ str(i)]['mean'], Prior.loc['ptp'+ str(i)]['mean']
-    i_k = (2 * np.pi/ i_period)**2 / 9.81
-    i_dir = [i_dir -360 if i_dir > 180 else i_dir][0]
-    i_dir = [i_dir +360 if i_dir < -180 else i_dir][0]
+# lflag= 'paritions ww3'
+# for i in np.arange(6):
+#     i_dir, i_period = Prior.loc['pdp'+ str(i)]['mean'], Prior.loc['ptp'+ str(i)]['mean']
+#     i_k = (2 * np.pi/ i_period)**2 / 9.81
+#     i_dir = [i_dir -360 if i_dir > 180 else i_dir][0]
+#     i_dir = [i_dir +360 if i_dir < -180 else i_dir][0]
+#
+#     plt.plot(i_dir, i_k,  '.', markersize = 6, color= col.red, label= lflag)
+#     plt.plot(i_dir, i_k,  '-', linewidth = 0.8, color= col.red)
+#
+#     lflag = None
 
-    plt.plot(i_dir, i_k,  '.', markersize = 6, color= col.black, label= lflag)
-    lflag = None
+dir_best[dir_best> 180] = dir_best[dir_best> 180] -360
+plt.plot(dir_best,  Pwavenumber ,  '.r', markersize = 6)
+
+dir_interp[dir_interp> 180] = dir_interp[dir_interp> 180] -360
+plt.plot(dir_interp, Gk.k,  '-', color= 'red', linewidth = 0.3, zorder=11)
 
 
 #ax1.axvline(  best_guess * 180/ np.pi , color=col.blue, linewidth = 1.5, label ='best guess fitting')
 
-ax1.axvline(  (prior_sel['alpha'][0])  *  180 /np.pi, color='k', linewidth = 1.5, label ='prior')
-ax1.axvline(  (prior_sel['alpha'][0]- prior_sel['alpha'][1])  *  180 /np.pi, color='k', linewidth = 0.7, label ='prior uncertrainty')
-ax1.axvline(  (prior_sel['alpha'][0]+ prior_sel['alpha'][1]) *  180 /np.pi , color='k', linewidth = 0.7)
+# ax1.axvline(  (prior_sel['alpha'][0])  *  180 /np.pi, color='k', linewidth = 1.5, label ='prior')
+# ax1.axvline(  (prior_sel['alpha'][0]- prior_sel['alpha'][1])  *  180 /np.pi, color='k', linewidth = 0.7, label ='prior uncertrainty')
+# ax1.axvline(  (prior_sel['alpha'][0]+ prior_sel['alpha'][1]) *  180 /np.pi , color='k', linewidth = 0.7)
+
+plt.fill_betweenx(Gk.k, (dir_interp_smth -spread_smth)* 180 /np.pi, (dir_interp_smth +spread_smth)* 180 /np.pi,  zorder= 1, color=col.green1, alpha = 0.2 )
+plt.plot(dir_interp_smth * 180 /np.pi, Gk.k , '.', markersize = 1 , color=col.green1)
+
+ax1.axvline(85, color='gray', linewidth= 2)
+ax1.axvline(-85, color='gray', linewidth= 2)
+
 
 plt.legend()
 plt.ylabel('wavenumber (deg)')
+plt.xlabel('Angle (deg)')
+
 #plt.xlim(- 170, 170)
-plt.xlim(- 90, 90)
-plt.ylim(klims)
+#plt.xlim(- 90, 90)
+#plt.ylim(klims)
 
 prior_angle_str =str(np.round( (prior_sel['alpha'][0])  *  180 /np.pi))
 plt.title(track_name + '\nprior=' + prior_angle_str + 'deg', loc= 'left' )
+
+plt.xlim(dir_best.min(),  dir_best.max())
 
 ax3 = F.fig.add_subplot(gs[2 , 0:-1])
 
@@ -642,7 +750,6 @@ for g in MM.beam_group:
     plt.plot(  MMi.angle * 180/ np.pi, wegihted_margins , '.', color= col_dict[str(g.data)], markersize= 2, linewidth = 0.8)
 
 plt.ylabel('Density')
-plt.xlabel('Angle (deg)')
 plt.title('weight margins', loc='left')
 
 #plt.plot(marginal_stack.angle *  180 /np.pi, marginal_stack.T ,  c=col.gray, label ='weighted mean BF')
@@ -671,24 +778,3 @@ plt.xlim(- 90, 90)
 F.save_pup(path= plot_path, name = 'B04_marginal_distributions')
 
 MT.json_save('B04_success', plot_path, {'time':'time.asctime( time.localtime(time.time()) )'})
-
-# %%
-# # %% define weights
-# #weights = xr.DataArray(Z_max_list_gauss, dims ='k', coords = {'k': k_list_gauss})
-# weights_costs = xr.DataArray(weight_list, dims ='k', coords = {'k': k_list})
-# weights_costs = weights_costs/weights_costs.max()
-# #weights_costs = weights_costs.sel(k= cost_stack_rolled.k)
-#
-# weight_k = (1/weights_costs.k)
-# weight_k = weight_k/weight_k.max()
-#
-# weights_sum= weights_costs# * weight_k.data**2
-# plt.plot(weights_sum)
-#
-#
-#
-# cost_wmean  = (weights_sum * marginal_stack /weights_sum.sum() ).sum('k')
-#
-# cost_wmean.T.plot()
-# best_guess = cost_wmean.angle[cost_wmean.argmax()].data# * 180/ np.pi
-# best_guess
