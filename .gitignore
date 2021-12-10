@@ -20,3 +20,4 @@ modules/ICEsat2_SI_tools/__pycache__/
 modules/__pycache__/
 modules/__pycache__/*
 work/
+modules/ICEsat2_SI_tools/._lanczos.py

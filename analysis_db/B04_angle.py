@@ -57,6 +57,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 # good track
 #track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
 
 
 
@@ -97,7 +98,7 @@ try:
     Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
 except:
     print('Prior not founds exit')
-    MT.json_save('B04_fail', plot_path,  {'time':time.asctime( time.localtime(time.time()) ) })
+    MT.json_save('B04_fail', plot_path,  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'Prior not found'})
     print('exit()')
     exit()
 
@@ -117,6 +118,11 @@ except:
 Pperiod     = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
 Pdir        = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
 Pspread     = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean']
+
+Pperiod = Pperiod[~np.isnan(list(Pspread))]
+Pdir    = Pdir[~np.isnan(list(Pspread))]
+Pspread = Pspread[~np.isnan(list(Pspread))]
+
 
 # reset dirs:
 Pdir[Pdir > 180]    =  Pdir[Pdir > 180] - 360
@@ -190,7 +196,7 @@ if (abs(prior_angle) > 80).all():
      'angle': list([ float(prior_angle.min().data),   float(prior_angle.max().data), float(prior_angle.median()) ]) }
     MT.json_save('B04_fail', plot_path, dd_save)
     print('exit()')
-    #exit()
+    exit()
 
 # Use fake
 #prior_sel= {'alpha': ( 0.6 , dominant_dir_spread *np.pi/180) } # to radiens
@@ -201,10 +207,10 @@ if (abs(prior_angle) > 80).all():
 
 # define paramater range
 params_dict = {'alpha': [  -0.85 * np.pi /2,     0.85 * np.pi /2,  5],
-                'phase':[   0              , 2*np.pi          , 10] }
+                'phase':[   0              , 2*np.pi            , 10]}
 
 alpha_dx        = 0.02
-max_wavenumbers = 20
+max_wavenumbers = 25
 
 sample_flag     = True
 optimize_flag   = False
@@ -212,8 +218,12 @@ brute_flag      = False
 
 plot_flag       = False
 
-Nworkers        = 6
-N_sample_chain  = 300
+Nworkers            = 6
+N_sample_chain      = 300
+N_sample_chain_burn = 30
+
+max_x_pos = 8
+x_pos_jump = 2
 
 def make_fake_data(xi,group ):
     ki= Gk.k[0:2]
@@ -363,9 +373,9 @@ x_list_flag = ~np.isnan(data_mask_group.sel(x = x_list) )# flag that is False if
 
 #### limit number of x coordinates
 
-x_list = x_list[::3]
-if len(x_list) > 5:
-    x_list = x_list[0:5]
+x_list = x_list[::x_pos_jump]
+if len(x_list) > max_x_pos:
+    x_list = x_list[0:max_x_pos]
 x_list_flag= x_list_flag.sel(x =x_list)
 
 # plot
@@ -515,6 +525,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
         prior_sel= {'alpha': ( Prior_smth.sel(k =k_prime_max, method='nearest').Prior_direction.data,
                              Prior_smth.sel(k =k_prime_max, method='nearest').Prior_spread.data) }
 
+        #print(prior_sel)
         SM.fitting_kargs = fitting_kargs = {'prior': prior_sel , 'prior_weight' : 2 }
         #SM.fitting_kargs = fitting_kargs = {'prior': None , 'prior_weight' : 1 }
 
@@ -541,7 +552,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
         else:
             raise ValueError('non of sample_flag,optimize_flag, or brute_flag  are True')
 
-        y_hist, bins, bins_pos = SM.get_marginal_dist('alpha', alpha_dx, burn = 40, plot_flag= False)
+        y_hist, bins, bins_pos = SM.get_marginal_dist('alpha', alpha_dx, burn = N_sample_chain_burn, plot_flag= False)
         fitter = SM.fitter # MCMC results
         z_model = SM.objective_func(fitter.params, *fitting_args , test_flag= True)
         cost = (fitter.residual**2).sum()/(z_concat**2).sum()
@@ -592,8 +603,6 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
         }
         return k_prime_max, rdict
 
-
-
     k_list, weight_list =  k[mask], weights[mask]
     print('# of wavenumber: ' , len(k_list))
     if len(k_list) > max_wavenumbers:
@@ -605,7 +614,6 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     # for k_pair in zip(k_list, weight_list):
     #     kk, I = get_instance(k_pair)
     #     A[kk] = I
-
 
     with futures.ProcessPoolExecutor(max_workers=Nworkers) as executor:
         A = dict( executor.map(get_instance, zip(k_list, weight_list)   ))
@@ -661,6 +669,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
 # %%
 #list(Marginals.values())[0]
 MM = xr.merge( Marginals.values())
+MM =xr.merge([ MM, Prior_smth])
 MM.to_netcdf(save_path + save_name + '_marginals.nc')
 
 LL = pd.concat(L_collect)
@@ -676,7 +685,9 @@ ax0 = F.fig.add_subplot(gs[0:2, -1])
 ax0.tick_params(labelleft=False)
 
 #klims = k_list.min()*0.2 , k_list.max()*1.2
-klims = 0, k_list.max()*1.2
+
+klims = 0, LL['K_prime'].max()*1.2
+
 
 for g in MM.beam_group:
     MMi = MM.sel(beam_group= g)
@@ -735,12 +746,13 @@ plt.xlabel('Angle (deg)')
 
 #plt.xlim(- 170, 170)
 #plt.xlim(- 90, 90)
-#plt.ylim(klims)
+plt.ylim(klims)
 
 prior_angle_str =str(np.round( (prior_sel['alpha'][0])  *  180 /np.pi))
 plt.title(track_name + '\nprior=' + prior_angle_str + 'deg', loc= 'left' )
 
-plt.xlim(dir_best.min(),  dir_best.max())
+plt.xlim( min( [ -90,  np.nanmin(dir_best)] ),  max( [np.nanmax(dir_best), 90]) )
+
 
 ax3 = F.fig.add_subplot(gs[2 , 0:-1])
 

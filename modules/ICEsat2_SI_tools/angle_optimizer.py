@@ -70,7 +70,7 @@ def objective_func(pars, x, y, z, test_flag= False , prior= None, prior_weight =
     z_model = get_z_model_single_wave(x, y, pars['K_prime'].value, pars['K_amp'].value, pars['alpha'].value,pars['phase'].value)
     if prior is not None:
         a_0, a_std = prior['alpha']
-        penalties = np.array([  (abs(a_0 - pars['alpha'] )**2  / a_std)  ])
+        penalties = np.array([  (abs(a_0 - pars['alpha'] )**2  / a_std**2)  ])
     else:
         penalties =  np.array([0])
 

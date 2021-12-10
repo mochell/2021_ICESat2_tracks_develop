@@ -30,8 +30,9 @@ import ICEsat2_SI_tools.wave_tools as waves
 import concurrent.futures as futures
 
 import time
+import ICEsat2_SI_tools.lanczos as lanczos
 
-from contextlib import contextmanager
+
 col.colormaps2(21)
 
 col_dict = col.rels
@@ -45,8 +46,11 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 # good track
-track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190216200800_07690212_004_01', 'SH_batch02', False
+
+
 
 
 #print(track_name, batch_key, test_flag)
@@ -56,7 +60,7 @@ ATlevel= 'ATL03'
 
 
 
-plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
+plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B05_angle/'
 MT.mkdirs_r(plot_path)
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 # %%
@@ -82,27 +86,6 @@ load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
 Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
 
 
-#### Define Prior
-# Use partitions
-Prior2              = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
-dominat_period      = Prior2[Prior2.max() ==Prior2]
-aa = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
-dominant_dir        = waves.get_ave_amp_angle(aa *0+1,aa  )[1]
-dominant_dir_spread = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean'].median()
-
-prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
-#prior_sel= {'alpha': ( -60 *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
-
-# prior_angle =prior_sel['alpha'][0] * 180/np.pi
-# if abs(prior_angle) > 80:
-#     print('Prior angle is ', prior_angle, '. quit.')
-#     prior_sel['time'] = time.asctime( time.localtime(time.time()) )
-#     prior_sel['angle'] =  prior_angle
-#     MT.json_save('B04_fail', plot_path, prior_sel)
-#     print('exit()')
-#     exit()
-# %%
-
 
 # font_for_print()
 # F = M.figure_axis_xy(5.5, 3, view_scale= 0.8)
@@ -112,10 +95,10 @@ prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180)
 #
 # xi =1
 
-# data = Marginals.isel(x=xi).sel(beam_group= 'group1').sel(angle=angle_mask).marginals
+#data = Marginals.isel(x=xi).sel(beam_group= 'group1').marginals
 # angle_mask = Marginals.angle[2:-2]
 #
-# data.T.plot(cmap= plt.cm.OrRd)
+#data.T.plot(cmap= plt.cm.OrRd)
 
 # %%
 
@@ -151,8 +134,6 @@ def weighted_means(data, weights, x_angle, color='k'):
 
 
 
-
-
 # cut out data at the boundary and redistibute variance
 angle_mask = Marginals.angle *0 ==0
 angle_mask[0], angle_mask[-1] = False, False
@@ -160,225 +141,360 @@ corrected_marginals = Marginals.marginals.isel(angle=angle_mask ) + Marginals.ma
 
 # get groupweights
 # ----------------- thius does not work jet.ckeck with data on server how to get number of data points per stancil
-Gx['x'] = Gx.x - Gx.x[0]
-Gweights = Gx.sel(beam =all_beams).sel(x = corrected_marginals.x.data, method='nearest')
+#Gx['x'] = Gx.x - Gx.x[0]
 
-Gweights
+# makde dummy variables
+M_final      = xr.full_like(corrected_marginals.isel(k=0, beam_group =0).drop('beam_group').drop('k'), np.nan)
+M_final_smth = xr.full_like(corrected_marginals.isel(k=0, beam_group =0).drop('beam_group').drop('k'), np.nan)
+if M_final.shape[0] > M_final.shape[1]:
+    M_final= M_final.T
+    M_final_smth= M_final_smth.T
+    corrected_marginals=corrected_marginals.T
 
+Gweights = corrected_marginals.N_data
 Gweights = Gweights/Gweights.max()
 
-Gweights_all= dict()
-for g, name in zip(beam_groups, ['group1', 'group2', 'group3']):
-    Gweights2 =Gweights.sel(beam =g).sum('beam')
-    Gweights2.expand_dims('beam_group')
-    Gweights2['beam_group'] = name
-    Gweights2.name = 'beam_weights'
-    Gweights_all[name] = Gweights2
-    #Gweights.expand_dims(beam_group=name)
+k_mask = corrected_marginals.mean('beam_group').mean('angle')
 
-Gweights_all = xr.concat(Gweights_all.values(), dim ='beam_group')
+xticks_2pi = np.arange(-np.pi, np.pi+np.pi/4, np.pi/4)
+xtick_labels_2pi = ['-$\pi$', '-$3\pi/4$', '-$\pi/2$','-$\pi/4$','0','$\pi/4$','$\pi/2$','$3\pi/4$','$\pi$']
 
+xticks_pi = np.arange(-np.pi/2, np.pi/2+np.pi/4, np.pi/4)
+xtick_labels_pi = ['-$\pi/2$','-$\pi/4$','0','$\pi/4$','$\pi/2$',]
 
-xi =2
-group_weight = Gweights_all.sel(x =Marginals.x.isel(x= xi).data )
-group_weight = group_weight/ group_weight.max()
 
 font_for_print()
-F = M.figure_axis_xy(3.5, 6, view_scale= 0.8, container = True)
+x_list = corrected_marginals.x
+for xi in range(x_list.size):
 
-gs = GridSpec(4,1,  wspace=0.2,  hspace=.2)#figure=fig,
 
-ax_sum = F.fig.add_subplot(gs[-1, 0])
+    F = M.figure_axis_xy(7,3.5, view_scale= 0.8, container = True)
+    gs = GridSpec(3,2,  wspace=0.1,  hspace=.8)#figure=fig,
+    x_str= str(int(x_list[xi]/1e3))
+    plt.suptitle('Weighted marginal PDFs\nx='+ x_str +'\n'+track_name, y= 1.05, x = 0.125, horizontalalignment= 'left')
+    group_weight = Gweights.isel(x =xi)
 
-data_collect = dict()
-for group, gpos in zip(Marginals.beam_group.data, [ gs[0, 0], gs[1, 0], gs[2, 0]] ):
-    ax0 = F.fig.add_subplot(gpos)
-    ax0.tick_params(labelbottom=False)
+    ax_list= dict()
+    ax_sum = F.fig.add_subplot(gs[1, 1])
+    #ax_sum.tick_params(labelbottom=False)
 
-    data    = corrected_marginals.isel(x=xi).sel(beam_group= group)
-    weights = derive_weights( Marginals.weight.isel(x=xi).sel(beam_group= group)  )
-    weights = weights**2
+    ax_list['sum'] = ax_sum
 
-    # derive angle axis
-    x_angle = data.angle.data
-    d_angle= np.diff(x_angle)[0]
-    x_angle = np.insert(x_angle, x_angle.size , x_angle[-1].data +  d_angle)
+    data_collect = dict()
+    for group, gpos in zip(Marginals.beam_group.data, [ gs[0, 0], gs[0, 1], gs[1, 0]] ):
+        ax0 = F.fig.add_subplot(gpos)
+        ax0.tick_params(labelbottom=False)
+        ax_list[group] = ax0
 
-    data_wmean = weighted_means(data, weights, x_angle, color= col_dict[group] )
-    plt.stairs(data_wmean , x_angle, color =col_dict[group], alpha =1)
-    # test if density is correct
-    if np.round(np.trapz(data_wmean) * d_angle, 2) < 0.90:
-        raise ValueError('weighted mean is not a density anymore')
+        data    = corrected_marginals.isel(x=xi).sel(beam_group= group)
+        weights = derive_weights( Marginals.weight.isel(x=xi).sel(beam_group= group)  )
+        weights = weights**2
+
+        # derive angle axis
+        x_angle = data.angle.data
+        d_angle= np.diff(x_angle)[0]
+        x_angle = np.insert(x_angle, x_angle.size , x_angle[-1].data +  d_angle)
+
+        if ( (~np.isnan(data)).sum().data == 0) | (( ~np.isnan(weights)).sum().data == 0):
+            data_wmean = data.mean('k')
+        else:
+            data_wmean = weighted_means(data, weights, x_angle, color= col_dict[group] )
+            plt.stairs(data_wmean , x_angle, color =col_dict[group], alpha =1)
+        # test if density is correct
+        # if np.round(np.trapz(data_wmean) * d_angle, 2) < 0.90:
+        #     raise ValueError('weighted mean is not a density anymore')
+
+        plt.title('Marginal PDF '+ group, loc ='left')
+        plt.sca(ax_sum)
+
+        # if data_collect is None:
+        #     data_collect = data_wmean
+        # else:
+        data_collect[group] = data_wmean
+        #ax0.set_yscale('log')
+
+
+    data_collect = xr.concat(data_collect.values(), dim='beam_group')
+    final_data   = (group_weight * data_collect).sum('beam_group')/group_weight.sum('beam_group').data
 
     plt.sca(ax_sum)
-    plt.stairs(data_wmean , x_angle, color =col_dict[group], alpha =0.6)
-    # if data_collect is None:
-    #     data_collect = data_wmean
-    # else:
-    data_collect[group] = data_wmean
+    plt.stairs( final_data , x_angle, color = 'k', alpha =1, linewidth =0.8)
+    ax_sum.set_xlabel('Angle (rad)')
+    plt.title('Weighted mean over group & wavenumber', loc='left')
+
+    # get relevant priors
+    for axx in ax_list.values():
+        axx.set_ylim(0, final_data.max() * 1.5)
+        #figureaxx.set_yscale('log')
+        axx.set_xticks(xticks_pi)
+        axx.set_xticklabels(xtick_labels_pi)
+
+    try:
+        ax_list['group3'].set_ylabel('PDF')
+        ax_list['group1'].set_ylabel('PDF')
+        ax_list['group3'].tick_params(labelbottom=True)
+        ax_list['group3'].set_xlabel('Angle (rad)')
+    except:
+        pass
+
+    ax_final = F.fig.add_subplot(gs[-1, :])
+    plt.title('Final angle PDF', loc='left')
+
+    priors_k = Marginals.Prior_direction[ ~np.isnan(k_mask.isel(x= xi))]
+    for pk in priors_k:
+        ax_final.axvline(pk, color =col.cascade2, linewidth= 1, alpha = 0.7)
+
+    plt.stairs( final_data , x_angle, color = 'k', alpha =0.5, linewidth =0.8)
+
+    final_data_smth = lanczos.lanczos_filter_1d(x_angle,final_data, 0.1)
+
+    plt.plot(x_angle[0:-1], final_data_smth, color = 'black', linewidth= 0.8)
+
+    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.orange, linewidth= 1.5, alpha = 1, zorder= 1)
+    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.black, linewidth= 3.2, alpha = 1, zorder= 0)
 
 
-data_collect = xr.concat(data_collect.values(), dim='beam_group')
+    plt.xlabel('Angle (rad)')
+    plt.xlim(-np.pi*0.8, np.pi*0.8)
 
-plt.sca(ax_sum)
-final_data = (group_weight * data_collect).sum('beam_group')/group_weight.sum('beam_group')
-plt.stairs( final_data , x_angle, color = 'k', alpha =1)
+    ax_final.set_xticks(xticks_pi)
+    ax_final.set_xticklabels(xtick_labels_pi)
+
+    M_final[xi,:] = final_data
+    M_final_smth[xi, :] = final_data_smth
+
+    F.save_pup(path = plot_path, name = 'B05_weigthed_margnials_x' + x_str)
 
 
+
+M_final.name='weighted_angle_PDF'
+M_final_smth.name='weighted_angle_PDF_smth'
+Gpdf = xr.merge([M_final,M_final_smth])
+
+if len(Gpdf.x) < 2:
+    print('not enough x data, exit')
+    MT.json_save('B05_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'not enough x segments'})
+    print('exit()')
+    exit()
 
 # %%
-#k_list = data.k[~np.isnan(data.mean('angle'))]
-#for k in k_list:
+class plot_polarspectra(object):
+        def __init__(self,k, thetas, data, data_type='fraction' ,lims=None,  verbose=False):
+
+            """
+            data_type       either 'fraction' or 'energy', default (fraction)
+            lims            (None) limts of k. if None set by the limits of the vector k
+            """
+            self.k      =k
+            self.data   =data
+            self.thetas =thetas
+
+            #self.sample_unit=sample_unit if sample_unit is not None else 'df'
+            # decided on freq limit
+            self.lims= lims = [self.k.min(),self.k.max()] if lims is None else lims #1.0 /lims[1], 1.0/ lims[0]
+            freq_sel_bool=M.cut_nparray(self.k, lims[0], lims[1] )
+
+            self.min=np.round(np.nanmin(data[freq_sel_bool,:]), 2)#*0.5e-17
+            self.max=np.round(np.nanmax(data[freq_sel_bool,:]), 2)
+            if verbose:
+                print(str(self.min), str(self.max) )
+
+            self.klabels=np.linspace(self.min, self.max, 5) #np.arange(10, 100, 20)
+
+            self.data_type=data_type
+            if data_type == 'fraction':
+                self.clevs=np.linspace(np.nanpercentile(dir_data.data, 1), np.ceil(self.max* 0.9), 21)
+            elif data_type == 'energy':
+                self.ctrs_min=self.min+self.min*.05
+                #self.clevs=np.linspace(self.min, self.max, 21)
+                self.clevs=np.linspace(self.min+self.min*.05, self.max*.60, 21)
 
 
-k_list = data.k[~np.isnan(data.mean('angle'))]
-for k in k_list:
-    a = data.angle
-    a = np.insert(a.data, a.data.size , a[-1 ].data + np.diff(a)[0] )
-    plt.stairs(data.sel(k=k) * weights.sel(k=k)**2 , a )
+        def linear(self, radial_axis='period', ax=None, cbar_flag=True):
+
+            """
+            """
+            if ax is None:
+                ax          = plt.subplot(111, polar=True)
+                #self.title  = plt.suptitle('  Polar Spectrum', y=0.95, x=0.5 , horizontalalignment='center')
+            else:
+                ax=ax
+            ax.set_theta_direction(-1)  #right turned postive
+            ax.set_theta_zero_location("W")
+
+            grid=ax.grid(color='k', alpha=.5, linestyle='-', linewidth=.5)
+
+            if self.data_type == 'fraction':
+                cm=plt.cm.RdYlBu_r #brewer2mpl.get_map( 'RdYlBu','Diverging', 4, reverse=True).mpl_colormap
+                colorax = ax.contourf(self.thetas,self.k, self.data, self.clevs, cmap=cm, zorder=1)# ,cmap=cm)#, vmin=self.ctrs_min)
+            elif self.data_type == 'energy':
+                cm=plt.cm.Paired#brewer2mpl.get_map( 'Paired','Qualitative', 8).mpl_colormap
+                cm.set_under='w'
+                cm.set_bad='w'
+                colorax = ax.contourf(self.thetas,self.k, self.data, self.clevs, cmap=cm, zorder=1)#, vmin=self.ctrs_min)
+            #divider = make_axes_locatable(ax)
+            #cax = divider.append_axes("right", size="5%", pad=0.05)
+
+            if cbar_flag:
+                cbar = plt.colorbar(colorax, fraction=0.046, pad=0.1, orientation="horizontal")
+                # if self.data_type == 'fraction':
+                #     cbar.set_label('Energy Distribution', rotation=0, fontsize=fontsize)
+                # elif self.data_type == 'energy':
+                #     cbar.set_label('Energy Density ('+self.unit+')', rotation=0, fontsize=fontsize)
+                cbar.ax.get_yaxis().labelpad = 30
+                cbar.outline.set_visible(False)
+                #cbar.ticks.
+                clev_tick_names, clev_ticks =MT.tick_formatter(FP.clevs, expt_flag= False, shift= 0, rounder=4, interval=1)
+                cbar.set_ticks(clev_ticks[::5])
+                cbar.set_ticklabels(clev_tick_names[::5])
+                self.cbar  = cbar
+
+            if (self.lims[-1]- self.lims[0]) > 500:
+                radial_ticks = np.arange(100, 1600, 300)
+            else:
+                radial_ticks = np.arange(100, 800, 100)
+            xx_tick_names, xx_ticks = MT.tick_formatter( radial_ticks , expt_flag= False, shift= 1, rounder=0, interval=1)
+            #xx_tick_names, xx_ticks = MT.tick_formatter( np.arange( np.floor(self.k.min()),self.k.max(), 20) , expt_flag= False, shift= 1, rounder=0, interval=1)
+            xx_tick_names = ['  '+str(d)+'m' for d in xx_tick_names]
+
+            ax.set_yticks(xx_ticks[::1])
+            ax.set_yticklabels(xx_tick_names[::1])
+
+            degrange    = np.arange(0,360,30)
+            degrange    = degrange[(degrange<=80)| (degrange>=280)]
+            degrange_label = np.copy(degrange)
+            degrange_label[degrange_label > 180] = degrange_label[degrange_label > 180] - 360
+
+            degrange_label = [str(d)+'$^{\circ}$' for d in degrange_label]
+
+            lines, labels = plt.thetagrids(degrange, labels=degrange_label)#, frac = 1.07)
+
+            for line in lines:
+                #L=line.get_xgridlines
+                line.set_linewidth(5)
+                #line.set_linestyle(':')
+
+            #ax.set_yscale('log')
+            ax.set_ylim(self.lims)
+            ax.spines['polar'].set_color("none")
+            ax.set_rlabel_position(87)
+            self.ax=ax
 
 
-#plt.pcolormesh(data_mask.x/1e3, data_mask.beam, data_mask, cmap= plt.cm.OrRd)
-for i in np.arange(1.5, 6, 2):
-    ax1.axhline(i, color= 'black', linewidth =0.5)
-plt.xlabel('Distance from Ice Edge')
-
-# ax2 = plt.subplot(2, 1, 2)
-# plt.title('Data in Group', loc= 'left')
-# plt.pcolormesh(data_mask.x/1e3, data_mask_group.beam_group, data_mask_group, cmap= plt.cm.OrRd)
-#
-# for i in np.arange(0.5, 3, 1):
-#     ax2.axhline(i, color= 'black', linewidth =0.5)
-#
-# plt.plot( x_list/1e3, x_list*0 +0, '.', markersize= 2, color= col.cascade1 )
-# plt.plot( x_list/1e3, x_list*0 +1, '.', markersize= 2, color= col.cascade1 )
-# plt.plot( x_list/1e3, x_list*0 +2, '.', markersize= 2, color= col.cascade1 )
-#
-# plt.xlabel('Distance from Ice Edge')
-#
-# F.save_pup(path= plot_path, name = 'B04_data_avail')
-
-
-
-
-
-
-
-
-
-
-# %% plot
 font_for_print()
 F = M.figure_axis_xy(6, 5.5, view_scale= 0.7, container = True)
+gs = GridSpec(8,6,  wspace=0.1,  hspace=3.1)#figure=fig,
+col.colormaps2(21)
 
-gs = GridSpec(4,6,  wspace=0.2,  hspace=.8)#figure=fig,
+cmap_spec= plt.cm.ocean_r
+clev_spec = np.linspace(-8, -1, 21) *10
 
-ax0 = F.fig.add_subplot(gs[0:2, -1])
-ax0.tick_params(labelleft=False)
-
-#klims = k_list.min()*0.2 , k_list.max()*1.2
-klims = 0, k_list.max()*1.2
-
-for g in MM.beam_group:
-    MMi = MM.sel(beam_group= g)
-    plt.plot(  MMi.weight.T,MMi.k,   '.', color= col_dict[str(g.data)], markersize= 3, linewidth = 0.8)
-
-plt.xlabel('Power')
-plt.ylim(klims)
-
-ax1 = F.fig.add_subplot(gs[0:2 , 0:-1])
-
-for g in MM.beam_group:
-    Li = LL.loc[str(g.data)]
-
-    angle_list = np.array(Li['alpha']) *  180 /np.pi
-    kk_list = np.array(Li['K_prime'])
-    weight_list_i = np.array(Li['weight'])
-
-    plt.scatter( angle_list, kk_list, s= (weight_list_i*8e1)**2 , c=col_dict[str(g.data)], label ='mode ' + str(g.data) )
+cmap_angle= col.cascade_r
+clev_angle = np.linspace(0, 4, 21)
 
 
-lflag= 'paritions ww3'
-for i in np.arange(6):
-    i_dir, i_period = Prior.loc['pdp'+ str(i)]['mean'], Prior.loc['ptp'+ str(i)]['mean']
-    i_k = (2 * np.pi/ i_period)**2 / 9.81
-    i_dir = [i_dir -360 if i_dir > 180 else i_dir][0]
-    i_dir = [i_dir +360 if i_dir < -180 else i_dir][0]
+ax1 = F.fig.add_subplot(gs[0:3, :])
+ax1.tick_params(labelbottom=False)
 
-    plt.plot(i_dir, i_k,  '.', markersize = 6, color= col.black, label= lflag)
-    lflag = None
+weighted_spec   = (Gk.gFT_PSD_data * Gk.N_per_stancil).sum('beam') /Gk.N_per_stancil.sum('beam')
+x_spec          = weighted_spec.x/1e3
+k               = weighted_spec.k
+
+xlims = x_spec[0], x_spec[-1]
+#weighted_spec.plot()
+#clev_spec = np.linspace(-8, -1, 21) *10
+clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
+
+plt.pcolor(x_spec, k, 10* np.log(weighted_spec),vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
 
 
-#ax1.axvline(  best_guess * 180/ np.pi , color=col.blue, linewidth = 1.5, label ='best guess fitting')
+plt.title(track_name + '\nPower Spectra (m/m)$^2$ k$^{-1}$', loc='left')
 
-ax1.axvline(  (prior_sel['alpha'][0])  *  180 /np.pi, color='k', linewidth = 1.5, label ='prior')
-ax1.axvline(  (prior_sel['alpha'][0]- prior_sel['alpha'][1])  *  180 /np.pi, color='k', linewidth = 0.7, label ='prior uncertrainty')
-ax1.axvline(  (prior_sel['alpha'][0]+ prior_sel['alpha'][1]) *  180 /np.pi , color='k', linewidth = 0.7)
+cbar = plt.colorbar( fraction=0.018, pad=0.01, orientation="vertical", label ='Power')
+cbar.outline.set_visible(False)
+clev_ticks = np.round(clev_spec[::3], 0)
+#clev_tick_names, clev_ticks =MT.tick_formatter(clev_spec, expt_flag= False, shift= 0, rounder=1, interval=2)
+cbar.set_ticks(clev_ticks)
+cbar.set_ticklabels(clev_ticks)
 
-plt.legend()
-plt.ylabel('wavenumber (deg)')
-#plt.xlim(- 170, 170)
-plt.xlim(- 90, 90)
-plt.ylim(klims)
+plt.ylabel('wavenumber $k$')
 
-prior_angle_str =str(np.round( (prior_sel['alpha'][0])  *  180 /np.pi))
-plt.title(track_name + '\nprior=' + prior_angle_str + 'deg', loc= 'left' )
+#plt.colorbar()
+ax2 = F.fig.add_subplot(gs[3:5, :])
+ax2.tick_params(labelleft=True)
 
-ax3 = F.fig.add_subplot(gs[2 , 0:-1])
+dir_data = Gpdf.interp(x= weighted_spec.x).weighted_angle_PDF_smth.T
 
-for g in MM.beam_group:
-    MMi = MM.sel(beam_group= g)
-    wegihted_margins = ( (MMi.marginals * MMi.weight).sum(['x','k'] )/MMi.weight.sum(['x', 'k']) )
-    plt.plot(  MMi.angle * 180/ np.pi, wegihted_margins , '.', color= col_dict[str(g.data)], markersize= 2, linewidth = 0.8)
+x = Gpdf.x/1e3
+angle = Gpdf.angle
+plt.pcolor(x_spec, angle, dir_data , vmin= clev_angle[0], vmax= clev_angle[-1], cmap =cmap_angle)
+#plt.contourf(x_spec, angle, dir_data ,clev_angle, cmap =cmap_angle)
 
-plt.ylabel('Density')
-plt.xlabel('Angle (deg)')
-plt.title('weight margins', loc='left')
+cbar = plt.colorbar( fraction=0.01, pad=0.01, orientation="vertical", label ='Density')
+plt.title('Direction PDF', loc='left')
 
-#plt.plot(marginal_stack.angle *  180 /np.pi, marginal_stack.T ,  c=col.gray, label ='weighted mean BF')
+plt.xlabel('x (km)')
+plt.ylabel('angle')
 
-#plt.plot(cost_wmean.angle *  180 /np.pi, cost_wmean ,  c=col.rascade3, label ='weighted mean BF')
-plt.xlim(- 90, 90)
-#plt.xlim(- 125, 125)
+ax2.set_yticks(xticks_pi)
+ax2.set_yticklabels(xtick_labels_pi)
 
-ax3 = F.fig.add_subplot(gs[-1 , 0:-1])
 
-for g in MM.beam_group:
-    MMi = MM.sel(beam_group= g)
-    wegihted_margins = MMi.marginals.mean(['x','k'] )# ( (MMi.marginals * MMi.weight).sum(['x','k'] )/MMi.weight.sum(['x', 'k']) )
-    plt.plot(  MMi.angle * 180/ np.pi, wegihted_margins , '.', color= col_dict[str(g.data)], markersize= 2, linewidth = 0.8)
+x_ticks  = np.arange(0, xlims[-1].data, 50)
+x_tick_labels, x_ticks = MT.tick_formatter(x_ticks, expt_flag= False, shift= 0, rounder=1, interval=2)
 
-plt.ylabel('Density')
-plt.xlabel('Angle (deg)')
-plt.title('unweighted margins', loc='left')
+ax1.set_xticks(x_ticks)
+ax2.set_xticks(x_ticks)
+ax1.set_xticklabels(x_tick_labels)
+ax2.set_xticklabels(x_tick_labels)
+ax1.set_xlim(xlims)
+ax2.set_xlim(xlims)
 
-#plt.plot(marginal_stack.angle *  180 /np.pi, marginal_stack.T ,  c=col.gray, label ='weighted mean BF')
 
-#plt.plot(cost_wmean.angle *  180 /np.pi, cost_wmean ,  c=col.rascade3, label ='weighted mean BF')
-plt.xlim(- 90, 90)
-#plt.xlim(- 125, 125)
+xx_list = np.insert(corrected_marginals.x.data, 0, 0)
+x_chunks = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
+x_chunks = x_chunks[:, ::2]
+x_chunks[-1, -1] = xx_list.size-1
+#x_chunks#.shape
 
-F.save_pup(path= plot_path, name = 'B04_marginal_distributions')
+for x_pos, gs in zip( x_chunks.T , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
+    #print( x_pos)
+    #print( xx_list[x_pos])
+    x_range = xx_list[[x_pos[0], x_pos[-1]]]
 
-MT.json_save('B04_success', plot_path, {'time':'time.asctime( time.localtime(time.time()) )'})
+    ax1.axvline(x_range[0]/1e3, linestyle= ':', color= 'white', alpha = 0.5)
+    ax1.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
 
-# %%
-# # %% define weights
-# #weights = xr.DataArray(Z_max_list_gauss, dims ='k', coords = {'k': k_list_gauss})
-# weights_costs = xr.DataArray(weight_list, dims ='k', coords = {'k': k_list})
-# weights_costs = weights_costs/weights_costs.max()
-# #weights_costs = weights_costs.sel(k= cost_stack_rolled.k)
-#
-# weight_k = (1/weights_costs.k)
-# weight_k = weight_k/weight_k.max()
-#
-# weights_sum= weights_costs# * weight_k.data**2
-# plt.plot(weights_sum)
-#
-#
-#
-# cost_wmean  = (weights_sum * marginal_stack /weights_sum.sum() ).sum('k')
-#
-# cost_wmean.T.plot()
-# best_guess = cost_wmean.angle[cost_wmean.argmax()].data# * 180/ np.pi
-# best_guess
+    ax2.axvline(x_range[0]/1e3, linestyle= ':', color= 'white', alpha = 0.5)
+    ax2.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
+
+
+    i_spec  = weighted_spec.sel(x= slice(x_range[0], x_range[-1]) )
+    i_dir   = corrected_marginals.sel(x= slice(x_range[0], x_range[-1]) )
+
+    dir_data  = (i_dir * i_dir.N_data).sum([ 'beam_group', 'x'])/ i_dir.N_data.sum([ 'beam_group', 'x'])
+    lims = dir_data.k[ (dir_data.sum('angle')!=0) ][0].data, dir_data.k[ (dir_data.sum('angle')!=0)  ][-1].data
+
+    N_angle = i_dir.angle.size
+    dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
+
+    plot_data  = dir_data2  * i_spec.mean('x')
+    plot_data  = plot_data.rolling(angle =5, k =10).median()#.plot()
+
+    plot_data = plot_data.sel(k=slice(lims[0],lims[-1] ) )
+    xx = 2 * np.pi/plot_data.k
+
+    #F = M.figure_axis_xy(5, 4)
+    #ax = plt.subplot(1, 1, 1, polar=True)
+    #
+    if np.nanmax(plot_data.data) != np.nanmin(plot_data.data):
+
+        ax3 = F.fig.add_subplot(gs, polar=True)
+        FP= plot_polarspectra(xx, plot_data.angle, plot_data, lims=None , verbose= False, data_type= 'fraction')
+        FP.clevs=np.linspace(np.nanpercentile(plot_data.data, 1), np.round(plot_data.max(), 4), 21)
+        FP.linear(ax = ax3, cbar_flag=False)
+        #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
+        #plt.show()
+
+F.save_pup(path = plot_path + '../', name = 'B05_dir_ov')
+MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})
