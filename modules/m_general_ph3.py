@@ -710,7 +710,7 @@ class plot_polarspectra(object):
             lims=[self.f.min(),self.f.max()] if lims is None else lims
             self.lims= 1.0 /lims[1], 1.0/ lims[0]
 
-            freq_sel_bool=M.cut_nparray(self.f, lims[0], lims[1] )
+            freq_sel_bool=cut_nparray(self.f, lims[0], lims[1] )
 
             self.min=np.nanmin(data[freq_sel_bool,:])#*0.5e-17
             self.max=np.nanmax(data[freq_sel_bool,:])
@@ -727,10 +727,7 @@ class plot_polarspectra(object):
                 self.clevs=np.linspace(self.min+self.min*.05, self.max*.60, 21)
 
 
-        def linear(self, radial_axis='period', circles =None, ax=None ):
-
-
-
+        def linear(self, radial_axis='period', circles =None, ax=None, fontsize= 10 ):
 
             if ax is None:
                 ax = plt.subplot(111, polar=True)
@@ -740,12 +737,8 @@ class plot_polarspectra(object):
             ax.set_theta_direction(-1)  #left turned postive
             ax.set_theta_zero_location("N")
 
-
             #cm=plt.cm.get_cmap('Reds')
             #=plt.cm.get_cmap('PuBu')
-
-
-
 
             #ylabels=np.arange(10, 100, 20)
             #ylabels = ([ 10, '', 20,'', 30,'', 40])
@@ -755,14 +748,13 @@ class plot_polarspectra(object):
             ## Set titles and colorbar
             #plt.title(STID+' | '+p + ' | '+start_date+' | '+end_date, y=1.11, horizontalalignment='left')
 
-
             grid=ax.grid(color='k', alpha=.5, linestyle='--', linewidth=.5)
 
             if self.data_type == 'fraction':
-                cm=brewer2mpl.get_map( 'RdYlBu','Diverging', 4, reverse=True).mpl_colormap
+                cm=plt.cm.RdYlBu_r #brewer2mpl.get_map( 'RdYlBu','Diverging', 4, reverse=True).mpl_colormap
                 colorax = ax.contourf(self.thetas, 1/self.f, self.data, self.clevs, cmap=cm, zorder=1)# ,cmap=cm)#, vmin=self.ctrs_min)
             elif self.data_type == 'energy':
-                cm=brewer2mpl.get_map( 'Paired','Qualitative', 8).mpl_colormap
+                cm=plt.cm.Paired#brewer2mpl.get_map( 'Paired','Qualitative', 8).mpl_colormap
 
                 cm.set_under='w'
                 cm.set_bad='w'
@@ -777,20 +769,18 @@ class plot_polarspectra(object):
                 plt.plot(theta, r1,  c='red', alpha=0.6,linewidth=1, zorder=10)
                 plt.plot(theta, r2,  c='red', alpha=0.6,linewidth=1, zorder=10)
 
-
-
             cbar = plt.colorbar(colorax, fraction=0.046, pad=0.06, orientation="horizontal")
             if self.data_type == 'fraction':
-                cbar.set_label('Fraction of Energy', rotation=0, fontsize=MEDIUM_SIZE)
+                cbar.set_label('Fraction of Energy', rotation=0)#, fontsize=fontsize)
             elif self.data_type == 'energy':
-                cbar.set_label('Energy Density ('+self.unit+')', rotation=0, fontsize=MEDIUM_SIZE)
+                cbar.set_label('Energy Density ('+self.unit+')', rotation=0)#, fontsize=fontsize)
             cbar.ax.get_yaxis().labelpad = 30
             cbar.outline.set_visible(False)
             #cbar.ticks.
             #cbar.outline.clipbox
             degrange = range(0,360,30)
 
-            lines, labels = plt.thetagrids(degrange, labels=None, frac = 1.07)
+            lines, labels = plt.thetagrids(degrange, labels=None)#, frac = 1.07)
 
             for line in lines:
                 #L=line.get_xgridlines

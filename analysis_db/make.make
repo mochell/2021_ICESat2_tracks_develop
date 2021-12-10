@@ -185,14 +185,12 @@ B03_success := $(shell ls $(B03_path)*/B03_success.json)
 B03_collect_list := $(foreach i, $(B03_success) , $(subst $(B03_path),$(B03_collect_path),$(i) )  )
 #B03_collect_targets := $(foreach i, $(B03_collect_list) , $(subst /B03_success.json,_B03_success.json,$(i)) )
 B03_collect_targets := $(foreach i, $(B03_collect_list) , $(subst /B03_success.json,_B03_specs_L25000.png,$(i)) )
-
 B03_collect : $(B03_collect_targets)
 
 $(B03_collect_targets) : $(B03_collect_path)%_B03_specs_L25000.png : $(B03_path)%/B03_success.json
 					cp $(B03_path)$*/B03_specs_L25000.0.png $(B03_collect_path)$*_B03_specs_L25000.png
 					cp $(B03_path)$*/B03_specs_coord_check.png $(B03_collect_path)coord_check/$*_B03_specs_coord_check.png
 #cp $(B03_path)$*/B03_spectra/B03_freq_reconst*.pdf $(B03_collect_path)$*_B03_freq_reconst.pdf
-
 
 
 
@@ -203,9 +201,38 @@ B04 : $(B04_targets)
 $(B04_targets) : $(B03_path)%/B04_success.json : $(B03_path)%/B03_success.json $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json
 					python $(analysisfolder)/B04_angle.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
 
+B04_success := $(shell ls $(B03_path)*/B04_success.json)
+B04_B05_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B04_B05_angle/
+B04_collect_list := $(foreach i, $(B04_success) , $(subst $(B03_path),$(B04_B05_collect_path),$(i) )  )
+B04_collect_targets := $(foreach i, $(B04_collect_list) , $(subst /B04_success.json,_B04_marginal_distributions.pdf,$(i)) )
+
+B04_B05_mkdir :
+					${MKDIR_P} $(B04_B05_collect_path)
+
+B04_collect : B04_B05_mkdir $(B04_collect_targets)
+$(B04_collect_targets) : $(B04_B05_collect_path)%_B04_marginal_distributions.pdf : $(B03_path)%/B04_success.json
+				cp $(B03_path)$*/B04_marginal_distributions.pdf $(B04_B05_collect_path)$*_B04_marginal_distributions.pdf
+
+
+B05_targets := $(foreach i, $(B04_success) , $(subst B04_success,B05_success,$(i)) )
+
+B05 : $(B05_targets)
+
+$(B05_targets) : $(B03_path)%/B05_success.json : $(B03_path)%/B04_success.json
+					python $(analysisfolder)/B05_define_angle.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
+
+B05_success := $(shell ls $(B03_path)*/B05_success.json)
+B05_collect_list := $(foreach i, $(B05_success) , $(subst $(B03_path),$(B04_B05_collect_path),$(i) )  )
+B05_collect_targets := $(foreach i, $(B05_collect_list) , $(subst /B05_success.json,_B05_dir_ov.pdf,$(i)) )
+
+B05_collect : B04_B05_mkdir $(B05_collect_targets)
+$(B05_collect_targets) : $(B04_B05_collect_path)%_B05_dir_ov.pdf : $(B03_path)%/B05_success.json
+				cp $(B03_path)$*/B05_dir_ov.pdf $(B04_B05_collect_path)$*_B05_dir_ov.pdf
+
+
 # sync plots from batch key to gdrive folder.
 sync_gdrive :
-					rclone sync $(plot_folder)$(hemis)/$(batch_key)/B02/ gdrive:Projects/2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)/B02/
+					rclone sync $(plot_folder)$(hemis)/$(batch_key)/ gdrive_brown:2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)/
 					#rclone sync $(plot_folder)../movie_temp_files/$(key) gdrive:Projects/2020_moist_two_layer/plots/movie_temp_files/$(key)/
 
 # for printing variables, used for debugging
