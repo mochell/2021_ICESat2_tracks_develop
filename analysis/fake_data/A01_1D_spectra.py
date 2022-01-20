@@ -32,6 +32,7 @@ import ICEsat2_SI_tools.io as io
 import imp
 import m_spectrum_ph3 as spec
 import JONSWAP_gamma
+
 # %%
 
 f = np.arange(0.001, 0.2,0.001)
@@ -51,3 +52,42 @@ instance = amps* np.cos( ww * tt + phi )
 # %%
 M.figure_axis_xy(6, 2, view_scale=0.9)
 plt.plot(t, instance.mean(1) )
+
+
+# %%
+C= -3
+k = 2* np.pi / 200
+x = np.arange(0, 2000, 2)
+
+phi = np.pi *3/2
+instance = C* np.cos(k * x + phi )
+plt.plot(x,  instance, '.')
+
+A =     C * np.cos(phi)
+B =   - C * np.sin(phi)
+
+instance2 = A * np.cos(k * x) +  B * np.sin(k * x)
+plt.plot(x,  instance2)
+
+R = np.sqrt(A**2 + B**2)
+phi2 = np.arctan2(-B, A)
+
+instance3 = R* np.cos(k * x + phi2 )
+plt.plot(x,  instance3, '+')
+
+
+# %%
+
+C= -3
+k = 2* np.pi / 200
+x = np.arange(0, 4000, 2)
+
+phi = np.pi *3/2
+instance = C* np.cos(k * x + phi )
+plt.plot(x,  instance, '-')
+
+instance2 = C* np.cos(k*1.05 * x + phi + np.pi*1.5 )
+plt.plot(x,  instance2, '-')
+
+
+plt.plot(x,  instance + instance2, '-k')

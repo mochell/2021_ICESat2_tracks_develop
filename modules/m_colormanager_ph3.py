@@ -98,8 +98,17 @@ class color(object):
 
             self.white_base_blue=LinearSegmentedColormap.from_list("my_colormap",
                                             (rels['white'], rels['darkblue'], rels['blue'],rels['lightblue']), N=n, gamma=gamma)
+            self.white_base_blue_r=LinearSegmentedColormap.from_list("my_colormap",
+                                            (rels['white'], rels['lightblue'], rels['blue'],rels['darkblue']), N=n, gamma=gamma)
+
             self.white_base_bluegreen=LinearSegmentedColormap.from_list("my_colormap",
                                             (rels['white'], rels['darkblue'], rels['blue'],rels['green']), N=n, gamma=gamma)
+            self.white_base_bluegreen_r=LinearSegmentedColormap.from_list("my_colormap",
+                                            (rels['white'], rels['lightblue'], rels['blue'],rels['darkblue'],rels['group2']), N=n, gamma=gamma)
+            self.white_base_blgror=LinearSegmentedColormap.from_list("my_colormap", #rels['blue'],
+                                            (rels['white'], rels['gridcolor'] ,rels['cascade2'], rels['cascade1'],rels['group1'] ), N=n, gamma=gamma)
+
+
             self.rainbow=LinearSegmentedColormap.from_list("my_colormap",
                                             (rels['darkblue'], rels['blue'], rels['lightblue'], rels['green'],rels['orange'], rels['red'] ), N=n, gamma=gamma)
             self.cascade=LinearSegmentedColormap.from_list("my_colormap",
@@ -189,12 +198,15 @@ class color(object):
 
             j=0
             for k,I in coldd.items():
-                r1 = mpatch.Rectangle((0, y[j]), 1, dy, color=I)
-                txt = ax.text(1.1, y[j]+dy*.5, ' '+k, va='center', fontsize=10,
-                              weight='regular')
+                try:
+                    r1 = mpatch.Rectangle((0, y[j]), 1, dy, color=I)
+                    txt = ax.text(1.1, y[j]+dy*.5, ' '+k, va='center', fontsize=10,
+                                  weight='regular')
 
-                ax.add_patch(r1)
-                j+=1
+                    ax.add_patch(r1)
+                    j+=1
+                except:
+                    pass
 
             coldd=dd_colors
             ncolor=len(coldd)
@@ -212,6 +224,7 @@ class color(object):
                 ax1.add_patch(r1)
                 j+=1
             #return fig
+            plt.title('rels')
 
         def add_standard_colors(self):
             self.colors=dict()

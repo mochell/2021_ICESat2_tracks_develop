@@ -59,6 +59,11 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
 #conner
 
+# for plotting
+#rack_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+
+
+
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 #track_name= '20190605061807_10380310_004_01'
@@ -359,7 +364,8 @@ if (np.array(p_densities_l).mean() < 0.5) & (np.array(p_densities_r).mean() < 0.
 
 
 # %% save corrected data and delete from cash
-io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with distance coordinate
+io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with
+#io.save_pandas_table(B, track_name + '_B01_new_coords'  , save_path) # all photos but heights adjusted and with distance coordinate
 del B1save
 
 # for testing
