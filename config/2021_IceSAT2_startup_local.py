@@ -13,7 +13,7 @@ import string
 
 import xarray as xr
 #xr.set_options(display_width=80, display_style='text')
-
+xr.set_options(display_style='text') 
 
 import sys
 import imp

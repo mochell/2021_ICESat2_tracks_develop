@@ -37,7 +37,15 @@
         "full_page":[7.5, 4.68 ],
         "full_page_high":[7.5, 12],
         "full_page_square":[7.5, 7.5 ]
+      },
+      "Cryosphere":{
+        "one_column":[3.34, 2.5],
+        "one_column_high":[3.34, 4.45],
+        "two_column":[6.97, 3.92],
+        "two_column_square":[6.97, 6.97],
+        "two_column_oversize":[6.97, 9]
       }
+
         },
 
         "beams": {

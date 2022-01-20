@@ -236,6 +236,7 @@ try:
 
 
     def test_nan_frac(imask):
+        "test if False is less then 0.3"
         return ((~imask).sum()/imask.size).data < 0.3
 
     while test_nan_frac(ice_mask_prior):
