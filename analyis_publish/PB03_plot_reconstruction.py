@@ -53,7 +53,7 @@ B3          = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path) 
 
 load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
 load_file   = load_path + 'B02_' + track_name #+ '.nc'
-MT.mkdirs_r(plot_path)
+#MT.mkdirs_r(plot_path)
 
 Gk   = xr.open_dataset(load_file+'_gFT_k.nc')
 Gx   = xr.open_dataset(load_file+'_gFT_x.nc')
@@ -98,7 +98,7 @@ font_for_print()
 
 #for i in x_pos_sel[::2]:
 #i =x_pos_sel[20]
-MT.mkdirs_r(plot_path+'B03_spectra/')
+#MT.mkdirs_r(plot_path+'B03_spectra/')
 
 x_pos_sel =  np.arange(Gk.x.size)[~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data.data)]
 x_pos_max = Gk.mean('beam').mean('k').gFT_PSD_data[~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data)].argmax().data
@@ -109,14 +109,19 @@ xpp = np.insert(xpp, 0, x_pos_max)
 # %%
 i = 5
 #i=6
+
+k = all_beams[0]
+#k = 'gt2l'
+
 plot_path   = mconfig['paths']['plot'] + '/vids/'+batch_key+'/' + track_name + '_'+k+'_x'+str(i)+'_B03/'
 MT.mkdirs_r(plot_path)
 
-num_count=1
 
+num_count=1
 k_list = np.concatenate([ np.arange(0.01, 0.14, 0.002)[::-1], np.arange(0.01, 0.14, 0.002) ])
 for k_thresh in k_list:
 
+    print(num_count)
     #k_thresh = 0.12 * 1
     F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
 
@@ -130,8 +135,6 @@ for k_thresh in k_list:
     dx = Gx.eta.diff('eta').mean().data
     neven = True
     offs = 0
-    k = all_beams[0]
-    #k = 'gt2l'
     Gx_1 = Gx.isel(x= i).sel(beam = k)
     Gk_1 = Gk.isel(x= i).sel(beam = k)
 
