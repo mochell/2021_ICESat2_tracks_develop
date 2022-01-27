@@ -63,7 +63,7 @@ xlims   = x.iloc[0], x.iloc[-1]
 
 
 
-Gi['slopes']  = dd
+#Gi['slopes']  = dd
 
 
 # %%

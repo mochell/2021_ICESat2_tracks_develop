@@ -41,7 +41,12 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
 
+track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
+
+# local track
 track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+x_pos= 3
+
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
@@ -128,10 +133,10 @@ key         = 'gt2r'
 #lead_color= col.rels[key]
 lead_color= col.rels['group2']
 
-i =xpp[3]
+x_pos =2
+i =xpp[x_pos]
 #for i in xpp:
 
-# %%
 #i = xpp[0]
 font_for_print()
 xscale=1e3
@@ -314,7 +319,7 @@ PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error,np.diff(Gplot.k)[0]
 
 
 F.fig.add_subplot(ax2)
-dd = 10 * np.log10(Gplot.model_error_k_cos)
+dd = 10 * np.log10(PSD_error_data)
 dd= np.where(~np.isinf(dd),  dd, np.nan )
 
 #clev = M.clevels( [np.percentile(dd, 0.01)* 0.75,np.percentile(dd, 0.98)  * 1], 31)* 1
@@ -342,7 +347,8 @@ for axx in [ax1, ax2]:
     axx.set_facecolor((1.0, 1, 1, 0))
     axx.axhline(0, linewidth=0.1,  color=col.gray, alpha=0.8)
     axx.spines['bottom'].set_linewidth(0.2)
-    axx.axvline(x_sel/1e3, linewidth= 0.6, color= 'black')
+    axx.axvline(x_sel/1e3, linewidth= 0.8, color= col_d[k], zorder=12)
+    axx.axvline(x_sel/1e3, linewidth= 2, color= col.black, zorder=10)
 
     x_ticks_labels, x_ticks = MT.tick_formatter(np.arange( (Gplot.x[0]/1e4).round(0)*10 ,(Gplot.x[-1]/1e4).round(0)*10, 20), interval= 2, rounder=0, expt_flag= False, shift=1)
     axx.set_xticks(x_ticks)
