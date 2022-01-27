@@ -243,7 +243,7 @@ for k_thresh in k_list:
     # for pos, kgroup, lflag in zip([ gs[2, 0:2],  gs[2, 2:4], gs[2, 4:]],  [, ['gt2l', 'gt2r'], ['gt3l', 'gt3r']], [True, False, False] ):
 
     ax41 = F.fig.add_subplot(gs[3:5, 4:])
-    ax41.tick_params(labelleft=lflag)
+    #ax41.tick_params(labelleft=lflag)
 
     dd = Gk_1.gFT_PSD_data#.rolling(k=10, min_periods= 1, center=True).mean()
     plt.plot(Gk_1.k,  dd, color='gray', linewidth=.5 ,alpha= 0.5 )
