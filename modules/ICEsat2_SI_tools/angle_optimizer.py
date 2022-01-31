@@ -259,7 +259,7 @@ class sample_with_mcmc(object):
         dd = (fitter_brute.brute_Jout- fitter_brute.brute_Jout.mean())/fitter_brute.brute_Jout.std()
         plt.contourf(fitter_brute.brute_grid[1,:,:], fitter_brute.brute_grid[0,:,:], dd , clevel, cmap= plt.cm.YlGnBu_r )
         #plt.scatter(fitter_brute.brute_grid[1,:,:], fitter_brute.brute_grid[0,:,:], s=0.2, alpha= 0.4, color='black')
-        plt.plot(fitter_brute.brute_x0[1], fitter_brute.brute_x0[0], **kargs)
+        #plt.plot(fitter_brute.brute_x0[1], fitter_brute.brute_x0[0], **kargs)
 
         x_name, y_name = list(fitter_brute.params.keys())[1], list(fitter_brute.params.keys())[0]
         plt.xlabel(x_name)
