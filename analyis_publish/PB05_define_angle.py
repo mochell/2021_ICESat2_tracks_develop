@@ -9,7 +9,7 @@ This is python 3
 
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
-xr.set_options(display_style='text')
+
 #%matplotlib inline
 
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
@@ -46,12 +46,11 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 # good track
-#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190216200800_07690212_004_01', 'SH_batch02', False
 
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -60,7 +59,8 @@ ATlevel= 'ATL03'
 
 
 
-plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B05_angle/'
+#plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B05_angle/'
+plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/publish/' + track_name + '/'
 MT.mkdirs_r(plot_path)
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 # %%
@@ -83,9 +83,9 @@ Marginals   = xr.load_dataset(load_path+ '/B04_'+track_name + '_marginals.nc' ) 
 
 # %% load prior information
 load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
-Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
+Prior       = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
 
-save_path =  mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+
 
 # font_for_print()
 # F = M.figure_axis_xy(5.5, 3, view_scale= 0.8)
@@ -167,21 +167,20 @@ font_for_print()
 x_list = corrected_marginals.x
 for xi in range(x_list.size):
 
-
-    F = M.figure_axis_xy(7,3.5, view_scale= 0.8, container = True)
-    gs = GridSpec(3,2,  wspace=0.1,  hspace=.8)#figure=fig,
+    F = M.figure_axis_xy(fig_sizes['one_column_high'][0],fig_sizes['one_column_high'][1]*0.85, view_scale= 0.8, container = True)
+    gs = GridSpec(4,1,  wspace=0.1,  hspace=.8)#figure=fig,
     x_str= str(int(x_list[xi]/1e3))
     plt.suptitle('Weighted marginal PDFs\nx='+ x_str +'\n'+track_name, y= 1.05, x = 0.125, horizontalalignment= 'left')
     group_weight = Gweights.isel(x =xi)
 
     ax_list= dict()
-    ax_sum = F.fig.add_subplot(gs[1, 1])
-    #ax_sum.tick_params(labelbottom=False)
-
-    ax_list['sum'] = ax_sum
+    #ax_sum = F.fig.add_subplot(gs[1, 0])
+    # #ax_sum.tick_params(labelbottom=False)
+    #
+    # ax_list['sum'] = ax_sum
 
     data_collect = dict()
-    for group, gpos in zip(Marginals.beam_group.data, [ gs[0, 0], gs[0, 1], gs[1, 0]] ):
+    for group, gpos in zip(Marginals.beam_group.data, [ gs[0, 0], gs[1, 0], gs[2, 0]] ):
         ax0 = F.fig.add_subplot(gpos)
         ax0.tick_params(labelbottom=False)
         ax_list[group] = ax0
@@ -204,8 +203,13 @@ for xi in range(x_list.size):
         # if np.round(np.trapz(data_wmean) * d_angle, 2) < 0.90:
         #     raise ValueError('weighted mean is not a density anymore')
 
-        plt.title('Marginal PDF '+ group, loc ='left')
-        plt.sca(ax_sum)
+        if group == 'group1':
+            t_string = group.replace('group',  'Marginal PDF\nBeam Group ')
+        else:
+            t_string = group.replace('group', 'Beam Group ')
+
+        plt.title(t_string, loc ='left')
+        #plt.sca(ax_sum)
 
         # if data_collect is None:
         #     data_collect = data_wmean
@@ -213,14 +217,13 @@ for xi in range(x_list.size):
         data_collect[group] = data_wmean
         #ax0.set_yscale('log')
 
-
     data_collect = xr.concat(data_collect.values(), dim='beam_group')
     final_data   = (group_weight * data_collect).sum('beam_group')/group_weight.sum('beam_group').data
 
-    plt.sca(ax_sum)
-    plt.stairs( final_data , x_angle, color = 'k', alpha =1, linewidth =0.8)
-    ax_sum.set_xlabel('Angle (rad)')
-    plt.title('Weighted mean over group & wavenumber', loc='left')
+    # plt.sca(ax_sum)
+    # plt.stairs( final_data , x_angle, color = 'k', alpha =1, linewidth =0.8)
+    # ax_sum.set_xlabel('Angle (rad)')
+    # plt.title('Weighted mean over group & wavenumber', loc='left')
 
     # get relevant priors
     for axx in ax_list.values():
@@ -228,35 +231,40 @@ for xi in range(x_list.size):
         #figureaxx.set_yscale('log')
         axx.set_xticks(xticks_pi)
         axx.set_xticklabels(xtick_labels_pi)
+        axx.set_xlim(-np.pi/2, np.pi/2)
+        #ax_final.set_xticks(xticks_pi)
+        #ax_final.set_xticklabels(xtick_labels_pi)
+
 
     try:
-        ax_list['group3'].set_ylabel('PDF')
         ax_list['group1'].set_ylabel('PDF')
-        ax_list['group3'].tick_params(labelbottom=True)
-        ax_list['group3'].set_xlabel('Angle (rad)')
+        ax_list['group2'].set_ylabel('PDF')
+        ax_list['group3'].set_ylabel('PDF')
+        ax_list['group1'].tick_params(labelbottom=True)
+        #ax_list['group3'].set_xlabel('Angle (rad)')
     except:
         pass
 
     ax_final = F.fig.add_subplot(gs[-1, :])
-    plt.title('Final angle PDF', loc='left')
+    plt.title('Final Best Guess PDF', loc='left')
 
     priors_k = Marginals.Prior_direction[ ~np.isnan(k_mask.isel(x= xi))]
     for pk in priors_k:
-        ax_final.axvline(pk, color =col.cascade2, linewidth= 1, alpha = 0.7)
+        ax_final.axvline(pk, color =col.orange, linewidth= 1, alpha = 0.7)
 
-    plt.stairs( final_data , x_angle, color = 'k', alpha =0.5, linewidth =0.8)
+    plt.stairs( final_data , x_angle, color = 'k', alpha =0.5, linewidth =0.8, zorder= 12)
 
     final_data_smth = lanczos.lanczos_filter_1d(x_angle,final_data, 0.1)
 
     plt.plot(x_angle[0:-1], final_data_smth, color = 'black', linewidth= 0.8)
 
-    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.orange, linewidth= 1.5, alpha = 1, zorder= 1)
-    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.black, linewidth= 3.2, alpha = 1, zorder= 0)
+    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.cascade3, linewidth= 1.5, alpha = 1, zorder= 1)
+    ax_final.axvline( x_angle[0:-1][final_data_smth.argmax()], color =col.black, linewidth= 4, alpha = 1, zorder= 0)
 
 
-    plt.xlabel('Angle (rad)')
-    plt.xlim(-np.pi*0.8, np.pi*0.8)
-
+    plt.xlabel('Angle of Incidence (rad)')
+    ax_final.set_xlim(-np.pi/2, np.pi/2)
+    ax_final.set_ylabel('PDF')
     ax_final.set_xticks(xticks_pi)
     ax_final.set_xticklabels(xtick_labels_pi)
 
@@ -271,11 +279,18 @@ M_final.name='weighted_angle_PDF'
 M_final_smth.name='weighted_angle_PDF_smth'
 Gpdf = xr.merge([M_final,M_final_smth])
 
-if len(Gpdf.x) < 2:
-    print('not enough x data, exit')
-    MT.json_save('B05_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'not enough x segments'})
-    print('exit()')
-    exit()
+
+best_guess_angle = Gpdf.angle[Gpdf.mean('x').weighted_angle_PDF_smth.argmax()].data
+
+
+#Gpdf.weighted_angle_PDF.where(~np.isnan(Gpdf.weighted_angle_PDF),0 ).plot()
+
+# if len(Gpdf.x) < 2:
+#     print('not enough x data, exit')
+#     MT.json_save('B05_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'not enough x segments'})
+#     print('exit()')
+#     exit()
+
 
 # %%
 class plot_polarspectra(object):
@@ -381,32 +396,38 @@ class plot_polarspectra(object):
             self.ax=ax
 
 
+# %%
 font_for_print()
-F = M.figure_axis_xy(6, 5.5, view_scale= 0.7, container = True)
-gs = GridSpec(8,6,  wspace=0.1,  hspace=3.1)#figure=fig,
+F = M.figure_axis_xy(5.5, 5.5, view_scale= 0.7, container = True)
+gs = GridSpec(8,6,  wspace=0.1,  hspace=2.1)#figure=fig,
 col.colormaps2(21)
 
 cmap_spec= plt.cm.ocean_r
 clev_spec = np.linspace(-8, -1, 21) *10
 
 cmap_angle= col.cascade_r
-clev_angle = np.linspace(0, 4, 21)
+clev_angle = np.linspace(0, 2, 21)
 
 
 ax1 = F.fig.add_subplot(gs[0:3, :])
-ax1.tick_params(labelbottom=False)
+ax1.tick_params(labelbottom=True)
 
 weighted_spec   = (Gk.gFT_PSD_data * Gk.N_per_stancil).sum('beam') /Gk.N_per_stancil.sum('beam')
 x_spec          = weighted_spec.x/1e3
-k               = weighted_spec.k
+lam_p = 2 *np.pi/weighted_spec.k
+lam = lam_p * np.cos(best_guess_angle)
+k               = 2 * np.pi/lam
+#weighted_spec.k/np.cos(best_guess_angle)
 
-xlims = x_spec[0], x_spec[-1]
+xlims = x_spec[0]-12.5/2, x_spec[-8]
 #weighted_spec.plot()
 #clev_spec = np.linspace(-8, -1, 21) *10
 clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
 
-plt.pcolor(x_spec, k, 10* np.log(weighted_spec),vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
-
+dd = 10* np.log(weighted_spec.rolling(k=10, min_periods= 1, center=True).mean())
+clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 2.5], 31)* 1
+#plt.pcolor(x_spec, k, dd ,vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
+plt.pcolormesh(x_spec, k, dd, cmap=col.white_base_blgror , vmin = clev_log[0], vmax = clev_log[-1])
 
 plt.title(track_name + '\nPower Spectra (m/m)$^2$ k$^{-1}$', loc='left')
 
@@ -417,68 +438,86 @@ clev_ticks = np.round(clev_spec[::3], 0)
 cbar.set_ticks(clev_ticks)
 cbar.set_ticklabels(clev_ticks)
 
-plt.ylabel('wavenumber $k$')
+plt.ylabel('corrected wavenumber $k$')
+plt.xlabel('x (km)')
 
 #plt.colorbar()
 ax2 = F.fig.add_subplot(gs[3:5, :])
 ax2.tick_params(labelleft=True)
 
-dir_data = Gpdf.interp(x= weighted_spec.x).weighted_angle_PDF_smth.T
+#Gpdf.weighted_angle_PDF.where(~np.isnan(Gpdf.weighted_angle_PDF),0 ).T.plot()
+dir_data = Gpdf.interp(x= weighted_spec.x).weighted_angle_PDF_smth.T#.rolling(angle=5, min_periods= 1, center=True).mean()
 
 x = Gpdf.x/1e3
 angle = Gpdf.angle
-plt.pcolor(x_spec, angle, dir_data , vmin= clev_angle[0], vmax= clev_angle[-1], cmap =cmap_angle)
-#plt.contourf(x_spec, angle, dir_data ,clev_angle, cmap =cmap_angle)
+plt.pcolormesh(x_spec, angle, dir_data , vmin= clev_angle[0], vmax= clev_angle[-1], cmap =cmap_angle)
 
-cbar = plt.colorbar( fraction=0.01, pad=0.01, orientation="vertical", label ='Density')
+cbar = plt.colorbar( fraction=0.02, pad=0.01, orientation="vertical", label ='Density')
+cbar.outline.set_visible(False)
 plt.title('Direction PDF', loc='left')
 
-plt.xlabel('x (km)')
-plt.ylabel('angle')
+
+plt.ylabel('Angle')
 
 ax2.set_yticks(xticks_pi)
 ax2.set_yticklabels(xtick_labels_pi)
 
 
-x_ticks  = np.arange(0, xlims[-1].data, 50)
+x_ticks  = np.arange(0, xlims[-1].data, 25)
 x_tick_labels, x_ticks = MT.tick_formatter(x_ticks, expt_flag= False, shift= 0, rounder=1, interval=2)
 
 ax1.set_xticks(x_ticks)
 ax2.set_xticks(x_ticks)
 ax1.set_xticklabels(x_tick_labels)
 ax2.set_xticklabels(x_tick_labels)
+
 ax1.set_xlim(xlims)
 ax2.set_xlim(xlims)
 
-
-xx_list = np.insert(corrected_marginals.x.data, 0, 0)
-x_chunks = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
+xx_list = np.insert(weighted_spec.x.data, 0, 0)
+x_chunks = spec.create_chunk_boundaries( 1,  xx_list.size,  iter_flag= False )
+#x_chunks = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
 x_chunks = x_chunks[:, ::2]
 x_chunks[-1, -1] = xx_list.size-1
 #x_chunks#.shape
 
+x_chunks =  np.arange(1,4)#np.vstack([np.arange(1,3), np.arange(0,3)+1])
+
+lsrtrings = iter(['(a)', '(b)', '(c)'])
+
 for x_pos, gs in zip( x_chunks.T , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     #print( x_pos)
     #print( xx_list[x_pos])
-    x_range = xx_list[[x_pos[0], x_pos[-1]]]
+    x_range = xx_list[x_pos]#, x_pos[-1]]]
+    print(x_range)
+    ax1.axvline(x_range/1e3, linestyle= '-', color= col.gridcolor, alpha = 0.5)
+    ax2.axvline(x_range/1e3, linestyle= '-', color= col.gridcolor, alpha = 0.5)
 
-    ax1.axvline(x_range[0]/1e3, linestyle= ':', color= 'white', alpha = 0.5)
-    ax1.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
-
-    ax2.axvline(x_range[0]/1e3, linestyle= ':', color= 'white', alpha = 0.5)
-    ax2.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
+    i_lstring = next(lsrtrings)
+    ax1.text(x_range/1e3, weighted_spec.k.mean().data*3/2, ' '+ i_lstring, fontsize= 8)
+    #ax2.text(x_range/1e3, weighted_spec.k.mean().data, ' a', fontsize= 8)
 
 
-    i_spec  = weighted_spec.sel(x= slice(x_range[0], x_range[-1]) )
-    i_dir   = corrected_marginals.sel(x= slice(x_range[0], x_range[-1]) )
+    # ax1.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
+    #
+    # ax2.axvline(x_range[0]/1e3, linestyle= ':', color= 'white', alpha = 0.5)
+    # ax2.axvline(x_range[-1]/1e3, color = 'gray', alpha = 0.5)
 
-    dir_data  = (i_dir * i_dir.N_data).sum([ 'beam_group', 'x'])/ i_dir.N_data.sum([ 'beam_group', 'x'])
+
+    # i_spec  = weighted_spec.sel(x= slice(x_range[0], x_range[-1]) )
+    # i_dir   = corrected_marginals.sel(x= slice(x_range[0], x_range[-1]) )
+    weighted_spec.x
+    i_spec  = weighted_spec.sel(x= x_range )
+    i_dir   = corrected_marginals.interp(x= weighted_spec.x).sel(x= x_range )
+    print(i_spec.x.data, i_spec.x.data)
+
+    dir_data  = (i_dir * i_dir.N_data).sum([ 'beam_group'])/ i_dir.N_data.sum([ 'beam_group'])
     lims = dir_data.k[ (dir_data.sum('angle')!=0) ][0].data, dir_data.k[ (dir_data.sum('angle')!=0)  ][-1].data
 
     N_angle = i_dir.angle.size
     dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
 
-    plot_data  = dir_data2  * i_spec.mean('x')
+    plot_data  = dir_data2  * i_spec#.mean('x')
     plot_data  = plot_data.rolling(angle =5, k =10).median()#.plot()
 
     plot_data = plot_data.sel(k=slice(lims[0],lims[-1] ) )
@@ -495,10 +534,8 @@ for x_pos, gs in zip( x_chunks.T , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
         FP.linear(ax = ax3, cbar_flag=False)
         #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
         #plt.show()
+        plt.title('\n\n'+i_lstring,y=1.0, pad=-6)
 
-F.save_pup(path = plot_path + '../', name = 'B05_dir_ov')
-
-# save data
-Gpdf.to_netcdf(save_path+ '/B05_'+track_name + '_angle_pdf.nc' )
-
-MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})
+F.save_light(path = plot_path, name = 'B05_dir_ov')
+F.save_pup(path = plot_path, name = 'B05_dir_ov')
+# MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})

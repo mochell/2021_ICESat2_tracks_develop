@@ -37,7 +37,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
 
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 

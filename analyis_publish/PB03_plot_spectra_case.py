@@ -60,8 +60,7 @@ Gk = xr.open_dataset(load_file+'_gFT_k.nc')
 Gx = xr.open_dataset(load_file+'_gFT_x.nc')
 
 Gfft = xr.open_dataset(load_file+'_FFT.nc')
-# print(Gk)
-# print(Gx)
+
 time.sleep(5)
 
 # %%

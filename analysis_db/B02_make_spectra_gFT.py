@@ -35,6 +35,9 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190205231558_06030212_004_01', 'SH_batch02', False
 
+#local track
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+
 
 
 #print(track_name, batch_key, test_flag)
@@ -78,6 +81,7 @@ imp.reload(spec)
 print(Gd.keys())
 Gi =Gd[ list(Gd.keys())[0] ] # to select a test  beam
 
+
 # derive spectal limits
 # Longest deserved period:
 T_max       = 40 #sec
@@ -97,6 +101,7 @@ print('approx number windows', 2* Gi['dist'].iloc[-1] /Lmeters-1   )
 T_min       = 6
 lambda_min  = 9.81 * T_min**2/ (2 *np.pi)
 flim        = 1/T_min
+#2 * np.pi /lambda_min
 
 oversample  = 2
 dlambda     = Lmeters * oversample
