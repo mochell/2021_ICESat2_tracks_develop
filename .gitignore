@@ -26,3 +26,5 @@ tmp/
 tmp_path/
 GLOB_ww3/
 modules/ICEsat2_SI_tools/._lanczos.py
+presentations/
+schematics/

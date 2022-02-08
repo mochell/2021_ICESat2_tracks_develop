@@ -1,0 +1,592 @@
+
+import os, sys
+#execfile(os.environ['PYTHONSTARTUP'])
+
+"""
+This file open a ICEsat2 track applied filters and corections and returns smoothed photon heights on a regular grid in an .nc file.
+This is python 3
+"""
+
+exec(open(os.environ['PYTHONSTARTUP']).read())
+exec(open(STARTUP_2021_IceSAT2).read())
+
+#%matplotlib inline
+
+import ICEsat2_SI_tools.convert_GPS_time as cGPS
+import h5py
+import ICEsat2_SI_tools.io as io
+import ICEsat2_SI_tools.spectral_estimates as spec
+
+import time
+import imp
+import copy
+import spicke_remover
+import datetime
+import generalized_FT as gFT
+from scipy.ndimage.measurements import label
+
+xr.set_options(display_style='text')
+#import s3fs
+# %%
+track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
+#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
+#track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
+
+
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+#print(track_name, batch_key, test_flag)
+hemis, batch = batch_key.split('_')
+
+load_path1   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
+B2          = io.load_pandas_table_dict(track_name + '_B01_regridded'  , load_path1) # rhis is the rar photon data
+B3          = io.load_pandas_table_dict(track_name + '_B01_binned'     , load_path1)  #
+
+
+load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_file   = load_path + 'B02_' + track_name #+ '.nc'
+#plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
+plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B06_correction/'
+MT.mkdirs_r(plot_path)
+
+save_path   = mconfig['paths']['work'] +'/B06_correct_separate_'+hemis+'/'
+MT.mkdirs_r(save_path)
+
+Gk = xr.open_dataset(load_file+'_gFT_k.nc')
+Gx = xr.open_dataset(load_file+'_gFT_x.nc')
+Gfft = xr.open_dataset(load_file+'_FFT.nc')
+
+# %%
+all_beams   = mconfig['beams']['all_beams']
+high_beams  = mconfig['beams']['high_beams']
+low_beams   = mconfig['beams']['low_beams']
+#Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
+#Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+
+col.colormaps2(31, gamma=1)
+col_dict= col.rels
+
+
+# %%
+def dict_weighted_mean(Gdict, weight_key):
+    """
+    returns the weighted meean of a dict of xarray, data_arrays
+    weight_key must be in the xr.DataArrays
+    """
+    #Gdict = G_rar_fft
+    #weight_key='N_per_stancil'
+
+    akey = list( Gdict.keys() )[0]
+    GSUM = Gdict[akey].copy()
+    GSUM.data     = np.zeros(GSUM.shape)
+    N_per_stancil = GSUM.N_per_stancil * 0
+    N_photons     = np.zeros(GSUM.N_per_stancil.size)
+
+    counter= 0
+    for k,I in Gdict.items():
+        #print(k)
+        I =I.squeeze()
+        print(len(I.x) )
+        if len(I.x) !=0:
+            GSUM                += I.where( ~np.isnan(I), 0) * I[weight_key] #.sel(x=GSUM.x)
+            N_per_stancil       += I[weight_key]
+        if 'N_photons' in GSUM.coords:
+            N_photons    += I['N_photons']
+        counter+=1
+
+    GSUM             = GSUM  / N_per_stancil
+
+    if 'N_photons' in GSUM.coords:
+        GSUM.coords['N_photons'] = (('x', 'beam'), np.expand_dims(N_photons, 1) )
+
+    GSUM['beam'] = ['weighted_mean']
+    GSUM.name='power_spec'
+
+    return GSUM
+
+
+#G_gFT_wmean = (Gk['gFT_PSD_model'].where( ~np.isnan(Gk['gFT_PSD_model']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
+
+G_gFT_wmean = (Gk.where( ~np.isnan(Gk['gFT_PSD_model']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
+G_gFT_wmean['N_photons'] = Gk['N_photons'].sum('beam')
+
+G_fft_wmean = (Gfft.where( ~np.isnan(Gfft), 0) * Gfft['N_per_stancil']).sum('beam')/ Gfft['N_per_stancil'].sum('beam')
+G_fft_wmean['N_per_stancil'] = Gfft['N_per_stancil'].sum('beam')
+
+
+# %% plot
+
+# derive spectral errors:
+Lpoints=  Gk.Lpoints.mean('beam').data
+N_per_stancil = Gk.N_per_stancil.mean('beam').data#[0:-2]
+
+G_error_model =dict()
+G_error_data =dict()
+
+for bb in Gk.beam.data:
+    I = Gk.sel(beam= bb)
+    b_bat_error =  np.concatenate([ I.model_error_k_cos.data , I.model_error_k_sin.data ])
+    Z_error = gFT.complex_represenation(b_bat_error, Gk.k.size, Lpoints)
+    PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error, np.diff(Gk.k)[0],N_per_stancil  , Lpoints )
+
+    #np.expand_dims(PSD_error_model, axis =)
+    G_error_model[bb] =  xr.DataArray(data = PSD_error_model, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_model_error' ).expand_dims('beam')
+    G_error_data[bb] =  xr.DataArray(data = PSD_error_data, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_data_error' ).expand_dims('beam')
+
+gFT_PSD_model_error_mean = xr.merge(G_error_model.values(),compat='override').gFT_PSD_model_error
+gFT_PSD_data_error_mean = xr.merge(G_error_data.values(),compat='override').gFT_PSD_data_error
+
+gFT_PSD_model_error_mean = ( gFT_PSD_model_error_mean.where( ~np.isnan(gFT_PSD_model_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
+gFT_PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_data_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
+
+G_gFT_wmean['gFT_PSD_model_err'] = gFT_PSD_model_error_mean
+G_gFT_wmean['gFT_PSD_data_err'] = gFT_PSD_data_error_mean
+
+Gk['gFT_PSD_model_err'] = xr.merge(G_error_model.values(),compat='override').gFT_PSD_model_error
+Gk['gFT_PSD_data_err']  = xr.merge(G_error_data.values(),compat='override').gFT_PSD_data_error
+
+
+# %%
+font_for_pres()
+
+G_gFT_smth = G_gFT_wmean['gFT_PSD_data'].rolling(k=30, center=True, min_periods=1).mean()
+k = G_gFT_smth.k
+
+# %%
+k_lead_peak = k[G_gFT_smth.isel(x=0).argmax().data].data
+if k_lead_peak== k[0].data or k_lead_peak == k[-1].data:
+    raise ValueError('wavenumber Peak on Boundary!')
+
+k_lims =0.01
+k_span = [k_lead_peak- k_lims , k_lead_peak, k_lead_peak+ k_lims]
+
+F = M.figure_axis_xy()
+#plt.loglog(k, k**(-2))
+# plt.loglog(k, 1e-4 *k**(-2))
+# plt.loglog(k, 1e-5 *k**(-3))
+
+F.ax.axvline(k_span[0])
+F.ax.axvline(k_span[1])
+F.ax.axvline(k_span[2])
+#plt.plot(np.log(k), np.log( k**(-3) ) )
+#plt.loglog(k, (k)**(-3) - 1e5)
+
+plt.loglog(k, G_gFT_smth)
+# dd= dd.where(~np.isinf(dd), np.nan )
+#plt.grid()
+
+# %%
+def define_noise_wavenumber_tresh_simple(data_xr, k_peak, k_end_lim =None,  plot_flag = False):
+
+    """
+    returns noise wavenumber on the high end of a spectral peak. This method fits a straight line in loglog speace using robust regression.
+    The noise level is defined as the wavenumber at which the residual error of a linear fit to the data is minimal.
+
+    inputs:
+    data_xr xarray.Dataarray with the power spectra with k as dimension
+    k_peak  wavenumber above which the searh should start
+    dk      the intervall over which the regrssion is repeated
+
+    returns:
+    k_end   the wavenumber at which the spectrum flattens
+    m       slope of the fitted line
+    b       intersect of the fitted line
+    """
+    #data_xr, k_peak =    G_gFT_smth.isel(x=0), k_lead_peak
+    #k_end_lim = None#
+    #k_end_lim= 0.06396283#0.0224938*1.05
+    from scipy.ndimage.measurements import label
+
+    if k_end_lim is None:
+        k_end_lim =data_xr.k[-1]
+
+    k_lead_peak_margin = k_peak *1.05
+    data_log = np.log(data_xr).isel(k =(data_xr.k > k_lead_peak_margin)).rolling(k =10,  center=True, min_periods=1).mean()
+    k_log= np.log(data_log.k)
+    d_grad = data_log.differentiate('k').rolling(k =40, center=True, min_periods=4).mean()
+
+    ll = label( d_grad >=-5  )
+
+    #test if plausible minium exist:
+    # #print(ll[0][d_grad.k <= k_end_lim] )
+    # if sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0:
+    #     #print(sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0)
+    #     print('no gradient in range, set to peak')
+    #     return k_peak
+
+    if ll[0][0] !=0:
+        #print(sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0)
+        print('no decay, set to peak')
+        return k_peak
+
+    if sum(ll[0]) == 0:
+        k_end = d_grad.k[-1]
+    else:
+        k_end = d_grad.k[(ll[0] == 1) ][0].data
+
+    if plot_flag:
+        # plt.plot(np.log(d_grad.k), d_grad)
+        # plt.show()
+        plt.plot(np.log(data_xr.k), np.log(data_xr))
+        plt.plot(k_log, data_log )
+        plt.plot([np.log(k_end), np.log(k_end)], [-6, -5])
+        #print(k_end)
+    return k_end
+
+
+k_lim_list = list()
+k_end_0 = None
+for x in G_gFT_smth.x.data:
+    #print(x)
+    k_end = define_noise_wavenumber_tresh_simple(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
+    k_end_0 = k_end if k_end_0 is None else k_end_0
+    plt.show()
+    k_save = np.nan if k_end == k_lead_peak else k_end
+    k_lim_list.append(k_save)
+
+
+# write k limits to datasets
+G_gFT_smth.coords['k_lim'] = ('x', k_lim_list )
+G_gFT_wmean.coords['k_lim'] = ('x', k_lim_list )
+# %%
+font_for_print()
+F = M.figure_axis_xy(6, 5, container= True, view_scale =1)
+
+#plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + track_name, y = 0.98)
+gs = GridSpec(8,3,  wspace=0.25,  hspace=2.5)#figure=fig,#
+
+#
+# #clev = M.clevels( [Gmean.quantile(0.6).data * 1e4, Gmean.quantile(0.99).data * 1e4], 31)/ 1e4
+#
+k_lims = G_gFT_wmean.k_lim
+xlims= G_gFT_wmean.k[0], G_gFT_wmean.k[-1]
+#
+k =high_beams[0]
+for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True, False, False] ):
+    ax0 = F.fig.add_subplot(pos)
+    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
+    #Gplot.mean('x').plot()
+
+    alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
+    for x in Gplot.x.data:
+        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x), linewidth = 0.5, color= col.rels[k], alpha= next(alpha_range))
+        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0)
+
+    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.xlim(xlims)
+    #
+    if pflag:
+        plt.ylabel('log Amplitude')
+        plt.legend()
+for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, False, False] ):
+    ax0 = F.fig.add_subplot(pos)
+    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
+    #Gplot.mean('x').plot()
+
+    alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
+    for x in Gplot.x.data:
+        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x), linewidth = 0.5, color= col.rels[k], alpha= next(alpha_range))
+        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black')
+
+    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.xlim(xlims)
+    #
+    if pflag:
+        plt.ylabel('log Amplitude')
+        plt.legend()
+
+pos = gs[4:, 0:2]
+ax0 = F.fig.add_subplot(pos)
+plt.title('Weigthen mean spectral Power ', loc='left')
+
+(10 * np.log(G_gFT_smth.isel(x = slice(0, -1)))).plot(cmap = col.white_base_blgror)
+G_gFT_smth.isel(x = slice(0, -1)).k_lim.plot(color= col.black, linewidth = 1)
+plt.ylabel('wavenumber k')
+
+F.save_light(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
+F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
+
+
+#%% reconstruct slope displacement data
+def fit_offset(x, data,  model, nan_mask, deg):
+
+    #x, data,  model, nan_mask, deg = dist_stencil, height_data, height_model, dist_nanmask, 1
+    p_offset = np.polyfit(x[~nan_mask], data[~nan_mask] - model[~nan_mask], deg)
+    p_offset[-1] = 0
+    poly_offset = np.polyval(p_offset,x )
+    return poly_offset
+
+def tanh_fitler(x, x_cutoff , sigma_g= 0.01):
+    """
+        zdgfsg
+    """
+
+    decay   =  0.5 - np.tanh( (x-x_cutoff)/sigma_g  )/2
+    return decay
+
+
+#plt.plot(x, tanh_fitler(Gk_1.k, k_thresh, sigma_g= 0.003) )
+
+
+def reconstruct_displacement(Gx_1, Gk_1, T3, k_thresh):
+
+    """
+    reconstructs photon displacement heights for each stancil given the model parameters in Gk_1
+    A low-pass frequeny filter can be applied using k-thresh
+
+    inputs:
+    Gk_1    model data per stencil from _gFT_k file with sin and cos coefficients
+    Gx_1    real data per stencil from _gFT_x file with mean photon heights and coordindate systems
+    T3
+    k_thresh (None) threshold for low-pass filter
+
+    returns:
+    height_model  reconstucted displements heights of the stancil
+    poly_offset   fitted staight line to the residual between observations and model to account for low-pass variability
+    nan_mask      mask where is observed data in
+    """
+
+    dist_stencil = Gx_1.eta + Gx_1.x
+    dist_stencil_lims = dist_stencil[0].data, dist_stencil[-1].data
+
+    gFT_cos_coeff_sel = np.copy(Gk_1.gFT_cos_coeff)
+    gFT_sin_coeff_sel = np.copy(Gk_1.gFT_sin_coeff)
+
+    gFT_cos_coeff_sel = gFT_cos_coeff_sel*tanh_fitler(Gk_1.k, k_thresh, sigma_g= 0.003)
+    gFT_sin_coeff_sel = gFT_sin_coeff_sel*tanh_fitler(Gk_1.k, k_thresh, sigma_g= 0.003)
+
+    # gFT_cos_coeff_sel[Gk_1.k > k_thresh] = 0
+    # gFT_sin_coeff_sel[Gk_1.k > k_thresh] = 0
+
+
+    FT_int = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
+    _ = FT_int.get_H()
+    FT_int.b_hat = np.concatenate([ -gFT_sin_coeff_sel /Gk_1.k, gFT_cos_coeff_sel/Gk_1.k ])
+
+    dx = Gx.eta.diff('eta').mean().data
+    height_model = FT_int.model() /dx# + T3_sel['heights_c_weighted_mean'].iloc[0]
+
+    dist_nanmask = np.isnan(Gx_1.y_data)
+    height_data  = np.interp(dist_stencil, T3_sel['dist'],  T3_sel['heights_c_weighted_mean']) #[~np.isnan(Gx_1.y_data)]
+    #poly_offset = fit_offset(dist_stencil, height_data, height_model, dist_nanmask, 1)
+
+    return height_model, np.nan, dist_nanmask
+
+# cutting Table data
+
+
+# %%
+G_height_model=dict()
+k       = 'gt2l'
+for bb in Gx.beam.data:
+    G_height_model_temp= dict()
+    for i in np.arange(Gx.x.size):
+        #k_thresh= 4
+
+        Gx_1    = Gx.isel(x= i).sel(beam = bb)
+        Gk_1    = Gk.isel(x= i).sel(beam = bb)
+        k_thresh= G_gFT_smth.k_lim.isel(x=0).data
+
+
+        dist_stencil        = Gx_1.eta + Gx_1.x
+        dist_stencil_lims   = dist_stencil[0].data, dist_stencil[-1].data
+        dist_stencil_lims_plot = dist_stencil_lims#Gx_1.eta[0]*0.25 + Gx_1.x, Gx_1.eta[-1]*0.25 + Gx_1.x
+        dist_stencil_lims_plot = Gx_1.eta[0]*1 + Gx_1.x, Gx_1.eta[-1]*1 + Gx_1.x
+
+        T3_sel              = B3[k].loc[( (B3[k]['dist']   >= dist_stencil_lims[0])    & (B3[k]['dist']    <= dist_stencil_lims[1])   )]
+        T2_sel              = B2[k].loc[(  B2[k]['x_true'] >= T3_sel['x_true'].min() ) & ( B2[k]['x_true'] <= T3_sel['x_true'].max()  )]
+
+        if T3_sel.shape[0] != 0:
+            if T3_sel['x_true'].iloc[-1] < T3_sel['x_true'].iloc[0]:
+                dist_T2_temp =np.interp(T2_sel['x_true'][::-1], T3_sel['x_true'][::-1],  T3_sel['dist'][::-1] )
+                T2_sel['dist']      = dist_T2_temp[::-1]
+            else:
+                dist_T2_temp =np.interp(T2_sel['x_true'], T3_sel['x_true'],  T3_sel['dist'] )
+                T2_sel['dist']      = dist_T2_temp
+
+            height_model, poly_offset, dist_nanmask = reconstruct_displacement(Gx_1, Gk_1, T3_sel, k_thresh = k_thresh)
+            poly_offset = poly_offset*0
+            G_height_model_temp[str(i) + bb]     = xr.DataArray(height_model, coords=Gx_1.coords, dims= Gx_1.dims, name = 'height_model' )
+        else:
+            G_height_model_temp[str(i) + bb]     = xr.DataArray(Gx_1.y_model.data, coords=Gx_1.coords, dims= Gx_1.dims, name = 'height_model' )
+
+        #G_height_nans[i]      = xr.DataArray(dist_nanmask, coords=Gx_1.coords, dims= Gx_1.dims, name = 'nanmask' )
+
+        # jsut for plotting:
+        # # corrected rar Photon heights
+        # T2_sel['heights_c_residual']            = photon_height_residual = T2_sel['heights_c'] - np.interp(T2_sel['dist'], dist_stencil, height_model +  poly_offset)
+        #
+        # # interpolate rebinned photon heights
+        # heights_c_weighted_mean_stancil         = np.interp(dist_stencil, T3_sel['dist'], T3_sel['heights_c_weighted_mean'] )
+        #
+        # # corrected rebinned photon heights
+        # photon_height_residual_mean                = heights_c_weighted_mean_stancil   - (height_model + poly_offset)
+        # photon_height_residual_mean[dist_nanmask]  = np.nan
+        # T3_sel['heights_c_weighted_mean_residual'] = T3_sel['heights_c_weighted_mean'] - np.interp(T3_sel['dist'], dist_stencil, height_model +  poly_offset )
+
+        #plot
+        # font_for_pres()
+        # M.figure_axis_xy(5.5, 6, view_scale = 0.8)
+        #
+        # plt.subplot(3,1 ,1)
+        # plt.scatter(T2_sel['dist'], T2_sel['heights_c'], s= 1,  marker='o', color='black',   alpha =0.2, edgecolors= 'none' )
+        # #plt.scatter(T3_sel['dist'], T3_sel['heights_c_weighted_mean'], s= 1,  marker='o', color='black',   alpha =0.2, edgecolors= 'none' )
+        # plt.plot(T3_sel['dist'], T3_sel['heights_c_weighted_mean'] , color =col.rascade1, linewidth = 0.5, label = 'residual $h_c$')
+        # plt.xlim(dist_stencil_lims_plot)
+        # plt.ylim(0, 1.5)
+        #
+        # ax1 = plt.subplot(3,1 ,2)
+        # plt.plot(dist_stencil, height_model + poly_offset ,'-', c='red', linewidth=0.8, alpha=1,zorder= 12, label = 'GFT height model + correction')
+        # plt.plot(dist_stencil, height_model ,'-', c='orange', linewidth=0.8, alpha=0.5,zorder= 2, label = 'GFT height model')
+        # plt.legend(loc = 1)
+        # plt.xlim(dist_stencil_lims_plot)
+        # ax1.axhline(0, linewidth=0.5, color= 'black')
+        #
+        # plt.subplot(3,1 ,3)
+        # plt.scatter(T2_sel['dist'], T2_sel['heights_c_residual'], s= 1,  marker='o', color='black',   alpha =0.5, edgecolors= 'none', zorder=6 )
+        # #plt.scatter(T2_sel['dist'], T2_sel['heights_c_residual'], s= 1,  marker='o', color='black',   alpha =1, edgecolors= 'none' )
+        #
+        # plt.plot(T3_sel['dist'], T3_sel['heights_c_weighted_mean_residual'],'-', c=col.rascade2, linewidth=0.5, alpha=1, zorder= 10, label = 'GFT height model + correction')
+        # #plt.plot(dist_stencil, photon_height_residual_mean,'-', c='red', linewidth=0.3, alpha=1, zorder= 2, label = 'GFT height model + correction')
+        # plt.fill_between(dist_stencil , photon_height_residual_mean, color= col.cascade2, edgecolor = None, alpha = 1, zorder= 0)
+        #
+        # plt.xlim(dist_stencil_lims_plot)
+        # plt.ylim(0, 1.5)
+
+    G_height_model[bb] = xr.concat(G_height_model_temp.values(), dim= 'x').T
+
+Gx['height_model'] = xr.concat(G_height_model.values(), dim= 'beam').transpose('eta', 'beam', 'x')
+
+# %%
+Gx_v2, B2_v2, B3_v2 = dict(), dict(), dict()
+for bb in Gx.beam.data:
+    print(bb)
+    Gx_k                 = Gx.sel(beam = bb)
+    #Gx_k['height_model'] = xr.concat(G_height_model.values(), dim= 'x').T#.plot()
+    Gh          = Gx['height_model'].sel(beam = bb).T
+    Gh_err      = Gx_k['model_error_x'].T
+    Gnans       = np.isnan(Gx_k.y_model)
+
+    concented_heights   = Gh.data.reshape(Gh.data.size)
+    concented_err       = Gh_err.data.reshape(Gh.data.size)
+    concented_nans      = Gnans.data.reshape(Gnans.data.size)
+    concented_x         = (Gh.x+Gh.eta).data.reshape(Gh.data.size)
+
+    dx                      = Gh.eta.diff('eta')[0].data
+    continous_x_grid        = np.arange(concented_x.min(), concented_x.max(), dx)
+    continous_height_model  = np.interp(continous_x_grid, concented_x, concented_heights )
+    concented_err           = np.interp(continous_x_grid, concented_x, concented_err )
+    continous_nans          = np.interp(continous_x_grid, concented_x, concented_nans ) ==1
+
+    T3              = B3[bb]#.loc[( (B3[k]['dist']   >= dist_stencil_lims[0])    & (B3[k]['dist']    <= dist_stencil_lims[1])   )]
+    T2              = B2[bb]#.loc[(  B2[k]['x_true'] >= T3_sel['x_true'].min() ) & ( B2[k]['x_true'] <= T3_sel['x_true'].max()  )]
+
+    T2 = T2.sort_values('x_true')
+    T3 = T3.sort_values('x_true')
+    T2['dist']    = np.interp(T2['x_true'], T3['x_true'],  T3['dist'] )
+    T2 = T2.sort_values('dist')
+    T3 = T3.sort_values('dist')
+
+    #T2              = T2.sort_index()
+    #T2['dist']      = np.interp(T2['x_true'], T3['x_true'],  T3['dist'] )
+
+    T3['heights_c_model']     = np.interp(T3['dist'], continous_x_grid, continous_height_model)
+    T3['heights_c_model_err'] = np.interp(T3['dist'], continous_x_grid, concented_err)
+    T3['heights_c_residual']  = T3['heights_c_weighted_mean'] - T3['heights_c_model']
+
+    T2['heights_c_model']     = np.interp(T2['dist'], continous_x_grid, continous_height_model)
+    T2['heights_c_residual']  = T2['heights_c'] - T2['heights_c_model']
+
+
+    font_for_print()
+    F = M.figure_axis_xy(6, 2, view_scale= 0.7)
+    plt.plot(T2['dist'] , T2['heights_c_model'], '.', markersize=1, alpha=0.8, label='height model')
+    plt.plot(T2['dist'] , T2['heights_c_residual'],'ob', markersize=0.5, alpha=0.5, label='residual photons')
+    plt.plot(T2['dist'] , -T2['heights_c'],'ok', markersize=0.5, alpha=0.5, label='- photon height_c')
+    plt.plot(T3['dist'], T3['heights_c_residual'] , 'r', zorder=12, label='photon height_c resodual')
+    plt.xlim(60e3, 67e3)
+    plt.ylim(-2, 2)
+    plt.legend( ncol= 4)
+
+    B2_v2[bb] = T2
+    B3_v2[bb] = T3
+    Gx_v2[bb] = Gx_k
+    F.save_light(path = plot_path , name = 'B06_'+bb+'_decomp_check')
+
+
+
+
+
+# %% correct wave incident direction
+
+load_path = mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+
+try:
+    G_angle = xr.open_dataset(load_path+ '/B05_'+track_name + '_angle_pdf.nc' )
+
+    font_for_pres()
+
+    Ga_abs = (G_angle.weighted_angle_PDF_smth.isel(angle = G_angle.angle > 0).data + G_angle.weighted_angle_PDF_smth.isel(angle = G_angle.angle < 0).data[:,::-1])/2
+    Ga_abs = xr.DataArray(data=Ga_abs, dims = G_angle.dims, coords=G_angle.isel(angle = G_angle.angle > 0).coords)
+
+    Ga_abs_front = Ga_abs.isel(x= slice(0, 3))
+    Ga_best = ((  Ga_abs_front * Ga_abs_front.N_data ).sum('x')/Ga_abs_front.N_data.sum('x'))
+
+    theta = Ga_best.angle[Ga_best.argmax()].data
+    theta_flag = True
+
+    font_for_print()
+    F = M.figure_axis_xy(3, 5, view_scale= 0.7)
+
+    plt.subplot(2, 1, 1)
+    plt.pcolor(Ga_abs)
+    plt.xlabel('abs angle')
+    plt.ylabel('x')
+
+    ax = plt.subplot(2, 1, 2)
+    Ga_best.plot()
+    plt.title('angle front ' + str(theta*180/np.pi), loc='left')
+    ax.axvline(theta, color= 'red')
+    F.save_light(path = plot_path , name = 'B06_angle_def')
+except:
+
+    print('no angle data found, skip angle corretion')
+    theta= 0
+    theta_flag = False
+
+# %%
+lam_p   = 2 *np.pi/Gk.k
+lam     = lam_p * np.cos(theta)
+
+if theta_flag:
+    k_corrected  = 2 * np.pi/lam
+    x_corrected  = Gk.x * np.cos(theta)
+else:
+    k_corrected  = 2 * np.pi/lam *np.nan
+    x_corrected  = Gk.x * np.cos(theta) *np.nan
+
+# %% spectral save
+
+G5 = G_gFT_wmean.expand_dims(dim = 'beam', axis = 1)
+G5.coords['beam'] = ['weighted_mean']#(('beam'), 'weighted_mean')
+G5 = G5.assign_coords(N_photons= G5.N_photons)
+
+Gk_v2 = xr.merge([Gk, G5])
+Gk_v2 = Gk_v2.assign_coords(x_corrected=("x", x_corrected.data)).assign_coords(k_corrected=("k", k_corrected.data))
+
+Gk_v2.attrs['best_guess_incident_angle'] = theta
+
+# save collected spectral data
+Gk_v2.to_netcdf(save_path+'/B06_'+track_name + '_gFT_k_corrected.nc' )
+
+# %% save real space data
+Gx.to_netcdf(save_path+'/B06_'+track_name + '_gFT_x_corrected.nc' )
+io.save_pandas_table(B2_v2, 'B06_' +track_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
+io.save_pandas_table(B3_v2, 'B06_' +track_name + '_binned_resid' , save_path) # regridding heights
+
+MT.json_save('B06_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})

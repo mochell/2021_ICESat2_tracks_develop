@@ -618,8 +618,8 @@ class generalized_Fourier(object):
 
     def get_stats(self, print_flag=False):
 
-        model_error_k         = np.diag(self.Hess_inv)
-        model_error_real  = ((self.H**2) @ self.Hess_inv).sum(1)
+        #model_error_k         = np.diag(self.Hess_inv)
+        #model_error_real  = ((self.H**2) @ self.Hess_inv).sum(1)
 
         residual = self.ydata - self.model()
 
@@ -672,7 +672,7 @@ class get_prior_spec(object):
         flim        maximum freq upto which frequecy maximu is found
 
         retruns:
-        self.params LMfit.parameters class needed for optimization 
+        self.params LMfit.parameters class needed for optimization
 
         """
         import numpy as np

@@ -288,7 +288,6 @@ ax2.xaxis.set_label_position('top')
 ax2.spines['left'].set_position(('outward', 10))
 
 
-
 plt.ylabel('Photon height (m)')
 
 

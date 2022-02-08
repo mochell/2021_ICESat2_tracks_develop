@@ -280,37 +280,6 @@ plt.title('Mean error', loc= 'left') #\n10 $\log_{10}( (m/m)^2 m )$
 plt.xlim(xlims)
 
 
-# pos = gs[4:6, 2]
-#
-# ax0 = F.fig.add_subplot(pos)
-# ax0.set_yscale('log')
-#
-# plt.title('Peak Spectal Power', loc='left')#\n$\log_{10}( (m/m)^2 m$ )
-#
-# x0 = Gk.x[0].data
-# for k in all_beams:
-#     I = Gk.sel(beam = k)['gFT_PSD_model']
-#     plt.scatter(I.x.data/1e3, I.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k').data ,  s=2.5, marker='.', color='black', alpha= 0.3)
-#
-#     I= Gfft.sel(beam = k)#.to_array()
-#     #I= I[:,I.N_per_stancil >=  I.N_per_stancil.max().data*0.9]
-#     plt.scatter( (x0 +I.x.data)/1e3, I.power_spec.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k')  ,  s=1.5, marker='.', c='green', alpha= 0.3)
-#
-#
-# Gplot= G_gFT_wmean.squeeze()
-# plt.plot(  Gplot.x/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k')   , '.' , markersize=2.5, c='black', label= 'GFT')
-#
-# Gplot= G_fft_wmean.squeeze()
-# Gplot = Gplot.power_spec[:,Gplot.N_per_stancil >=  Gplot.N_per_stancil.max().data*0.9]
-# plt.plot( (x0 + Gplot.x)/1e3, Gplot.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k')  , '.', markersize=2.5 , c='green', label= 'FFT')
-#
-#
-# plt.xlabel('Distance from the ice edge (km)')
-# #plt.ylabel('1e-3 $(m)^2~m$')
-# plt.legend(loc=1)
-# #plt.ylim(Gplot.min()*1.4, Gplot.max()*1.4 )
-# #plt.xlim(xlims)
-
 
 cbaxes = F.fig.add_subplot(gs[-1, 1])
 cbaxes.axis('off')

@@ -120,7 +120,7 @@ MT.mkdirs_r(plot_path)
 num_count=1
 k_list = np.concatenate([ np.arange(0.01, 0.14, 0.002)[::-1], np.arange(0.01, 0.14, 0.002) ])
 for k_thresh in k_list:
-
+# %%
     print(num_count)
     #k_thresh = 0.12 * 1
     F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
