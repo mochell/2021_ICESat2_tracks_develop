@@ -118,7 +118,7 @@ MT.mkdirs_r(plot_path)
 
 
 num_count=1
-k_list = np.concatenate([ np.arange(0.01, 0.14, 0.002)[::-1], np.arange(0.01, 0.14, 0.002) ])
+k_list = np.concatenate([ np.arange(0.005, 0.14, 0.001)[::-1], np.arange(0.005, 0.14, 0.001) ])
 for k_thresh in k_list:
 # %%
     print(num_count)
@@ -339,7 +339,7 @@ for k_thresh in k_list:
     ax3.set_yticklabels(y_tick_labels)
     ax3.set_ylim(0, 1)
 
-    xlims= eta_1[0].data+ 0 * dx, eta_1[-1].data- 300 * dx
+    xlims= eta_1[0].data+ 0 * dx, eta_1[-1].data- 500 * dx
     #xlims= eta_1[0].data+ 0 * dx, eta_1[-1].data- 0 * dx
 
     for axx in [ax0, ax1, ax2, ax3]:
