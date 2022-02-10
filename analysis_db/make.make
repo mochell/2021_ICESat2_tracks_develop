@@ -98,10 +98,12 @@ $(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json 
 # download associated ALT10 data
 # this is based on the sucess of B02 righ now, has to be changed later on...
 
-A03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(scratch_folder)/$(batch_key)/processed_ATL10_,$(i))  )
-A03_targets := $(foreach i, $(A03_list) , $(subst _gFT_x,/.h5,$(i)) )
+#A03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
+#A03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
 
-A03_targets :
+#A03_list := $(B02_success) #(foreach i, $(B02_success) , $(subst /data/chorvat/IS2/2021_ICESat2_tracks/work/B02_spectra_SH/B02_,$(scratch_folder)/$(batch_key)/processed_ATL10_$(i))  )
+#A03_targets := $(foreach i, $(A03_list) , $(subst _gFT_x,/.h5,$(i)) )
+
 $(A03_targets) : $(scratch_folder)/$(batch_key)/processed_ATL10_%.h5 :
 					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL03_$*.h5
 					mv $(scratch_folder)/$(batch_key)/ATL10_$*.h5 $(scratch_folder)/$(batch_key)/processed_ATL10_$*.h5
@@ -175,6 +177,10 @@ B03_path := $(plot_folder)$(hemis)/$(batch_key)/
 # write targets
 B03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
 B03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
+
+A03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
+A03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
+
 
 B03 : $(B03_targets) B03_mkdir B03_collect
 
