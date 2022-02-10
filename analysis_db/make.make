@@ -213,6 +213,7 @@ B04_collect : B04_B05_mkdir $(B04_collect_targets)
 $(B04_collect_targets) : $(B04_B05_collect_path)%_B04_marginal_distributions.pdf : $(B03_path)%/B04_success.json
 				cp $(B03_path)$*/B04_marginal_distributions.pdf $(B04_B05_collect_path)$*_B04_marginal_distributions.pdf
 
+## ---------------- B5
 
 B05_targets := $(foreach i, $(B04_success) , $(subst B04_success,B05_success,$(i)) )
 
@@ -228,6 +229,27 @@ B05_collect_targets := $(foreach i, $(B05_collect_list) , $(subst /B05_success.j
 B05_collect : B04_B05_mkdir $(B05_collect_targets)
 $(B05_collect_targets) : $(B04_B05_collect_path)%_B05_dir_ov.pdf : $(B03_path)%/B05_success.json
 				cp $(B03_path)$*/B05_dir_ov.pdf $(B04_B05_collect_path)$*_B05_dir_ov.pdf
+
+## ---------------- B6
+
+B06_targets := $(foreach i, $(B05_success) , $(subst B05_success,B06_success,$(i)) )
+
+B06 : $(B06_targets)
+
+$(B06_targets) : $(B03_path)%/B06_success.json : $(B03_path)%/B05_success.json
+					python $(analysisfolder)/B06_correct_separate_var.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
+
+B06_success := $(shell ls $(B03_path)*/B06_success.json)
+B06_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B06_correction/
+B06_collect_list := $(foreach i, $(B06_success) , $(subst $(B03_path),$(B06_collect_path),$(i) )  )
+B06_collect_targets := $(foreach i, $(B06_collect_list) , $(subst /B06_success.json,_B06_atten_ov.png,$(i)) )
+
+B06_mkdir :
+					${MKDIR_P} $(B06_collect_path)
+
+B06_collect : B06_mkdir $(B06_collect_targets)
+$(B06_collect_targets) : $(B06_collect_path)%_B06_atten_ov.png : $(B03_path)%/B06_success.json
+				cp $(B03_path)$*/B06_correction/$*_B06_atten_ov.png $(B06_collect_path)$*_B06_atten_ov.png
 
 
 # sync plots from batch key to gdrive folder.
