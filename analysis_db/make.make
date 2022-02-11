@@ -45,17 +45,17 @@ test_flag	= False
 ### ------
 
 ifeq ($(beam), False)
-	# load nc file list from batch_key folder
-	beam_list_json := $(shell ls $(scratch_folder)/$(batch_key)/) #$(shell jq -r .[] $(config_folder)config.json)
-	# reformatting
-	beam_list_rar := $(basename $(beam_list_json))
-	beam_list := $(foreach i, $(beam_list_rar) , $(subst processed_ATL03_,,$(i))  )
+# load nc file list from batch_key folder
+beam_list_json := $(shell ls $(scratch_folder)/$(batch_key)/) #$(shell jq -r .[] $(config_folder)config.json)
+# reformatting
+beam_list_rar := $(basename $(beam_list_json))
+beam_list := $(foreach i, $(beam_list_rar) , $(subst processed_ATL03_,,$(i))  )
 
-	#substr_list := $(foreach i, $(beam_list_rar) , $(subst _,'',$(i))  )
-	#ALT := $(foreach i, $(beam_list_rar) , $(words $(subst _,'',$(i))  ) )
-	# ALT := $(suffix $(beam_list_json) )
+#substr_list := $(foreach i, $(beam_list_rar) , $(subst _,'',$(i))  )
+#ALT := $(foreach i, $(beam_list_rar) , $(words $(subst _,'',$(i))  ) )
+# ALT := $(suffix $(beam_list_json) )
 else
-	beam_list= $(beam)
+beam_list= $(beam)
 endif
 
 # beam_list_rar := $(basename $(beam_list_json))
@@ -96,22 +96,21 @@ $(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json 
 					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
 
 # download associated ALT10 data
+A03_path := $(scratch_folder)/$(batch_key)
 # this is based on the sucess of B02 righ now, has to be changed later on...
-
-#A03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
-#A03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
-
-#A03_list := $(B02_success) #(foreach i, $(B02_success) , $(subst /data/chorvat/IS2/2021_ICESat2_tracks/work/B02_spectra_SH/B02_,$(scratch_folder)/$(batch_key)/processed_ATL10_$(i))  )
-#A03_targets := $(foreach i, $(A03_list) , $(subst _gFT_x,/.h5,$(i)) )
-
-$(A03_targets) : $(scratch_folder)/$(batch_key)/processed_ATL10_%.h5 :
+A03_list = $(foreach i, $(B02_success) , $(subst $(B02_path),$(A03_path)/processed_ATL10_,$(i)) )
+A03_targets = $(foreach i, $(A03_list) , $(subst _gFT_x,.h5,$(i)) )
+# khgc
+$(A03_targets) : $(A03_path)/processed_ATL10_%.h5 : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
 					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL03_$*.h5
-					mv $(scratch_folder)/$(batch_key)/ATL10_$*.h5 $(scratch_folder)/$(batch_key)/processed_ATL10_$*.h5
+					mv $(A03_path)/ATL10_$*.h5 $(A03_path)/processed_ATL10_$*.h5
 
+#/Users/Shared/Projects/2021_IceSAT2_tracks/data/scratch//SH_batch02/processed_ATL10_20190207001112_06190210_004_01.h5
 
-.PHONY : A01 A02
+.PHONY : A01 A02 A03
 A01 : $(A01_targets)
 A02 : $(A02_targets)
+A03 : $(A03_targets)
 
 #### section B ####
 # B01 				filters and regridds data, data is saves in binnned .h5 tables.
@@ -167,19 +166,16 @@ rm_bad_beams: #rm_B01_files
 
 #rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 
+
 # B03 overview plots
 B02_path := $(work_folder)B02_spectra_$(hemis)/B02_
 # find sources
 B02_success := $(basename $(shell ls $(B02_path)*_gFT_x.nc) )
-#B02_fail := $(basename $(shell ls $(B02_path)*_fail.json) )
-
+# B02_fail := $(basename $(shell ls $(B02_path)*_fail.json) )
 B03_path := $(plot_folder)$(hemis)/$(batch_key)/
 # write targets
 B03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
-B03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
-
-A03_list := $(foreach i, $(B02_success) , $(subst $(B02_path),$(B03_path),$(i))  )
-A03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i)) )
+B03_targets := $(foreach i, $(B03_list) , $(subst _gFT_x,/B03_success.json,$(i) ) )
 
 
 B03 : $(B03_targets) B03_mkdir B03_collect
