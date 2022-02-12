@@ -84,20 +84,21 @@ A01_track_names=$(shell jq -r .[] $(track_lists)$(download))
 A01_tracks=  $(foreach i, $(A01_track_names) , $(subst ATL10-02_,,$(i))  )
 A01_targets := $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(batch_key)/, processed_${i}.h5 ) )
 
-$(A01_targets) : $(scratch_folder)/$(batch_key)/processed_%.h5 :
+$(A01_targets) : $(scratch_folder)/$(batch_key)/%.h5 :
 					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F $*.h5
-					mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
-
+					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
 
 # downloading all at once
-.PHONY : A01_download
-A01_track_filenames=  $(foreach i, $(A01_track_names) , $(addsuffix .h5, ${i} )  )
-A01_download : $(track_lists)$(download)
-					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 -P 5 --directory $(scratch_folder)/$(batch_key) -F $(A01_track_filenames)
-					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
+# .PHONY : A01_download
+# A01_track_filenames=  $(foreach i, $(A01_track_names) , $(addsuffix .h5, ${i} )  )
+# A01_download : $(track_lists)$(download)
+# 					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 -P 5 --directory $(scratch_folder)/$(batch_key) -F $(A01_track_filenames)
+# 					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
 
 endif
 
+###### continue here:
+#A01_success := $(shell ls $(B03_path)*/B06_success.json)
 
 A02_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
 $(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json : $(analysisfolder)/A02b_WW3_hindcast_prior.py
