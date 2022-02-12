@@ -84,9 +84,9 @@ A01_track_names=$(shell jq -r .[] $(track_lists)$(download))
 A01_tracks=  $(foreach i, $(A01_track_names) , $(subst ATL10-02_,,$(i))  )
 A01_targets := $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(batch_key)/, processed_${i}.h5 ) )
 
-$(A01_targets) : $(scratch_folder)/$(batch_key)/processed_%.h5 :
+$(A01_targets) : $(scratch_folder)/$(batch_key)/%.h5 :
 					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F $*.h5
-					mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
+					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/$*.h5
 
 
 # downloading all at once
