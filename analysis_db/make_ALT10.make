@@ -86,7 +86,12 @@ A01_targets := $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(
 
 $(A01_targets) : $(scratch_folder)/$(batch_key)/%.h5 :
 					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F $*.h5
+<<<<<<< HEAD
 					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
+=======
+					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/$*.h5
+
+>>>>>>> 3add132bf9ccd8754c20ba210e26f7b74caebeec
 
 # downloading all at once
 # .PHONY : A01_download
