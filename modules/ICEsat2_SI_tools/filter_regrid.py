@@ -24,14 +24,18 @@ def correct_heights(T03, T03c, coord = 'delta_time'):
 #     """
 #     return hdf5_file['orbit_info/sc_orient'][:][0] ==0
 
-def track_pole_ward_file(hdf5_file):
+def track_pole_ward_file(hdf5_file, product='ALT03'):
     """
     Returns true if track goes poleward
     hdf5_file is a an HFD5 object in read mode
     """
 
-    T_lat = hdf5_file['gt1r/geolocation/reference_photon_lat'][:]
-    T_time = hdf5_file['gt1r/geolocation/delta_time'][:]
+    if product == 'ALT03':
+        T_lat = hdf5_file['gt1r/geolocation/reference_photon_lat'][:]
+        T_time = hdf5_file['gt1r/geolocation/delta_time'][:]
+    elif product == 'ALT10':
+        T_lat = hdf5_file['gt1r/freeboard_beam_segment/latitude'][:]
+        T_time = hdf5_file['gt1r/freeboard_beam_segment/delta_time'][:]
     #return ( T_lat[T_time.argmax()] - T_lat[T_time.argmin()] ) < 0
     print('1st lat =' + str(abs(T_lat[T_time.argmin()])) , ';last lat =' + str(abs(T_lat[T_time.argmax()])) )
     return abs(T_lat[T_time.argmax()]) > abs(T_lat[T_time.argmin()])

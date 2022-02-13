@@ -291,6 +291,66 @@ def getATL07_beam(fileT, beam='gt1r', maxElev=1e6):
     DF=DF.reset_index(drop=True)
     return DF
 
+def getATL10_beam(fileT, beam='gt1r', maxElev=1e6):
+    """
+    This method returns relevant data for wave estimates from ALT 10 tracks.
+    returns: Pandas data frames one for sea ice heights and one for leads
+    """
+    # Add in a proper description of the function here
+
+    import h5py
+    import pandas as pd
+    # Open the file
+    ATL07 = h5py.File(fileT, 'r')
+
+    ### bulk positions and statistics
+    #f['gt1r/freeboard_beam_segment/beam_freeboard'].keys()
+
+    vars_bulk = [
+            'seg_dist_x', 'latitude', 'longitude', 'height_segment_id',
+            'beam_fb_confidence', 'beam_fb_height', 'beam_fb_quality_flag', 'beam_fb_sigma'
+            ]
+
+    D_bulk= dict()
+    for var in vars_bulk:
+        D_bulk[var] = ATL07[beam+'/freeboard_beam_segment/beam_freeboard/'+var]
+    dF_bulk = pd.DataFrame(D_bulk)
+
+    #  Nathan says it's the number of seconds since the GPS epoch on midnight Jan. 6, 1980
+    delta_time=ATL07[beam+'/freeboard_beam_segment/height_segments/delta_time'][:]
+    # #Add this value to delta time parameters to compute full gps_seconds
+    atlas_epoch=ATL07['/ancillary_data/atlas_sdp_gps_epoch'][:]
+    dF_time = get_time_for_track(delta_time,atlas_epoch)
+    dF_time['delta_time'] = delta_time
+
+    ### Primary variables of interest
+    vars = ['height_segment_height','height_segment_length_seg', 'latitude', 'longitude', 'photon_rate', 'height_segment_type', 'height_segment_ssh_flag','ice_conc']
+
+    D_heights=dict()
+    for var in vars:
+        D_heights[var] = ATL07[beam+'/freeboard_beam_segment/height_segments/' +var][:]
+    dF_heights = pd.DataFrame(D_heights)
+
+    #Df = pd.concat({k: pd.DataFrame(v).T for k, v in data.items()}, axis=0)
+    DF = pd.concat({ 'time': dF_time,  'ref': dF_bulk, 'freeboard': dF_heights }, axis=1)
+
+    # Filter out high elevation values
+    DF = DF[(DF['freeboard']['height_segment_height']<maxElev)]
+    # Reset row indexing
+    DF = DF.reset_index(drop=True)
+
+    # get leads as well
+    vars_leads = ['delta_time', 'latitude', 'lead_dist_x', 'lead_height', 'lead_length', 'lead_sigma', 'longitude', 'ssh_n', 'ssh_ndx']
+
+    D_leads=dict()
+    for var in vars_leads:
+        D_leads[var] = ATL07[beam+'/leads/' +var][:]
+    DF_leads = pd.DataFrame(D_leads)
+
+    return DF, DF_leads
+
+
+
 def getATL07_height_corrections(fileT, beam='gt1r'):
     """
     This method returns relevant data for wave estimates from ALT 07 tracks.

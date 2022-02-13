@@ -81,17 +81,11 @@ else
 # create target list from from file in track list folder. The target downloads the respective keys from the interweb.
 A01_track_names=$(shell jq -r .[] $(track_lists)$(download))
 #A01_tracks_rar=$(basename $(A01_track_names))
-A01_tracks=  $(foreach i, $(A01_track_names) , $(subst ATL10-02_,,$(i))  )
-A01_targets := $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(batch_key)/, processed_${i}.h5 ) )
+A01_tracks =  $(foreach i, $(A01_track_names) , $(subst ATL10-02_,,$(i))  )
+A01_targets= $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(batch_key)/, ${i}.h5 ) )
 
-$(A01_targets) : $(scratch_folder)/$(batch_key)/%.h5 :
-					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F $*.h5
-<<<<<<< HEAD
-					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/processed_$*.h5
-=======
-					#mv $(scratch_folder)/$(batch_key)/$*.h5 $(scratch_folder)/$(batch_key)/$*.h5
-
->>>>>>> 3add132bf9ccd8754c20ba210e26f7b74caebeec
+$(A01_targets) : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 :
+					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL10-02_$*.h5
 
 # downloading all at once
 # .PHONY : A01_download
@@ -102,31 +96,49 @@ $(A01_targets) : $(scratch_folder)/$(batch_key)/%.h5 :
 
 endif
 
-###### continue here:
-#A01_success := $(shell ls $(B03_path)*/B06_success.json)
+A01b_path=$(work_folder)/$(batch_key)/A01b_regrid_$(hemis)
+A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, ALT03_stats_${i}.h5 ) )
+
+
+$(A01b_targets) : $(A01b_path)/ALT03_stats_%.h5 : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 $(analysisfolder)/A01b_ALT10_variance_tester.py
+					python $(analysisfolder)/A01b_ALT10_variance_tester.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
+
+
+A01b_success= $(shell ls $(A01b_path)/ALT03_stats_*.h5)
+A01b_beam_list=  $(foreach i, $(basename $(A01b_success)), $(subst $(A01b_path)/ALT03_stats_,,$(i))  )
+#
+
+# download associated ALT10 data
+A01c_path := $(scratch_folder)/$(batch_key)
+A01c_targets := $(foreach i, $(A01b_beam_list) ,$(addprefix $(A01c_path)/, processed_ATL03_${i}.h5 ) )
+
+$(A01c_targets) : $(A01c_path)/processed_ATL03_%.h5 : $(A01b_path)/ALT03_stats_%.h5
+					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(scratch_folder)/$(batch_key) -F ATL03_$*.h5
+					mv $(scratch_folder)/$(batch_key)/ATL03_$*.h5 $(scratch_folder)/$(batch_key)/processed_ATL03_$*.h5
+
+
+# A03_targets := $(foreach i, $(beam_list) ,$(addprefix $(A03_path)/processed_ATL10_, ${i}.h5 ) )
+# $(A03_targets) : $(A03_path)/processed_ATL10_%.h5 : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
+# 					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(scratch_folder)/$(batch_key) -F ATL03_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
+# 					mv $(A03_path)/ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5 $(A03_path)/processed_ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
+
+
+
+## Prior downloads
 
 A02_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
 $(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json : $(analysisfolder)/A02b_WW3_hindcast_prior.py
 					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
 
-# download associated ALT10 data
-A03_path := $(scratch_folder)/$(batch_key)
-# this is based on the sucess of B02 righ now, has to be changed later on...
-A03_list = $(foreach i, $(B02_success) , $(subst $(B02_path),$(A03_path)/processed_ATL10_,$(i)) )
-A03_targets =$(foreach i, $(A03_list) , $(subst _gFT_x,.h5,$(i)) )
-
-#A03_targets := $(foreach i, $(beam_list) ,$(addprefix $(A03_path)/processed_ATL10_, ${i}.h5 ) )
-# khgc
-$(A03_targets) : $(A03_path)/processed_ATL10_%.h5 : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
-					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL03_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
-					mv $(A03_path)/ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5 $(A03_path)/processed_ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
 
 #/Users/Shared/Projects/2021_IceSAT2_tracks/data/scratch//SH_batch02/processed_ATL10_20190207001112_06190210_004_01.h5
 
-.PHONY : A01 A02 A03
-A01 : $(A01_targets)
+.PHONY : A01 A01b A02 A03
+A01a : $(A01_targets)
+A01b : $(A01b_targets)
+A01c : $(A01c_targets)
 A02 : $(A02_targets)
-A03 : $(A03_targets)
+#A03 : $(A03_targets)
 
 #### section B ####
 # B01 				filters and regridds data, data is saves in binnned .h5 tables.
@@ -136,9 +148,9 @@ A03 : $(A03_targets)
 # Filter in and make spectra
 # not sure if this is needed ..
 ifeq ($(download), False)
-beam_list := $(beam_list)
+beam_list := $(A01b_beam_list)
 else
-beam_list := $(A01_tracks)
+beam_list := $(beam_list)
 endif
 
 B01_targets := $(foreach i, $(beam_list) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
