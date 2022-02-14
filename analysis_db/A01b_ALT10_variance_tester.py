@@ -190,9 +190,15 @@ for k in beams:
     #k = beams[1]
     #imp.reload(io)
     print(k)
-
-    T_freeboard, T_leads = io.getATL10_beam(load_file, beam= k)
-
+    try:
+        T_freeboard, T_leads = io.getATL10_beam(load_file, beam= k)
+    except:
+        print('failed to load beam')
+        slope_test = False
+        data_flag  = False
+        #return data_flag, slope_test
+        print('break -------', k, TF,  data_flag, slope_test)
+        continue
     ###### for SH tracks
 
     # split tracks:
