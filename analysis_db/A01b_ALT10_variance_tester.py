@@ -126,7 +126,8 @@ def cut_rear_data(xx0, dd0, N_seg= 20):
         dd= dd0[rear_mask]
         nsize = dd.size
         print('new length', nsize)
-
+        if (nsize/N_seg) < 1:
+            break
         stencil_iter = create_chunk_boundaries( int(nsize/N_seg), nsize,ov =0, iter_flag=True )
         var_list = np.array(list(map(get_var, stencil_iter)))
         #print(k, var_list)
