@@ -104,7 +104,8 @@ $(A01b_targets) : $(A01b_path)/A01b_success_%.json : $(scratch_folder)/$(batch_k
 
 
 A01b_success= $(shell ls $(A01b_path)/ALT03_stats_*.h5)
-A01b_beam_list=  $(foreach i, $(basename $(A01b_success)), $(subst $(A01b_path)/ALT03_stats_,,$(i))  )
+A01b_beam_list1=  $(foreach i, $(basename $(A01b_success)), $(subst $(A01b_path)/ALT03_stats_,,$(i))  )
+A01b_beam_list=  $(foreach i, $(A01b_beam_list1), $(subst _005_02,_005_01,$(i))  )
 #
 
 # download associated ALT10 data
@@ -112,7 +113,7 @@ A01c_path := $(scratch_folder)/$(batch_key)
 A01c_targets := $(foreach i, $(A01b_beam_list) ,$(addprefix $(A01c_path)/, processed_ATL03_${i}.h5 ) )
 
 $(A01c_targets) : $(A01c_path)/processed_ATL03_%.h5 : $(A01b_path)/ALT03_stats_%.h5
-					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(scratch_folder)/$(batch_key) -F ATL03_$*.h5
+					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(scratch_folder)/$(batch_key) -F processed_ATL10_$*.h5
 					mv $(scratch_folder)/$(batch_key)/ATL03_$*.h5 $(scratch_folder)/$(batch_key)/processed_ATL03_$*.h5
 
 
