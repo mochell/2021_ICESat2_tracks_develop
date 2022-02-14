@@ -247,9 +247,9 @@ for k in beams:
         # Tsel2['x'] = abs(Tsel2['lead_dist_x'] -Tsel2['lead_dist_x'][0])
 
     # create local x axis
-    TF1['x'] = abs(TF1['ref']['seg_dist_x'] -TF1['ref']['seg_dist_x'][0])
+    TF1['x'] = abs(TF1['ref']['seg_dist_x'] -TF1['ref']['seg_dist_x'].iloc[0])
     if TF2 is not None:
-        TF2['x'] = abs(TF2['ref']['seg_dist_x'] -TF2['ref']['seg_dist_x'][0])
+        TF2['x'] = abs(TF2['ref']['seg_dist_x'] -TF2['ref']['seg_dist_x'].iloc[0])
 
     # define Region
 
