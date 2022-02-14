@@ -97,10 +97,10 @@ $(A01_targets) : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 :
 endif
 
 A01b_path=$(work_folder)/$(batch_key)/A01b_regrid_$(hemis)
-A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, ALT03_stats_${i}.h5 ) )
+A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, A01b_success_${i}.h5 ) )
 
 
-$(A01b_targets) : $(A01b_path)/ALT03_stats_%.h5 : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 $(analysisfolder)/A01b_ALT10_variance_tester.py
+$(A01b_targets) : $(A01b_path)/A01b_success_%.h5 : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 $(analysisfolder)/A01b_ALT10_variance_tester.py
 					python $(analysisfolder)/A01b_ALT10_variance_tester.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
 
 
