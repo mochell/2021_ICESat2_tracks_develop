@@ -373,4 +373,5 @@ for ll in ALT03_list:
     #MT.json_save(name=ll_name, path=save_path, data= DD_merge.where(pd.notnull(DD_merge), 0).T.to_dict())
 
     #DD_merge.to_json(save_path+ll_name+'.json', orient="records", lines=True)
-    # MT.json_save(name=ll_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
+
+MT.json_save(name='A01b_success_'+track_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
