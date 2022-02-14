@@ -40,7 +40,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190102130012_00780201_005_02', 'SH_batch04', False
 #track_name, batch_key, test_flag = '20190101040007_00570201_005_02', 'SH_batch04', False
 #track_name, batch_key, test_flag = '20190101084259_00600201_005_02', 'SH_batch04', False
-#track_name, batch_key, test_flag = '20190101101716_00610201_005_02', 'SH_batch04', False
+#track_name, batch_key, test_flag = '20190128235320_04820201_005_02', 'SH_batch04', False
 
 
 
@@ -78,8 +78,13 @@ plot_flag   = False
 all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 # low_beams   = mconfig['beams']['low_beams']
+try:
+    f         = h5py.File(load_file, 'r')
+except:
+    print('file not found, exit')
+    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= {'reason':'ALT10 file not found, exit'})
+    exit()
 
-f         = h5py.File(load_file, 'r')
 beams     = [b if b in f.keys() else None for b in all_beams]
 
 imp.reload(regrid)
@@ -339,6 +344,7 @@ else:
     MT.save_pandas_table({'T':DD_merge},ll_name, save_path)
     #DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]
     #MT.json_save(name=ll_name, path=save_path, data= DD_merge.where(pd.notnull(DD_merge), 0).T.to_dict())
+    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
     exit()
 
 region_list = DD_region[DD_slope_mask].to_numpy().flatten().astype('float')

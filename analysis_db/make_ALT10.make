@@ -85,13 +85,7 @@ A01_tracks =  $(foreach i, $(A01_track_names) , $(subst ATL10-02_,,$(i))  )
 A01_targets= $(foreach i, $(A01_track_names) ,$(addprefix $(scratch_folder)/$(batch_key)/, ${i}.h5 ) )
 
 $(A01_targets) : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 :
-					p_out=`python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL10-02_$*.h5`
-					echo "$(p_out)"
-					ifeq ($(p_out), None)
-					@echo yes
-					else
-					@echo NO
-					endif
+					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key) -F ATL10-02_$*.h5
 # downloading all at once
 # .PHONY : A01_download
 # A01_track_filenames=  $(foreach i, $(A01_track_names) , $(addsuffix .h5, ${i} )  )
@@ -102,10 +96,10 @@ $(A01_targets) : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 :
 endif
 
 A01b_path=$(work_folder)/$(batch_key)/A01b_regrid_$(hemis)
-A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, A01b_success_${i}.h5 ) )
+A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, A01b_success_${i}.json ) )
 
 
-$(A01b_targets) : $(A01b_path)/A01b_success_%.h5 : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 $(analysisfolder)/A01b_ALT10_variance_tester.py
+$(A01b_targets) : $(A01b_path)/A01b_success_%.json : $(scratch_folder)/$(batch_key)/ATL10-02_%.h5 #$(analysisfolder)/A01b_ALT10_variance_tester.py
 					python $(analysisfolder)/A01b_ALT10_variance_tester.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
 
 
