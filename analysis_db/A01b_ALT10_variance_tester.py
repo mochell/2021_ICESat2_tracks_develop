@@ -293,8 +293,8 @@ for k in beams:
         xx0, dd0 = np.array(Tsel['x']), np.array(Tsel['freeboard']['height_segment_height'])
         rear_mask = cut_rear_data(xx0, dd0)
 
-        print('density post cutting', len(xx0[rear_mask])/abs(xx0[rear_mask].max() - xx0[rear_mask].min()) )
-        if len(xx0[rear_mask]) < 50: # if cutted data is too short
+        #print('density post cutting', len(xx0[rear_mask])/abs(xx0[rear_mask].max() - xx0[rear_mask].min()) )
+        if len(xx0[rear_mask]) < 500: # if cutted data is too short
             slope_test = False
             data_flag  = False
             #return data_flag, slope_test
