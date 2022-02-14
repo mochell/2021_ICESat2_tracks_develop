@@ -293,6 +293,13 @@ for k in beams:
         xx0, dd0 = np.array(Tsel['x']), np.array(Tsel['freeboard']['height_segment_height'])
         rear_mask = cut_rear_data(xx0, dd0)
 
+        if xx0[rear_mask] < 50: # if cutted data is too short
+            slope_test = False
+            data_flag  = False
+            #return data_flag, slope_test
+            print('break -------', k, TF,  data_flag, slope_test)
+            continue
+
         # estmiate slope at the beginning
         slope_test, pw_fit, breakpoint = get_breakingpoints(xx0[rear_mask], dd0[rear_mask], Lmeter= 3000)
 
