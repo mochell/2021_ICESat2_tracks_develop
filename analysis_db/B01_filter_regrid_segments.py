@@ -49,7 +49,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
 #track_name, batch_key, test_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190502033317_05170310_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190101020504_00550212_005_01', 'SH_batch04', False
 
 
 # equatorward track
@@ -70,7 +70,7 @@ hemis, batch = batch_key.split('_')
 ATlevel= 'ATL03'
 
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
-load_file   = load_path + 'processed_'+ATlevel+'_'+track_name+'.h5'
+load_file   = load_path +ATlevel+'_'+track_name+'.h5'
 
 save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
@@ -88,7 +88,7 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers_process = 6  # number of threads for parallel processing  # outer loop
+Nworkers_process = 3  # number of threads for parallel processing  # outer loop
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']
@@ -113,8 +113,10 @@ print('poleward track is ' , track_poleward)
 #for k in beams:
 def load_data_and_cut(k):
     print(k)
-
+    # k =all_beams[1]
+    # imp.reload(io)
     T, seg = io.getATL03_beam(load_file, beam= k)
+
     print('loaded')
     T = T[T['mask_seaice']] # only take sea ice points, no ocean points
     #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
@@ -190,6 +192,9 @@ def load_data_and_cut(k):
 
     return k, rear_mask, Tsel, seg, ho
 
+#load_data_and_cut(all_beams[1])
+
+# %%
 hist    = 'Beam stats'
 B       = dict()
 B1save  = dict()
@@ -199,6 +204,7 @@ k = beams[0]
 # A = list()
 # for k in all_beams:
 #     A.append(load_data_and_cut(k))
+
 
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(load_data_and_cut, all_beams)  )
@@ -312,7 +318,6 @@ def make_x_coorindate(k):
 
 with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(make_x_coorindate, all_beams)  )
-
 
 # %%
 B= dict()

@@ -152,6 +152,12 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
     mask_seaice = ATL03[beam+'/heights/signal_conf_ph'][:, 2] > 2 # sea ice points medium or high quality
     mask_total  = (mask_seaice | mask_ocean)
 
+    if sum(~mask_total) == (ATL03[beam+'/heights/signal_conf_ph'][:, 1]).size:
+        print('zero photons, lower photon quality to 2 or higher')
+        mask_ocean  = ATL03[beam+'/heights/signal_conf_ph'][:, 1] > 1 # ocean points  medium or high quality
+        mask_seaice = ATL03[beam+'/heights/signal_conf_ph'][:, 2] > 1 # sea ice points medium or high quality
+        mask_total  = (mask_seaice | mask_ocean)
+
     signal_confidence = ATL03[beam+'/heights/signal_conf_ph'][:, 1:3].max(1)
     #print(signal_confidence.shape)
 
@@ -174,11 +180,11 @@ def getATL03_beam(fileT, numpy=False, beam='gt1l', maxElev=1e6):
         dF_seg = pd.DataFrame({'delta_time':delta_time_geolocation, 'segment_dist_x':segment_dist_x, 'segment_length':segment_length, 'segment_id':segment_id,
                         'reference_photon_index':reference_photon_index, 'ph_index_beg':ph_index_beg})
         # Filter out high elevation values
-        print(segment_dist_x.shape)
-        print(dF.shape)
+        print('seg_dist shape ', segment_dist_x.shape)
+        print('df shape ',dF.shape)
 
         dF = dF[mask_total]
-        print(dF.shape)
+        print('df[mask] shape ',dF.shape)
 
         # Reset row indexing
         dF=dF#.reset_index(drop=True)

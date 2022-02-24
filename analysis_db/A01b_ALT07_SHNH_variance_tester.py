@@ -2,10 +2,10 @@ import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
 """
-This script opens an ALT07 track and tests if there is sufficient data and maybe waves:
+This script opens an ATL07 track and tests if there is sufficient data and maybe waves:
 1) disects each beam such that they start in the MIZ and end at the pole.
 2) checks if the variance decays from the MIZ poleward if data density is high enough.
-3) generates plausible ALT03 track_names
+3) generates plausible ATL03 track_names
 4) Saves dummy files tracknames and reporting A01b_success_'track_name'.json file
 
 """
@@ -15,8 +15,7 @@ This script opens an ALT07 track and tests if there is sufficient data and maybe
 sys.path
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
-import zarr
-zarr.__path__
+
 import datetime
 import h5py
 from random import sample
@@ -40,6 +39,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 # track NH
 #track_name, batch_key, test_flag = '20190301004639_09560201_005_01', 'NH_batch05', False
+track_name, batch_key, test_flag = '20190101180843_00660201_005_01', 'NH_batch05', False
 
 # track SH
 #track_name, batch_key, test_flag = '20190101084259_00600201_005_01', 'SH_batch04', False
@@ -69,12 +69,12 @@ try:
     f     = h5py.File(load_file, 'r')
 except:
     print('file not found, exit')
-    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= {'reason':'ALT07 file not found, exit'})
+    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= {'reason':'ATL07 file not found, exit'})
     exit()
 
 beams     = [b if b in f.keys() else None for b in all_beams]
 imp.reload(regrid)
-#track_poleward    = regrid.track_pole_ward_file(f, product='ALT10')
+#track_poleward    = regrid.track_pole_ward_file(f, product='ATL10')
 # print('poleward track is' , track_poleward)
 # ATL03       =   h5py.File(load_file, 'r')
 # ATL03['orbit_info'].keys()
@@ -176,6 +176,8 @@ DD_slope  = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_data   = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_region = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_region[:] = (np.nan)
+DD_pos_start = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
+DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
 
 plot_flag = True
 for k in beams:
@@ -212,11 +214,11 @@ for k in beams:
 
     # cut data accordingly
     if (sum(mask1)/tot_size < 0.05) or (sum(mask1) < 1000):
-        TF1 = T_freeboard[mask2]
-        TF2  = None
+        TF1 = None
+        TF2 = T_freeboard[mask2]
     elif (sum(mask2)/tot_size < 0.05) or (sum(mask2) < 1000):
         TF1 = T_freeboard[mask1]
-        TF2  = None
+        TF2 = None
     else:
         TF1 = T_freeboard[mask1]
         TF2 = T_freeboard[mask2]
@@ -346,14 +348,30 @@ for k in beams:
             plt.close()
             #plt.show()
 
+
         # assign to tables
         DD_slope.loc[ k, TF] = slope_test
         DD_data.loc[  k, TF] = data_density
         DD_region.loc[k, TF] = region
+        DD_pos_start.loc[k, [TF+'_lon', TF+'_lat']]  =  Tsel.iloc[0]['ref']['longitude']  , Tsel.iloc[0]['ref']['latitude']
+        DD_pos_end.loc[k, [TF+'_lon', TF+'_lat']]    =  Tsel.iloc[-1]['ref']['longitude'] ,Tsel.iloc[-1]['ref']['latitude']
         print('result-------', k, TF, data_density, slope_test)
 
 
+# %%
+DD_pos_start
 
+TF1_start = DD_pos_start[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmin() ]
+TF2_start = DD_pos_start[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmin() ]
+
+DD_pos_end
+
+TF1_end = DD_pos_end[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmax() ]
+TF2_end = DD_pos_end[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmax() ]
+
+DD_pos_end
+
+# %%
 # Test if 1st slope segment is negative. There might be better way to test for waves in the data
 DD_slope_mask = DD_slope <0
 
@@ -373,6 +391,8 @@ else:
     MT.json_save(name='A01b_success_'+track_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
     exit()
 
+
+
 # distill regions of interest
 region_list   = list()
 #DD_region[~DD_slope_mask] = (np.nan)
@@ -387,15 +407,129 @@ region_list = list(set(region_list))
 region_list = [str(int(i)).zfill(2) for i in region_list]
 print('region(s) ', region_list)
 
-# generate file names for ALT03
-ALT03_list= list()
-for i in region_list:
-    track_segs = track_name.split('_')
-    track_segs[1] = track_segs[1][0:-2]+  i # correct cycle number
-    track_segs[3] = '01'                    # correct version number
-    ALT03_trackname = '_'.join(track_segs)
-    print(ALT03_trackname)
-    ALT03_list.append(ALT03_trackname)
+# %%
+class case_ID(object):
+    """docstring for case_ID"""
+    def __init__(self, track_name):
+        import re
+        super(case_ID, self).__init__()
+
+        #track_name_pattern = r'(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_(\d{4})(\d{2})(\d{2})_(\d{3})_(\d{2})'
+        track_name_pattern = r'(\D{2}|\d{2})_?(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?_(\d{4})(\d{2})(\d{2})_?(\d{3})?_?(\d{2})?'
+        case_ID_pattern = r'(\d{4})(\d{2})(\d{2})_(\d{4})(\d{2})(\d{2})'
+
+        track_name_rx = re.compile(track_name_pattern)
+        self.hemis,self.YY,self.MM,self.DD,self.HH,self.MN,self.SS,self.TRK,self.CYC,self.GRN,self.RL,self.VRS = track_name_rx.findall(track_name).pop()
+
+        if self.hemis == '01':
+            self.hemis = 'NH'
+        elif self.hemis == '02':
+            self.hemis = 'SH'
+        else:
+            self.hemis = self.hemis
+        #self.hemis = hemis
+        self.set()
+        self.track_name_init = track_name
+
+    def set(self):
+        block1 = (self.YY,self.MM,self.DD)
+        block2 = (self.TRK,self.CYC,self.GRN)
+
+        self.ID = self.hemis+'_'+''.join(block1) +'_'+ ''.join(block2)
+        return self.ID
+
+    def set_ATL03_trackname(self):
+
+        block1 = (self.YY,self.MM,self.DD)
+        block1b = (self.HH,self.MN,self.SS)
+        block2 = (self.TRK,self.CYC,self.GRN)
+        if self.RL is '':
+            raise ValueError("RL not set")
+        if self.VRS is '':
+            raise ValueError("VRS not set")
+
+        block3 = (self.RL,self.VRS)
+
+        self.ID = ''.join(block1) +''.join(block1b) +'_'+ ''.join(block2) +'_'+ '_'.join(block3)
+        return self.ID
+
+    def set_ATL10_trackname(self):
+
+        block1 = (self.YY,self.MM,self.DD)
+        block1b = (self.HH,self.MN,self.SS)
+        block2 = (self.TRK,self.CYC, '01') # granule is alwasy '01' for ATL10
+        if self.RL is '':
+            raise ValueError("RL not set")
+        if self.VRS is '':
+            raise ValueError("VRS not set")
+
+        block3 = (self.RL,self.VRS)
+
+        if self.hemis == 'NH':
+            hemis = '01'
+        elif self.hemis == 'SH':
+            hemis = '02'
+        else:
+            hemis = self.hemis
+
+        self.ID = hemis+'_'+''.join(block1) +''.join(block1b) +'_'+ ''.join(block2) +'_'+ '_'.join(block3)
+        return self.ID
+
+
+ID1= 'ATL03-NH_20190102_00780200'
+CID = case_ID(ID1)
+CID.track_name_init
+CID.set()
+CID.GRN='10'
+CID.set()
+CID.RL, CID.VRS='001', '01'
+CID.set_ATL03_trackname()
+CID.set_ATL10_trackname()
+
+CID = case_ID('ATL10-01_'+track_name)
+CID.track_name_init
+CID.set()
+CID.GRN='40'
+CID.set()
+CID.set_ATL03_trackname()
+CID.set_ATL10_trackname()
+
+# %%
+# generate file names for ATL03
+
+DD_list = list()
+for TF,TF_polward in zip(['TF1', 'TF2'], [TF1_poleward, TF2_poleward]):
+    iregion = DD_region[TF][DD_slope_mask[TF]]
+    if len(iregion) !=0:
+        iregion2 =list(iregion[0])
+        print(iregion2)
+        # create track dict
+        CID = case_ID(hemis+'_'+track_name)
+        CID.GRN = iregion2[0]
+        DD= {'case_ID':  CID.set() ,  'tracks' : {} }
+
+        ATL03_list= list()
+        for i in iregion2:
+            CID = case_ID(hemis+'_'+track_name)
+            CID.GRN = i
+            # print(CID.set() )
+            # print(CID.set_ATL03_trackname() )
+            ATL03_list.append(CID.set_ATL03_trackname())
+
+        DD['tracks']['ATL03']   = ['ATL03_'+i for i in ATL03_list]
+        DD['tracks']['ATL10']   = 'ATL10-' +CID.set_ATL10_trackname()
+
+        # add other pars:
+        DD['pars'] ={'poleward':TF_polward, }
+        print(DD)
+        DD_list.append(DD)
+
+
+DD_list
+
+
+
+DD
 
 
 # print results and write files to exit
@@ -406,8 +540,8 @@ print('slopes')
 print(DD_slope)
 
 #DD_slope.to_html()
-for ll in ALT03_list:
-    ll_name = 'ALT03_stats_'+ll
+for ll in ATL03_list:
+    ll_name = 'ATL03_stats_'+ll
     DD_merge = pd.concat({'density_Nperm':DD_data , 'slopes':DD_slope}, axis=1)
     DD_merge.to_html(save_path+ll_name+'.html')
     #DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]

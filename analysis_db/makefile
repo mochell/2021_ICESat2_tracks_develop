@@ -74,12 +74,20 @@
 ### example : show example how to use this make file
 .PHONY : example
 example :
+					@echo "examples:"
+					@echo " "
+					@echo "simple target excecution: "
+					@echo "make batch=batch02 track_list=batch02_tracks_test.json A01a -n"
+					@echo " "
 					@echo "to download data given a batch list; -n is the text flag"
 					@echo "make batch=batch02 track_list=batch02_tracks_test.json A01 -n"
+					@echo " "
 					@echo "to make targets without re-downloading the data; -n is the text flag"
 					@echo "make batch=batch02 track_list=False B01 -n"
+					@echo " "
 					@echo "print targets"
 					@echo "make batch=batch02 track_list=False print-B01_targets -n"
+					@echo " "
 					@echo "force target to rebuld -B"
 					@echo "make batch=batch02 track_list=False B01 -B -n"
 
@@ -101,7 +109,7 @@ bad_tracks_folder = $(work_folder)bad_tracks
 # hemisphere or geographical subset of the analysis, currently SH or NH
 hemis = SH
 # batch
-batch = batch_fake#batch01
+batch = batch_dummy#batch01
 
 # (False) if not False, this should be a track_ID.
 # for processing single track_ID ..
@@ -180,14 +188,20 @@ A01c_path=$(work_folder)/$(batch_key)/A01c_getATL03_$(hemis)
 A01c_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(A01c_path)/, A01c_success_${i}.txt ) )
 
 #$(scratch_folder)/$(batch_key)/ATL03_%.h5
+#cannot link this to $(A01b_path)/A01b_success_%.json because the tracknames differ (the region definiiton changes)
 $(A01c_targets) : $(A01c_path)/A01c_success_%.txt : $(A01b_path)/ALT03_stats_%.h5
-					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(A01c_download) -F processed_ATL10_$*.h5
-					@echo "$*" >> $(A01c_path)/A01c_success_$*.txt
+					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(A01c_download) -F processed_ATL10_$*.h5 -R 2
+					@echo "$*" > $(A01c_path)/A01c_success_$*.txt
 
 .PHONY : A01a A01b A01c
-A01a : $(A01a_targets)
-A01b : $(A01b_targets)
+A01a : make_A01_folders $(A01a_targets)
+A01b : make_A01_folders $(A01b_targets)
 A01c : $(A01c_targets)
+
+
+make_A01_folders:
+					${MKDIR_P} $(A01c_path)
+					${MKDIR_P} $(A01c_path)
 
 ## generate prior data from WW3 data, for a given, existing ATL03 track
 A02_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
@@ -217,7 +231,7 @@ B02_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(work_folder)/B02_
 
 .PHONY : B01 B02# B03
 B01 : make_folder $(B01_targets)
-B02 : $(B02_targets)
+B02 : $(B02_targets) B02_collect
 
 # !!!!!!!!! this does not work because the track ID chanegs from ALT10 to ALT03
 $(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_folder)/$(batch_key)/ATL03_%.h5 $(analysisfolder)/B01_filter_regrid_segments.py
@@ -238,7 +252,7 @@ B02_collect : #B01 B02
 bad_beams_files := $(shell ls $(bad_tracks_folder)/$(batch_key)) #$(shell jq -r .[] $(config_folder)config.json)
 bad_beams := $(basename $(bad_beams_files))
 
-source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch_key), /processed_ATL03_${i}.h5 ) )
+source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch_key), /ATL03_${i}.h5 ) )
 #B01_files_01 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
 #B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
 #B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
