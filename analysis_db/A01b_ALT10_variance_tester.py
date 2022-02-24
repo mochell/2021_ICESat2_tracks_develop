@@ -356,7 +356,8 @@ print('region(s) ', region_list)
 ALT03_list= list()
 for i in region_list:
     track_segs = track_name.split('_')
-    track_segs[1] = track_segs[1][0:-2]+  i
+    track_segs[1] = track_segs[1][0:-2]+  i # correct cycle number
+    track_segs[3] = '01'                    # correct version number
     ALT03_trackname = '_'.join(track_segs)
     print(ALT03_trackname)
     ALT03_list.append(ALT03_trackname)

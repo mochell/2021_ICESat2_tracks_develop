@@ -49,8 +49,8 @@ hemis, batch = batch_key.split('_')
 #track_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
 
-load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
-load_file   = load_path + 'processed_' + ATlevel + '_' + track_name + '.h5'
+load_path       = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
+load_file       = load_path + 'processed_' + ATlevel + '_' + track_name + '.h5'
 
 save_path   = mconfig['paths']['work'] + '/B02_spectra_'+hemis+'/'
 save_name   = 'B02_'+track_name
@@ -69,9 +69,17 @@ low_beams   = mconfig['beams']['low_beams']
 B0   = io.load_pandas_table_dict(track_name + '_B01_corrected'  , load_path)
 B1   = io.load_pandas_table_dict(track_name + '_B01_new_coords'  , load_path)
 B2   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
-B3      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+B3   = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
-B1.keys()
+load_path_scratch = mconfig['paths']['scratch'] +'/SH_batch02/'
+load_file_ATL10 =  'processed_' + 'ATL07-02' + '_20190219063727_08070201_005_01.h5'
+
+imp.reload(io)
+B07, B07_c = dict(), dict()
+for k in all_beams:
+    B07[k] = io.getATL07_beam(load_path_scratch + load_file_ATL10, beam= k)
+    B07_c[k] = io.getATL07_height_corrections(load_path_scratch + load_file_ATL10, beam= k)
+
 
 
 
@@ -137,12 +145,34 @@ plt.ylabel('across track distance y (km)')
 key         = 'gt2r'
 #lead_color= col.rels[key]
 lead_color= col.rels['group2']
+ALT07_color= col.rels['aug1']
 MT.mkdirs_r(plot_path)
 T2         = B2[key].copy()
 T2['dist'] = T2['x'] - track_dist_bounds[0]
 T3         = B3[key].copy()
+T07        = B07[key]
 
-
+# # %%
+# T07['dist']  = np.interp(T07['time']['delta_time'], T3['delta_time'] , T3['dist'])
+# T07.T
+# T3.T
+#
+# font_for_pres()
+#
+# plt.plot(T07['ref']['longitude'],T07['time']['delta_time'], '.b', markersize= 2)
+# plt.plot(T2_large['lons'], T2_large['delta_time'], '.', color='red', markersize= 6)
+#
+# # regrid T07 on T03 dist
+#
+# plt.plot(T2_large['lons'], T2_large['heights_c'], '.', color='gray', markersize= 0.8)
+# plt.plot(T3_large['lons'], T3_large['heights_c_weighted_mean'], '.r', markersize= 1)
+# plt.plot(T07['ref']['longitude'],T07['heights']['height_segment_height'], '.b', markersize= 0.9)
+# plt.xlim(T3_large['lons'].min(), T3_large['lons'].max())
+# #plt.ylim(T3_large['lats'].min(), T3_large['lats'].max())
+#
+#
+#
+# # %%
 x_key= 'dist'
 latlims = (T3['dist'].iloc[0] , T3['dist'].iloc[-1] )
 dl = 2500
@@ -168,11 +198,26 @@ tt_large = ll_large + 12000
 
 T2_large  = T2[ (T2['dist'] > ll_large) & (T2['dist'] < tt_large) ]
 T3_large =  T3[ (T3['dist'] > ll_large) & (T3['dist'] < tt_large) ]
+T07_large=  T07[ (T07['dist'] > ll_large) & (T07['dist'] < tt_large) ]
 
 
 plt.plot( T2_large[x_key]/xscale, T2_large['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 )
-plt.plot( T3_large[x_key]/xscale, T3_large['heights_c_weighted_mean'] , '.', color=lead_color, linewidth=0.5, markersize=1,alpha=0.9, label='x-gauss weighted mean +1')
+plt.plot( T3_large[x_key]/xscale, T3_large['heights_c_weighted_mean'] , '.', color=lead_color, linewidth=0.5, markersize=1,alpha=0.9, label='x-gauss weighted mean')
 
+col.colormaps2(5)
+#set(T07_large['heights']['height_segment_type'])
+
+htype_cmap = plt.cm.Accent(np.linspace(0, 1, 10))
+htype_list =  ['cloud_covered','other', 'specular_lead_low_w_bkg', 'specular_lead_low','specular_lead_high_w_bkg', 'specular_lead_high', 'dark_lead_smooth_w_bkg', 'dark_lead_smooth', 'dark_lead_rough_w_bkg' ,'dark_lead_rough', 'off_pointing']
+for htype, hcolor, htype_str in zip( [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1] , iter(htype_cmap) , htype_list ):
+
+    pdata = T07_large[T07_large['heights']['height_segment_type'] == htype]
+    plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height'], '.', color =hcolor, markersize=0.8,alpha=0.9, label='ALT07 height | ' +htype_str)
+
+for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , ['sea ice', 'ssh'] , [1, 5]):
+
+    pdata = T07_large[T07_large['heights']['height_segment_ssh_flag'] == htype]
+    plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+0.2, '.', color =hcolor, markersize=0.8,alpha=0.9, label='ALT07 height | ' +htype_str)
 
 #plt.xlabel('Meters from the Sea Ice Edge')
 plt.ylabel('Photon height (m)')
@@ -185,9 +230,23 @@ tt = ll+ 3000
 
 T2_small  = T2[ (T2['dist'] > ll) & (T2['dist'] < tt) ]
 T3_small =  T3[ (T3['dist'] > ll) & (T3['dist'] < tt) ]
+T07_small=  T07[ (T07['dist'] > ll) & (T07['dist'] < tt) ]
 
 plt.plot( T2_small[x_key]/xscale, T2_small['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 , label='ALT03 photon heights' )
 plt.plot( T3_small[x_key]/xscale, T3_small['heights_c_weighted_mean'] , '.-', color=lead_color, linewidth=0.5, markersize=2,alpha=0.9, label='Gaussian-weighted mean')
+
+
+for htype, hcolor, htype_str in zip( [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1] , iter(htype_cmap) , htype_list ):
+    pdata = T07_small[T07_small['heights']['height_segment_type'] == htype]
+    plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height'] , '.', color =hcolor, markersize=1.7,alpha=1, label= str(htype) +' '+ htype_str)
+    htype
+
+for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , ['sea ice', 'ssh'] , [1, 5]):
+
+    pdata = T07_large[T07_large['heights']['height_segment_ssh_flag'] == htype]
+    plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+0.2, '.', color =hcolor, markersize=hsize, alpha=1, label= 'ALT07 ' + htype_str )
+
+
 
 #plt.plot(T3_small[x_key], T3_small['heights_c_std'] - 1.8, 'k-', linewidth=0.5,alpha=1)
 #uncertainty_y
@@ -234,6 +293,10 @@ T2_grad_dd =  dd[ (x > ll_large) & (x< tt_large) ]
 T3_grad_x  =  x_no_nans[ (x_no_nans > ll) & (x_no_nans< tt) ]
 T3_grad_dd =  dd_no_nans[ (x_no_nans > ll) & (x_no_nans< tt) ]
 
+T3_grad_x  =  x[ (x > ll) & (x< tt) ]
+T3_grad_dd =  dd[ (x > ll) & (x< tt) ]
+
+
 #T3_grad_dd[dd_nans]
 ax1.plot(T2_grad_x/xscale, T2_grad_dd, '-', color=  col.cascade1, linewidth = 0.6, label='slope data (m/m)')
 ax1.fill_between( T3_grad_x/xscale, T3_grad_dd, y2=0, color=col.cascade3,alpha=0.4)
@@ -249,6 +312,7 @@ uncertainty_y =0.3
 #plt.fill_between(  T3_large[x_key]/xscale, uncertainty_y+ T3_large['heights_c_std']/2 , y2=uncertainty_y -T3_large['heights_c_std']/2, color=col.cascade2,alpha=1)
 #ax1.axhline(uncertainty_y, linewidth= 0.5 , color = 'black')
 dx = np.median(np.diff(T3_small['dist']))
+#sum(np.isnan(T3_small['heights_c_std']))
 plt.fill_between(  T3_small[x_key]/xscale, uncertainty_y + T3_small['heights_c_std'] /dx , y2=uncertainty_y-T3_small['heights_c_std']/dx, color=col.cascade2,alpha=1, label='uncertrainty')
 ax2.axhline(uncertainty_y, linewidth= 0.5 , color = 'black')
 

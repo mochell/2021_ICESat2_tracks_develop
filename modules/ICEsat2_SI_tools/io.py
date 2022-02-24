@@ -244,6 +244,8 @@ def getATL07_beam(fileT, beam='gt1r', maxElev=1e6):
     dF_time = get_time_for_track(delta_time,atlas_epoch)
     dF_time['delta_time'] = delta_time
     ### Primary variables of interest
+
+
     vars = [
             'across_track_distance', #Across track distance of photons averaged over the sea ice height segment.
             'height_segment_asr_calc', #Computed apparent surface reflectance for the sea ice segment.
@@ -259,6 +261,8 @@ def getATL07_beam(fileT, beam='gt1r', maxElev=1e6):
             'height_segment_w_gaussian', # Width of Gaussian fit
             'height_segment_quality', # Height quality flag, 1 for good fit, 0 for bad
             ]
+    #vars = ['beam_fb_height', 'beam_fb_sigma' , 'beam_fb_confidence' , 'beam_fb_quality_flag']
+
     D_heights=dict()
     for var in vars:
         D_heights[var] = ATL07[beam+'/sea_ice_segments/heights/' +var][:]
