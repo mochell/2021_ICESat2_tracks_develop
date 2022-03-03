@@ -156,11 +156,11 @@ else
 # create target list from from file in track list folder. The target downloads the respective keys from the interweb.
 A01a_track_names=$(shell jq -r .[] $(track_lists_folder)$(track_list))
 A01a_tracks =  $(foreach i, $(A01a_track_names) , $(subst ATL07-$(hemis_num)_,,$(i))  )
-A01a_targets=  $(foreach i, $(A01a_track_names) , $(addprefix $(scratch_folder)$(batch_key)/, $(i).h5 ) )
+A01a_targets=  $(foreach i, $(A01a_track_names) , $(addprefix $(scratch_folder)/$(batch_key)/, $(i).h5 ) )
 
 # downloads each file from from NISDC
 $(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
-					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key) -F ATL07-$(hemis_num)_$*.h5
+					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key)/ -F ATL07-$(hemis_num)_$*.h5
 
 endif
 
