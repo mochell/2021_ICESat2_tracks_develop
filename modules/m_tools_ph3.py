@@ -142,7 +142,33 @@ def json_save(name, path, data, verbose=False, return_name=False):
     full_name_root=os.path.join(path,name)
     full_name= (os.path.join(full_name_root+ '.json'))
     with open(full_name, 'w') as outfile:
-        json.dump(data, outfile)
+        json.dump(data, outfile, indent=2)
+    if verbose:
+        print('save at: ',full_name)
+    if return_name:
+        return full_name_root
+    else:
+        return
+
+
+def json_save2(name, path, data, verbose=False, return_name=False):
+    import json
+    class CustomJSONizer(json.JSONEncoder):
+        def default(self, obj):
+            return bool(obj) \
+                if isinstance(obj, np.bool_) \
+                else super().default(obj)
+
+            # return super().encode(bool(obj)) \
+            #     if isinstance(obj, np.bool_) \
+            #     else super().default(obj)
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+    full_name_root=os.path.join(path,name)
+    full_name= (os.path.join(full_name_root+ '.json'))
+    with open(full_name, 'w') as outfile:
+        json.dump(data, outfile, cls=CustomJSONizer, indent=2)
     if verbose:
         print('save at: ',full_name)
     if return_name:

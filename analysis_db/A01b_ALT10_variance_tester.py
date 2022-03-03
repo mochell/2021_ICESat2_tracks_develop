@@ -60,7 +60,7 @@ ATlevel= 'ATL10-02' if hemis == 'SH' else 'ATL10-01'
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 load_file   = load_path + ATlevel+'_'+track_name+'.h5'
 
-save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_regrid_'+hemis+'/'
+save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_ID_'+hemis+'/'
 
 plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
 #bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'

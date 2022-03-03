@@ -119,7 +119,7 @@ track_ID 	= False
 track_list=False
 
 # flag for testing. not used yet.
-# test_flag	= False
+ID_flag	= True
 ### ------------- end default parameter --------------------
 
 # infer parameters
@@ -145,7 +145,7 @@ make_folder :
 
 ifeq ($(track_list), False) # just used the filed in the folder, do not redownload them
 A01a_targets= $(shell ls $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_*.h5)
-A01_tracks=$(foreach i, $(basename $(A01a_targets)), $(subst ATL07-$(hemis_num)_,,$(i))  )
+A01a_tracks=$(foreach i, $(basename $(A01a_targets)), $(subst ATL07-$(hemis_num)_,,$(i))  )
 
 # possibilty to tough downloaded files such that everything after is rebuild
 # only executed when forced build is used
@@ -154,59 +154,80 @@ $(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
 
 else
 # create target list from from file in track list folder. The target downloads the respective keys from the interweb.
-A01_track_names=$(shell jq -r .[] $(track_lists_folder)$(track_list))
-A01_tracks =  $(foreach i, $(A01_track_names) , $(subst ATL07-$(hemis_num)_,,$(i))  )
-A01a_targets=  $(foreach i, $(A01_track_names) , $(addprefix $(scratch_folder)/$(batch_key)/, ${i}.h5 ) )
+A01a_track_names=$(shell jq -r .[] $(track_lists_folder)$(track_list))
+A01a_tracks =  $(foreach i, $(A01a_track_names) , $(subst ATL07-$(hemis_num)_,,$(i))  )
+A01a_targets=  $(foreach i, $(A01a_track_names) , $(addprefix $(scratch_folder)/$(batch_key)/, $(i).h5 ) )
 
 # downloads each file from from NISDC
-$(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-02_%.h5 :
+$(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
 					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key) -F ATL07-02_$*.h5
 
 endif
 
-A01b_path=$(work_folder)/$(batch_key)/A01b_regrid_$(hemis)
-A01b_targets= $(foreach i, $(A01_tracks) ,$(addprefix $(A01b_path)/, A01b_success_${i}.json ) )
+A01b_path=$(work_folder)/$(batch_key)/A01b_ID_$(hemis)
+A01b_targets= $(foreach i, $(A01a_tracks) ,$(addprefix $(A01b_path)/, A01b_$(i)_success.json ) )
 
-$(A01b_targets) : $(A01b_path)/A01b_success_%.json : $(scratch_folder)/$(batch_key)/ATL07-02_%.h5 $(analysisfolder)/A01b_ALT10_variance_tester.py
-					python $(analysisfolder)/A01b_ALT07_SHNH_variance_tester.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
+# checks weather or not if its is worth it to downlaod data and then downloads the corresponding ATL03 data
+$(A01b_targets) : $(A01b_path)/A01b_%_success.json : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 #$(analysisfolder)/A01b_ALT07_SHNH_variance_tester.py
+					python $(analysisfolder)/A01b_ALT07_SHNH_variance_tester.py $* $(batch_key) $(ID_flag) > log/A02/$*.txt 2>&1
 
 
-A01b_success= $(shell ls $(A01b_path)/ALT03_stats_*.h5)
-A01b_track_list= $(foreach i, $(basename $(A01b_success)), $(subst $(A01b_path)/ALT03_stats_,,$(i))  )
+A01b_success= $(shell ls $(A01b_path)/A01b_ID_*.json)
+A01b_ATL03_files= $(foreach i, $(A01b_success), $(shell jq -r '.tracks.ATL03[]' $(i) ) )
+A01b_track_list= $(foreach i, $(basename $(A01b_success)), $(subst $(A01b_path)/A01b_ID_,,$(i))  )
 #A01b_track_list=  $(foreach i, $(A01b_track_list1), $(subst _005_02,_005_01,$(i))  )
 
 # if beam is not provieded track list must be provided
 ifeq ($(track_ID), False)
-ALT03_track_list := $(A01b_track_list)
+ID_track_list= $(A01b_track_list)
 else
-ALT03_track_list := $(track_ID)
+ID_track_list= $(track_ID)
 endif
 
-# download associated ALT03 data
-A01c_download := $(scratch_folder)/$(batch_key)
-A01c_path=$(work_folder)/$(batch_key)/A01c_getATL03_$(hemis)
-A01c_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(A01c_path)/, A01c_success_${i}.txt ) )
+# merge files and save
+#A01c_download := $(scratch_folder)/$(batch_key)
+A01c_path := $(scratch_folder)/$(batch_key)#$(work_folder)/$(batch_key)/A01c_getATL03_$(hemis)
+A01c_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(A01c_path)/, A01c_ATL03_$(i)_corrected.h5 ) )
+
+$(A01c_targets) : $(A01c_path)/A01c_ATL03_%_corrected.h5 : $(A01b_path)/A01b_ID_%.json
+					python $(analysisfolder)/A01c_mergefiles.py $* $(batch_key) $(ID_flag) > log/A02/$*.txt 2>&1
 
 #$(scratch_folder)/$(batch_key)/ATL03_%.h5
 #cannot link this to $(A01b_path)/A01b_success_%.json because the tracknames differ (the region definiiton changes)
-$(A01c_targets) : $(A01c_path)/A01c_success_%.txt : $(A01b_path)/ALT03_stats_%.h5
-					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(A01c_download) -F processed_ATL10_$*.h5 -R 2
-					@echo "$*" > $(A01c_path)/A01c_success_$*.txt
+#python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(A01c_download) -F processed_ATL10_$*.h5 -R 2
+
+
+# @echo $(foreach i, $(t_list), ATL03_$(word 3, $(subst _, ,${i}))_$(word 4, $(subst _, ,${i))*.h5 )
+
+#@echo $(foreach i, $(t_list), ATL03_$(word 3, $(subst _, ,${i}))_$(word 4, $(subst _, ,${i))*.h5 )
+#@echo $(word 2, $(subst _, ,$*))*$(word 3, $(subst _, ,$*))*.h5
+#@echo $(shell ls $(A01c_download)/$(word 2, $(subst _, ,$*))*$(word 3, $(subst _, ,$*))*.h5)
+
+# $(A01c_targets) : $(A01c_path)/A01c_success_%.txt : #$(A01b_path)/A01b_%.json
+# 					$(eval t_list := $(foreach i, $(shell jq -r '.tracks.ATL03_guess[]' $(A01b_path)/A01b_ID_$*.json), processed_$(i).h5 ))
+# 					$(eval dummy_list := $(foreach i, $(shell jq -r '.tracks.ATL03_dummy[]' $(A01b_path)/A01b_ID_$*.json),$(i) ))
+# 					@echo $(t_list)
+# 					@echo $(dummy_list)
+#
+# 					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(A01c_download) -F $(t_list) -R 2 -P 2
+# 					@echo $(foreach i, $(dummy_list), $(A01c_download)/ATL03_$(word 1, $(subst _, ,$(i)  ))*_$(word 2, $(subst _, ,$(i) ))*.h5 )
+# 					@echo $(shell ls $(foreach i, $(dummy_list), $(A01c_download)/ATL03_$(word 1, $(subst _, ,$(i)  ))*_$(word 2, $(subst _, ,$(i) ))*.h5 ) )
+
+#@echo "$(t_list)" > $(A01c_path)/A01c_success_$*.txt
 
 .PHONY : A01a A01b A01c
 A01a : make_A01_folders $(A01a_targets)
-A01b : make_A01_folders $(A01b_targets)
+A01b : $(A01b_targets)
 A01c : $(A01c_targets)
 
 
 make_A01_folders:
-					${MKDIR_P} $(A01c_path)
-					${MKDIR_P} $(A01c_path)
+					${MKDIR_P} $(A01b_path)
 
 ## generate prior data from WW3 data, for a given, existing ATL03 track
-A02_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
+A02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
 $(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json : $(A01c_path)/A01c_success_%.txt $(analysisfolder)/A02b_WW3_hindcast_prior.py
-					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(test_flag) > log/A02/$*.txt 2>&1
+					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(ID_flag) > log/A02/$*.txt 2>&1
 
 #/Users/Shared/Projects/2021_IceSAT2_tracks/data/scratch//SH_batch02/processed_ATL10_20190207001112_06190210_004_01.h5
 .PHONY : A02 A03
@@ -214,7 +235,7 @@ A02 : $(A02_targets)
 #A03 : $(A03_targets)
 
 
-# A03_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(A03_path)/processed_ATL10_, ${i}.h5 ) )
+# A03_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(A03_path)/processed_ATL10_, ${i}.h5 ) )
 # $(A03_targets) : $(A03_path)/processed_ATL10_%.h5 : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
 # 					python $(track_downloader)/nsidc_icesat2_associated.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL03 --directory $(scratch_folder)/$(batch_key) -F ATL03_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
 # 					mv $(A03_path)/ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5 $(A03_path)/processed_ATL10_$(subst _003_,_005_,$(subst _004_,_005_,$*)).h5
@@ -223,23 +244,23 @@ A02 : $(A02_targets)
 
 ### ---------- section B -------------
 ### derive beam list based on downloads
-A01c_success= $(shell ls $(A01c_download)/ATL03_*.h5)
-ALT03_track_list= $(foreach i, $(basename $(A01c_success)), $(subst $(A01c_download)/ATL03_,,$(i))  )
+#A01c_success= $(shell ls $(A01c_download)/ATL03_*.h5)
+#ID_track_list= $(foreach i, $(basename $(A01c_success)), $(subst $(A01c_download)/ATL03_,,$(i))  )
 
-B01_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
-B02_targets := $(foreach i, $(ALT03_track_list) ,$(addprefix $(work_folder)/B02_spectra_SH/, B02_${i}_FFT.nc ) )
+B01_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
+B02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B02_spectra_SH/, B02_${i}_FFT.nc ) )
 
 .PHONY : B01 B02# B03
 B01 : make_folder $(B01_targets)
 B02 : $(B02_targets) B02_collect
 
 # !!!!!!!!! this does not work because the track ID chanegs from ALT10 to ALT03
-$(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(scratch_folder)/$(batch_key)/ATL03_%.h5 $(analysisfolder)/B01_filter_regrid_segments.py
-					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(test_flag) > log/B01/$*.txt 2>&1
+$(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(A01b_path)/A01b_ID_%.json $(analysisfolder)/B01_filter_regrid_segments.py
+					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(ID_flag) > log/B01/$*.txt 2>&1
 
 $(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 #$(analysisfolder)/B02_make_spectra.py
 					sleep $${RANDOM:0:2}s
-					python $(analysisfolder)/B02_make_spectra_gFT.py $* $(batch_key) $(test_flag) > log/B02/$*.txt 2>&1
+					python $(analysisfolder)/B02_make_spectra_gFT.py $* $(batch_key) $(ID_flag) > log/B02/$*.txt 2>&1
 
 B02_collect : #B01 B02
 					${MKDIR_P} $(plot_folder)$(hemis)/$(batch_key)/B02/
@@ -292,7 +313,7 @@ B03_mkdir :
 					${MKDIR_P} $(B03_collect_path)coord_check
 
 $(B03_targets) : $(B03_path)%/B03_success.json : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
-					python $(analysisfolder)/B03_plot_spectra_ov.py $* $(batch_key) $(test_flag) > log/B03/$*.txt 2>&1
+					python $(analysisfolder)/B03_plot_spectra_ov.py $* $(batch_key) $(ID_flag) > log/B03/$*.txt 2>&1
 
 B03_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B03_ov/
 # search for all file and move, and rename them similar files
@@ -314,7 +335,7 @@ B04_targets := $(foreach i, $(B03_success) , $(subst B03_success,B04_success,$(i
 B04 : $(B04_targets) B04_collect
 
 $(B04_targets) : $(B03_path)%/B04_success.json : $(B03_path)%/B03_success.json $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json
-					python $(analysisfolder)/B04_angle.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
+					python $(analysisfolder)/B04_angle.py $* $(batch_key) $(ID_flag) > log/B04/$*.txt 2>&1
 
 B04_success := $(shell ls $(B03_path)*/B04_success.json)
 B04_B05_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B04_B05_angle/
@@ -335,7 +356,7 @@ B05_targets := $(foreach i, $(B04_success) , $(subst B04_success,B05_success,$(i
 B05 : $(B05_targets) B05_collect
 
 $(B05_targets) : $(B03_path)%/B05_success.json : $(B03_path)%/B04_success.json
-					python $(analysisfolder)/B05_define_angle.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
+					python $(analysisfolder)/B05_define_angle.py $* $(batch_key) $(ID_flag) > log/B04/$*.txt 2>&1
 
 B05_success := $(shell ls $(B03_path)*/B05_success.json)
 B05_collect_list := $(foreach i, $(B05_success) , $(subst $(B03_path),$(B04_B05_collect_path),$(i) )  )
@@ -352,7 +373,7 @@ B06_targets := $(foreach i, $(B05_success) , $(subst B05_success,B06_success,$(i
 B06 : $(B06_targets) B06_collect
 
 $(B06_targets) : $(B03_path)%/B06_success.json : $(B03_path)%/B05_success.json
-					python $(analysisfolder)/B06_correct_separate_var.py $* $(batch_key) $(test_flag) > log/B04/$*.txt 2>&1
+					python $(analysisfolder)/B06_correct_separate_var.py $* $(batch_key) $(ID_flag) > log/B04/$*.txt 2>&1
 
 B06_success := $(shell ls $(B03_path)*/B06_success.json)
 B06_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B06_correction/

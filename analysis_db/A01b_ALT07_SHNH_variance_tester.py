@@ -38,12 +38,16 @@ import piecewise_regression
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 
 # track NH
-#track_name, batch_key, test_flag = '20190301004639_09560201_005_01', 'NH_batch05', False
-track_name, batch_key, test_flag = '20190101180843_00660201_005_01', 'NH_batch05', False
+#track_name, batch_key, test_flag = '20190301004639_09560201_005_01', 'NH_batch05', False # <-- !
+#track_name, batch_key, test_flag = '20190101180843_00660201_005_01', 'SH_batch04', False
 
 # track SH
 #track_name, batch_key, test_flag = '20190101084259_00600201_005_01', 'SH_batch04', False
 #track_name, batch_key, test_flag = '20190102130012_00780201_005_01', 'SH_batch04', False
+#track_name, batch_key, test_flag = '20190101005132_00550201_005_01', 'SH_batch04', False # <-- !
+#track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
+
+
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -54,12 +58,17 @@ ATlevel= 'ATL07-02' if hemis == 'SH' else 'ATL07-01'
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 load_file   = load_path + ATlevel+'_'+track_name+'.h5'
 
-save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_regrid_'+hemis+'/'
-plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
+save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_ID_'+hemis+'/'
+scratch_path = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
+plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
 #bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
-
 plot_flag   = False
+test_flag   = False #writes dummy variable for download files, instead of downloading
+
+# username= "mhell@ucsd.edu"
+# pword   = "@[49[4tK\-qBWB%5"
+
 # %%
 # test which beams exist:
 all_beams = mconfig['beams']['all_beams']
@@ -69,7 +78,7 @@ try:
     f     = h5py.File(load_file, 'r')
 except:
     print('file not found, exit')
-    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= {'reason':'ATL07 file not found, exit'})
+    MT.json_save(name='A01b_'+track_name+'_success', path=save_path, data= {'reason':'ATL07 file not found, exit'})
     exit()
 
 beams     = [b if b in f.keys() else None for b in all_beams]
@@ -176,10 +185,13 @@ DD_slope  = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_data   = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_region = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 DD_region[:] = (np.nan)
-DD_pos_start = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
-DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
+# DD_pos_start = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
+# DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1_lon', 'TF1_lat', 'TF2_lon', 'TF2_lat'])
+DD_pos_start = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
+DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 
-plot_flag = True
+
+plot_flag = False
 for k in beams:
 
     #k = beams[0]
@@ -195,8 +207,6 @@ for k in beams:
         print('break -------', k, TF,  data_density, slope_test)
         continue
 
-
-
     # find devide such that each hemisphere is split into two parts, if data is there
     if hemis == 'SH':
         ###### for SH tracks
@@ -208,7 +218,10 @@ for k in beams:
     else:
         ###### for NH tracks
         from scipy.ndimage.measurements import label
-        mask1 = label(T_freeboard['ref']['latitude'] < 88)[0] ==1
+        #mask1 = label(T_freeboard['ref']['latitude'] < 88)[0] ==1
+
+        break_point = abs(T_freeboard['ref']['latitude']-90).argmin()
+        mask1 = T_freeboard['ref']['latitude'].index <= break_point
         mask2 = ~mask1
         tot_size =T_freeboard['ref']['latitude'].shape[0]
 
@@ -224,17 +237,20 @@ for k in beams:
         TF2 = T_freeboard[mask2]
 
     # plot splits
-    plt.figure()
-    plt.plot(TF1['ref']['latitude'], TF1['ref']['longitude'], 'r.', label ='TF1')
-    if TF2 is not None:
-        plt.plot(TF2['ref']['latitude'], TF2['ref']['longitude'], 'b.', label ='TF2')
-    plt.title(track_name + ' '+hemis, loc= 'left')
-    plt.legend()
-    plt.xlabel('Latitude')
-    plt.ylabel('longitude')
-    M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+ hemis+'_'+k  , path=plot_path)
-    plt.close()
-    #plt.show()
+    if plot_flag:
+        plt.figure()
+        if TF1 is not None:
+            plt.plot(TF1['ref']['latitude'], TF1['ref']['longitude'], 'r.', label ='TF1')
+        if TF2 is not None:
+            plt.plot(TF2['ref']['latitude'], TF2['ref']['longitude'], 'b.', label ='TF2')
+
+        plt.title(track_name + ' '+hemis, loc= 'left')
+        plt.legend()
+        plt.xlabel('Latitude')
+        plt.ylabel('longitude')
+        M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+ hemis+'_'+k  , path=plot_path)
+        plt.close()
+        #plt.show()
 
     # check if sub-taable goes equatorward or not, then sort accordingly and define along-track axis
     def pole_ward_table(T):
@@ -242,58 +258,57 @@ for k in beams:
         Returns true if table goes poleward
         hdf5_file is a an HFD5 object in read mode
         """
-
+        if T is None:
+            return None
         time = T['time']['delta_time']
         lat = T['ref']['latitude']
         print('1st lat =' + str(abs(lat.iloc[time.argmin()])) , ';last lat =' + str(abs(lat.iloc[time.argmax()])) )
 
         return abs(lat.iloc[time.argmax()]) > abs(lat.iloc[time.argmin()])
 
-
     TF1_poleward = pole_ward_table(TF1)
-    if TF2 is not None:
-        TF2_poleward =  pole_ward_table(TF2)
+    TF2_poleward = pole_ward_table(TF2)
 
-        if TF1_poleward & TF2_poleward:
-            raise ValueError('both parts are acending or decending')
-    else:
+    if TF1_poleward is None:
+        TF1_poleward = not TF2_poleward
+
+    if TF2_poleward is None:
         TF2_poleward = not TF1_poleward
 
-    # flip the beam section that is not poleward
-    if TF1_poleward & (TF2 is not None):
-        print('TF2 poleward is ', TF2_poleward)
-        TF2 = TF2.sort_values(('ref','seg_dist_x'), ascending=False).reset_index()
-    else:
-        print('TF1 polewards is ', TF2_poleward)
-        TF1 = TF1.sort_values(('ref','seg_dist_x'), ascending=False).reset_index()
-
-    # create local x axis
-    TF1['x'] = abs(TF1['ref']['seg_dist_x'] -TF1['ref']['seg_dist_x'].iloc[0])
-    if TF2 is not None:
-        TF2['x'] = abs(TF2['ref']['seg_dist_x'] -TF2['ref']['seg_dist_x'].iloc[0])
+    if TF1_poleward & TF2_poleward:
+        raise ValueError('both parts are acending or decending')
 
     # assign Region to each subset, hemisphere dependent
-    for TF,Tsel,TF_polward in zip(['TF1', 'TF2'], [TF1, TF2], [TF1_poleward, TF2_poleward]):
+    for TF,Tsel,TF_poleward in zip(['TF1', 'TF2'], [TF1, TF2], [TF1_poleward, TF2_poleward]):
 
-        print(TF,TF_polward)
-        if (hemis == 'SH') & TF_polward:
+        print(TF,TF_poleward)
+        if (hemis == 'SH') & TF_poleward:
             region = ('10') # SO region
-        elif (hemis == 'SH') & (not TF_polward):
+        elif (hemis == 'SH') & (not TF_poleward):
             region = ('12') # SO region
-        elif (hemis == 'NH') & (TF_polward):
+        elif (hemis == 'NH') & (TF_poleward):
             region = ('03','04') # assign subarctic and high-arctic region
-        elif (hemis == 'NH') & (not TF_polward):
+        elif (hemis == 'NH') & (not TF_poleward):
             region = ('05','04') # assign subarctic and high-arctic region
         else:
             region =False
 
-        # cut high sigma values
         if (Tsel is None):
             slope_test = False
             data_density  = False
             #return data_density, slope_test
             print('break -------', k, TF,  data_density, slope_test)
             continue
+
+        else:
+            # flip the beam section that is not poleward
+            if not TF_poleward:
+                print('TF polewards is ', TF_poleward)
+                Tsel = Tsel.sort_values(('ref','seg_dist_x'), ascending=False).reset_index()
+
+            # create local x axis
+            Tsel['x'] = abs(Tsel['ref']['seg_dist_x'] -Tsel['ref']['seg_dist_x'].iloc[0])
+
 
         # ignore bad segments
         Tsel = Tsel[Tsel['heights']['height_segment_surface_error_est'] < 1e2]
@@ -353,23 +368,33 @@ for k in beams:
         DD_slope.loc[ k, TF] = slope_test
         DD_data.loc[  k, TF] = data_density
         DD_region.loc[k, TF] = region
-        DD_pos_start.loc[k, [TF+'_lon', TF+'_lat']]  =  Tsel.iloc[0]['ref']['longitude']  , Tsel.iloc[0]['ref']['latitude']
-        DD_pos_end.loc[k, [TF+'_lon', TF+'_lat']]    =  Tsel.iloc[-1]['ref']['longitude'] ,Tsel.iloc[-1]['ref']['latitude']
+        DD_pos_start.loc[k, TF]  =  Tsel.iloc[0]['ref']['longitude']  , Tsel.iloc[0]['ref']['latitude'],  Tsel.iloc[0]['ref']['seg_dist_x'],  Tsel.iloc[0]['time']['delta_time']
+        DD_pos_end.loc[k,   TF]  =  Tsel.iloc[-1]['ref']['longitude'] , Tsel.iloc[-1]['ref']['latitude'],  Tsel.iloc[-1]['ref']['seg_dist_x'], Tsel.iloc[-1]['time']['delta_time']
+        # DD_pos_start.loc[k, [TF+'_lon', TF+'_lat']]  =  Tsel.iloc[0]['ref']['longitude']  , Tsel.iloc[0]['ref']['latitude'],  Tsel.iloc[0]['ref']['seg_dist_x'],  Tsel.iloc[0]['time']['delta_time']
+        # DD_pos_end.loc[k, [TF+'_lon', TF+'_lat']]    =  Tsel.iloc[-1]['ref']['longitude'] , Tsel.iloc[-1]['ref']['latitude'],  Tsel.iloc[-1]['ref']['seg_dist_x'], Tsel.iloc[-1]['time']['delta_time']
         print('result-------', k, TF, data_density, slope_test)
 
 
 # %%
-DD_pos_start
+#TF1_start = DD_pos_start[ ['TF1_lon', 'TF1_lat'] ].iloc[abs(DD_pos_start['TF1_lat']).astype('float').argmin() ]
+#TF1_end   = DD_pos_end[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmax() ]
 
-TF1_start = DD_pos_start[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmin() ]
-TF2_start = DD_pos_start[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmin() ]
+#TF2_start = DD_pos_start[ ['TF2_lon', 'TF2_lat'] ].iloc[abs(DD_pos_start['TF2_lat']).astype('float').argmin() ]
+#TF2_end   = DD_pos_end[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmax() ]
 
-DD_pos_end
 
-TF1_end = DD_pos_end[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmax() ]
-TF2_end = DD_pos_end[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmax() ]
+TT_start, TT_end = dict(), dict()
+for Ti in DD_pos_start:
+    print(Ti)
 
-DD_pos_end
+    ddtime_start, ddtime_end = list(), list()
+    for k in all_beams:
+        ddtime_start.append(DD_pos_start[Ti][k][1]) # get latitude
+        ddtime_end.append(DD_pos_end[Ti][k][1])     # get latitude
+
+    #print(ddtime_start, ddtime_end)
+    TT_start[Ti] = DD_pos_start[Ti].iloc[np.array(ddtime_start).argmin()]
+    TT_end[Ti] = DD_pos_end[Ti].iloc[np.array(ddtime_end).argmax()]
 
 # %%
 # Test if 1st slope segment is negative. There might be better way to test for waves in the data
@@ -381,157 +406,113 @@ if (DD_slope_mask.sum() > 1).sum() > 0:
 
 else:
     print('no suffcient data, quit()')
-    ll_name   = ATlevel+'_stats_'+track_name+'_fail'
-    DD_merge  = pd.concat({'density_Nperm':DD_data , 'slopes':DD_slope}, axis=1)
-    DD_merge.to_html(save_path+ll_name+'.html')
-    #DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]
-    MT.save_pandas_table({'T':DD_merge},ll_name, save_path)
-    #DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]
-    #MT.json_save(name=ll_name, path=save_path, data= DD_merge.where(pd.notnull(DD_merge), 0).T.to_dict())
-    MT.json_save(name='A01b_success_'+track_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
+    MT.json_save(name='A01b_'+track_name+'_success', path=save_path, \
+    data= {'failed': 'True', 'reason':'no sufficient data' ,'slope': DD_slope.where(pd.notnull(DD_slope), 0).to_dict(), 'density':DD_data.where(pd.notnull(DD_data), 0).to_dict() })
     exit()
 
-
-
-# distill regions of interest
-region_list   = list()
-#DD_region[~DD_slope_mask] = (np.nan)
-for i in DD_region.to_numpy().flatten()[DD_slope_mask.to_numpy().flatten()]:
-
-    if hemis == 'SH':
-        region_list.append(i)
-    else:
-        [region_list.append(ii) for ii in i]
-
-region_list = list(set(region_list))
-region_list = [str(int(i)).zfill(2) for i in region_list]
-print('region(s) ', region_list)
-
 # %%
-class case_ID(object):
-    """docstring for case_ID"""
-    def __init__(self, track_name):
-        import re
-        super(case_ID, self).__init__()
-
-        #track_name_pattern = r'(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_(\d{4})(\d{2})(\d{2})_(\d{3})_(\d{2})'
-        track_name_pattern = r'(\D{2}|\d{2})_?(\d{4})(\d{2})(\d{2})(\d{2})?(\d{2})?(\d{2})?_(\d{4})(\d{2})(\d{2})_?(\d{3})?_?(\d{2})?'
-        case_ID_pattern = r'(\d{4})(\d{2})(\d{2})_(\d{4})(\d{2})(\d{2})'
-
-        track_name_rx = re.compile(track_name_pattern)
-        self.hemis,self.YY,self.MM,self.DD,self.HH,self.MN,self.SS,self.TRK,self.CYC,self.GRN,self.RL,self.VRS = track_name_rx.findall(track_name).pop()
-
-        if self.hemis == '01':
-            self.hemis = 'NH'
-        elif self.hemis == '02':
-            self.hemis = 'SH'
-        else:
-            self.hemis = self.hemis
-        #self.hemis = hemis
-        self.set()
-        self.track_name_init = track_name
-
-    def set(self):
-        block1 = (self.YY,self.MM,self.DD)
-        block2 = (self.TRK,self.CYC,self.GRN)
-
-        self.ID = self.hemis+'_'+''.join(block1) +'_'+ ''.join(block2)
-        return self.ID
-
-    def set_ATL03_trackname(self):
-
-        block1 = (self.YY,self.MM,self.DD)
-        block1b = (self.HH,self.MN,self.SS)
-        block2 = (self.TRK,self.CYC,self.GRN)
-        if self.RL is '':
-            raise ValueError("RL not set")
-        if self.VRS is '':
-            raise ValueError("VRS not set")
-
-        block3 = (self.RL,self.VRS)
-
-        self.ID = ''.join(block1) +''.join(block1b) +'_'+ ''.join(block2) +'_'+ '_'.join(block3)
-        return self.ID
-
-    def set_ATL10_trackname(self):
-
-        block1 = (self.YY,self.MM,self.DD)
-        block1b = (self.HH,self.MN,self.SS)
-        block2 = (self.TRK,self.CYC, '01') # granule is alwasy '01' for ATL10
-        if self.RL is '':
-            raise ValueError("RL not set")
-        if self.VRS is '':
-            raise ValueError("VRS not set")
-
-        block3 = (self.RL,self.VRS)
-
-        if self.hemis == 'NH':
-            hemis = '01'
-        elif self.hemis == 'SH':
-            hemis = '02'
-        else:
-            hemis = self.hemis
-
-        self.ID = hemis+'_'+''.join(block1) +''.join(block1b) +'_'+ ''.join(block2) +'_'+ '_'.join(block3)
-        return self.ID
-
-
-ID1= 'ATL03-NH_20190102_00780200'
-CID = case_ID(ID1)
-CID.track_name_init
-CID.set()
-CID.GRN='10'
-CID.set()
-CID.RL, CID.VRS='001', '01'
-CID.set_ATL03_trackname()
-CID.set_ATL10_trackname()
-
-CID = case_ID('ATL10-01_'+track_name)
-CID.track_name_init
-CID.set()
-CID.GRN='40'
-CID.set()
-CID.set_ATL03_trackname()
-CID.set_ATL10_trackname()
-
-# %%
-# generate file names for ATL03
-
-DD_list = list()
-for TF,TF_polward in zip(['TF1', 'TF2'], [TF1_poleward, TF2_poleward]):
+# initiate ID files
+ATL03_proposed, ATL03_remote_link, ATL03_remote= [],[],[]
+imp.reload(io)
+for TF,TF_poleward in zip(['TF1', 'TF2'], [TF1_poleward, TF2_poleward]):
     iregion = DD_region[TF][DD_slope_mask[TF]]
     if len(iregion) !=0:
-        iregion2 =list(iregion[0])
+        #iregion2 = iregion[0][0] # for testing
+        iregion2 = iregion[0]
         print(iregion2)
         # create track dict
-        CID = case_ID(hemis+'_'+track_name)
-        CID.GRN = iregion2[0]
-        DD= {'case_ID':  CID.set() ,  'tracks' : {} }
+        CID = io.case_ID(hemis+'_'+track_name)
+        if type(iregion2) is str:  # This is the SH case
+            CID.GRN = iregion2
+            CID.set() # reset Case ID
+            DD= {'case_ID':  CID.ID ,  'tracks' : {} }
 
-        ATL03_list= list()
-        for i in iregion2:
-            CID = case_ID(hemis+'_'+track_name)
-            CID.GRN = i
-            # print(CID.set() )
-            # print(CID.set_ATL03_trackname() )
-            ATL03_list.append(CID.set_ATL03_trackname())
+            CIDr = io.case_ID(hemis+'_'+track_name)
+            CIDr.GRN = iregion2
+            CIDr.RL = '005'
+            #ATL03_list.append('ATL03_'+CIDr.set_ATL03_trackname())
+            #print(CIDr.get_granule() in remote_names)
 
-        DD['tracks']['ATL03']   = ['ATL03_'+i for i in ATL03_list]
+            #ATL03_dummy= [CIDr.set_dummy()]
+            ATL03_list = ['ATL03_'+CIDr.set_ATL03_trackname()]
+
+            org_files, remote_files, remote_names = io.nsidc_icesat2_get_associated_file(ATL03_list, 'ATL03')
+
+            # DD['tracks']['ATL03']   = ['ATL03_'+i for i in ATL03_list]
+            # #DD['tracks']['ATL03_dummy']   = ATL03_dummy#['ATL03_'+i for i in ATL03_dummy]
+            # ATL03_proposed         += org_files
+            # ATL03_remote_link      +=remote_files
+            # ATL03_remote           +=remote_names
+
+        else: # this is the NH case
+            CID.GRN =iregion2[0]
+            CID.set() # reset Case ID
+            DD= {'case_ID':  CID.ID ,  'tracks' : {} }
+
+            ATL03_list= list()
+            for i in iregion2:
+                CIDr = io.case_ID(hemis+'_'+track_name)
+                CIDr.GRN = i
+                ATL03_list.append('ATL03_'+CIDr.set_ATL03_trackname())
+
+            org_files, remote_files, remote_names = io.nsidc_icesat2_get_associated_file(ATL03_list, 'ATL03')
+
+        DD['tracks']['ATL03']   = [rem.split('.')[0] for rem in remote_names] #['ATL03_'+i for i in ATL03_list]
+        ATL03_proposed         += org_files
+        ATL03_remote_link      += remote_files
+        ATL03_remote           += remote_names
+
         DD['tracks']['ATL10']   = 'ATL10-' +CID.set_ATL10_trackname()
+        DD['tracks']['ATL07']   = 'ATL07-' +CID.set_ATL10_trackname()
 
         # add other pars:
-        DD['pars'] ={'poleward':TF_polward, }
-        print(DD)
-        DD_list.append(DD)
+        DD['pars'] ={
+        'poleward':TF_poleward, 'region': iregion2,
+        'start': {'longitude': TT_start[TF][0], 'latitude': TT_start[TF][1], 'seg_dist_x': TT_start[TF][2], 'delta_time': TT_start[TF][3]},
+        'end': {'longitude': TT_end[TF][0], 'latitude': TT_end[TF][1], 'seg_dist_x': TT_end[TF][2], 'delta_time': TT_end[TF][3]},
+        'beams':list(DD_data[TF].index), 'density':list(DD_data[TF]), 'slope': list(DD_slope[TF])
+            }
+        # write .json ID file if files found
 
 
-DD_list
+        if len(remote_names) !=0:
+            MT.json_save2(name='A01b_ID_'+CID.ID, path=save_path, data= DD)
+        else:
+            print('no ATL03 track found for CID.ID')
 
 
+ATL03_proposed      = list(set(ATL03_proposed))
+ATL03_remote_link   = list(set(ATL03_remote_link))
+ATL03_remote        = list(set(ATL03_remote))
 
-DD
+
+if len(ATL03_remote) ==0:
+    print('no ATL03 tracks found! quit()')
+    MT.json_save(name='A01b_'+track_name+'_success', path=save_path, \
+    data= {'failed': 'True', 'reason':'no ATL03 track found' ,'slope': DD_slope.where(pd.notnull(DD_slope), 0).to_dict(), 'density':DD_data.where(pd.notnull(DD_data), 0).to_dict() })
+    exit()
+
+product_directory, sd = ATL03_remote_link[0].split('/')[4], ATL03_remote_link[0].split('/')[5]
 
 
+# %% download ATL03 file to scratch folder
+def ATL03_download_worker(fname):
+    io.ATL03_download(None,None, scratch_path, product_directory, sd,fname)
+    print(fname, ' done')
+
+if test_flag:
+    for rname in remote_names:
+        MT.save_pandas_table({'dummy_download':DD_slope},rname.split('.')[0], scratch_path)
+else:
+    with futures.ThreadPoolExecutor(max_workers=3) as executor:
+        A = list( executor.map(ATL03_download_worker, ATL03_remote)  )
+
+
+# linear version
+# for rname in remote_names:
+#     io.ATL03_download(username,pword, save_path, product_directory, sd,rname)
+
+# %%
 # print results and write files to exit
 print('data density N/meter')
 print(DD_data)
@@ -539,14 +520,14 @@ print(DD_data)
 print('slopes')
 print(DD_slope)
 
-#DD_slope.to_html()
-for ll in ATL03_list:
-    ll_name = 'ATL03_stats_'+ll
-    DD_merge = pd.concat({'density_Nperm':DD_data , 'slopes':DD_slope}, axis=1)
-    DD_merge.to_html(save_path+ll_name+'.html')
-    #DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]
-    MT.save_pandas_table({'T':DD_merge},ll_name, save_path)
-    #MT.json_save(name=ll_name, path=save_path, data= DD_merge.where(pd.notnull(DD_merge), 0).T.to_dict())
-    #DD_merge.to_json(save_path+ll_name+'.json', orient="records", lines=True)
+# write slope data for fun
+#DD_merge = pd.concat({'density_Nperm':DD_data , 'slopes':DD_slope}, axis=1)
+#DD_merge.to_html(save_path+ll_name+'.html')
+#DD_merge.columns = ['-'.join(col).strip() for col in DD_merge.columns.values]
+#MT.save_pandas_table({'T':DD_merge},ll_name, save_path)
+#MT.json_save(name=ll_name, path=save_path, data= DD_merge.where(pd.notnull(DD_merge), 0).T.to_dict())
+#DD_merge.to_json(save_path+ll_name+'.json', orient="records", lines=True)
 
-MT.json_save(name='A01b_success_'+track_name, path=save_path, data= DD_slope.where(pd.notnull(DD_slope), 0).to_dict())
+# write success file
+MT.json_save(name='A01b_'+track_name+'_success', path=save_path, \
+data= {'failed': 'False', 'slope': DD_slope.where(pd.notnull(DD_slope), 0).to_dict(), 'density':DD_data.where(pd.notnull(DD_data), 0).to_dict() })

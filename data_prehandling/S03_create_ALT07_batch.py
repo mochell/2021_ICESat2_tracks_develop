@@ -24,8 +24,13 @@ path = mconfig['paths']['analysis']+'../track_lists/'
 
 
 # batch   = 'Batch02_alex'
-with open(path+  'ALT10_tracks_complete.txt', 'r') as f:
+# with open(path+  'ALT10_tracks_complete.txt', 'r') as f:
+#     h5_files = f.readlines()
+
+
+with open(path+  'batch05_NA_ATL10.txt', 'r') as f:
     h5_files = f.readlines()
+    batch05_NA_ATL10
 
 print('total number of tracks:', len(h5_files))
 

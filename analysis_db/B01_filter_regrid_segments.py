@@ -42,39 +42,40 @@ def get_size(x):
 #processed_ATL03_20190605061807_10380310_004_01.h5
 
 #imp.reload(io)
-track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
+#ID_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#ID_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190101020504_00550212_005_01', 'SH_batch04', False
+#ID_name, batch_key, test_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190101020504_00550212_005_01', 'SH_batch04', False
 
+# NH
+#ID_name, batch_key, ID_flag = 'NH_20190301_09560205', 'NH_batch05', True # poleward false
 
 # equatorward track
-#track_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
 
 # poleward track
-#track_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
 #conner
 
 # for plotting
 #rack_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
+ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'] )
 
-
-#print(track_name, batch_key, test_flag)
-hemis, batch = batch_key.split('_')
-#track_name= '20190605061807_10380310_004_01'
+#ID_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
 
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
-load_file   = load_path +ATlevel+'_'+track_name+'.h5'
+load_file   = 'A01c_'+ATlevel+'_'+ID_name
+load_file_str   = load_path + load_file+'.h5'
 
 save_path  = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 
-plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/B01/'
+plot_path = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+ID_name +'/B01/'
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
 
@@ -95,50 +96,77 @@ all_beams   = mconfig['beams']['all_beams']
 high_beams  = mconfig['beams']['high_beams']
 # low_beams   = mconfig['beams']['low_beams']
 
-f         = h5py.File(load_file, 'r')
-beams     = [b if b in f.keys() else None for b in all_beams]
-imp.reload(regrid)
-track_poleward    = regrid.track_pole_ward_file(f)
+
+if ID_flag:
+    track_poleward = ID['pars']['poleward']
+    beams = all_beams
+else:
+    f         = h5py.File(load_file_str, 'r')
+    beams     = [b if b in f.keys() else None for b in all_beams]
+    imp.reload(regrid)
+    track_poleward    = regrid.track_pole_ward_file(f)
+
 print('poleward track is ' , track_poleward)
 # Load fata and apply height corrections
 # This needs version 2 of the ALT 03 dataset
 
-# ATL03       =   h5py.File(load_file, 'r')
+# ATL03       =   h5py.File(load_file_str, 'r')
 
 #ATL03[k+'/heights/ph_id_channel'][0:100]
 #accent = regrid.track_type( B[beams_list[0]] )
 
 # %%
+# open HDF5 file for all tracks
+#ATL03       =   h5py.File(save_path_data + '/A01c_ATL03_'+ ID_name+'_2.h5', 'r')
+
+def get_ATL03_beam(ATL03_k):
+
+    DD = pd.DataFrame()#columns = ATL03.keys())
+    for ikey in ATL03_k.keys():
+        DD[ikey] = ATL03_k[ikey]
+
+    return DD
+
+ATL03       =   h5py.File(load_path +'/'+load_file +'_corrected.h5', 'r')
+ATL03_seg   =   h5py.File(load_path +'/'+load_file +'_seg.h5', 'r')
+#ATL03_c     =   h5py.File(load_path +'/'+load_file +'_c.h5', 'r')
+
+
 
 #for k in beams:
 def load_data_and_cut(k):
-    print(k)
-    # k =all_beams[1]
-    # imp.reload(io)
-    T, seg = io.getATL03_beam(load_file, beam= k)
+    #print(k)
+    #k =all_beams[1]
+
+    Tsel   = get_ATL03_beam(ATL03[k])
+    seg = get_ATL03_beam(ATL03_seg[k])
+    #Tsel_c = get_ATL03_beam(ATL03_c[k])
+
+    #imp.reload(io)
+    #T, seg = io.getATL03_beam(load_file_str, beam= k)
 
     print('loaded')
-    T = T[T['mask_seaice']] # only take sea ice points, no ocean points
+    #T = T[T['mask_seaice']] # only take sea ice points, no ocean points
     #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
-    T = T.drop(labels=[ 'ph_id_count', 'mask_seaice'], axis= 1)
+    #T = T.drop(labels=[ 'ph_id_count', 'mask_seaice'], axis= 1)
     print( 'T MB '  + get_size(T) )
 
     ho = k
-    ho = MT.add_line_var(ho, 'size', str(T.shape[0]))
-    ho = MT.add_line_var(ho, 'by confidence levels:' + str(np.arange(0, 5)), [ (T['signal_confidence'] == i).sum() for i in np.arange(0, 5) ])
+    # ho = MT.add_line_var(ho, 'size', str(T.shape[0]))
+    # ho = MT.add_line_var(ho, 'by confidence levels:' + str(np.arange(0, 5)), [ (T['signal_confidence'] == i).sum() for i in np.arange(0, 5) ])
 
     # filter:
-    Tsel    = T[ (T['heights']<100) & (T['heights'] > -100) ]# & (T['delta_time']>5) & (T['delta_time']<24) ]
+    #Tsel    = T[ (T['heights']<100) & (T['heights'] > -100) ]# & (T['delta_time']>5) & (T['delta_time']<24) ]
 
     # if len(Tsel) == 0:
     #     ho  = MT.add_line_var(ho, 'no photons found', '')
     #     #Tsel= T[(T['signal_confidence'] ==-1 ) & (T['heights']<100)  & (T['heights'] > -100) ]# & (T['delta_time']>5) & (T['delta_time']<24) ]
 
-    Tsel_c  = io.getATL03_height_correction(load_file)
-    Tsel_c  = Tsel_c[Tsel_c['dem_h'] < 1e5] # cute out weird references
-    # needs only dem_h and heihgts
-    Tsel = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
-    print('height corrected')
+    #Tsel_c  = io.getATL03_height_correction(load_file_str)
+    # Tsel_c  = Tsel_c[Tsel_c['dem_h'] < 1e5] # cute out weird references
+    # # needs only dem_h and heihgts
+    # Tsel = regrid.correct_heights(Tsel, Tsel_c).reset_index(drop=True)# correct height
+    #print('height corrected')
 
 
     ### cut data at the rear that has too much variance
@@ -192,12 +220,13 @@ def load_data_and_cut(k):
 
     return k, rear_mask, Tsel, seg, ho
 
+
 #load_data_and_cut(all_beams[1])
 
 # %%
 hist    = 'Beam stats'
 B       = dict()
-B1save  = dict()
+#B1save  = dict()
 SEG     = dict()
 k = beams[0]
 
@@ -210,12 +239,16 @@ with futures.ProcessPoolExecutor(max_workers=Nworkers_process) as executor:
     A = list( executor.map(load_data_and_cut, all_beams)  )
 
 print( 'A MB '  + get_size(A) )
+ATL03.close()
+ATL03_seg.close()
+#ATL03_c.close()
+
 
 for I in A: # collect returns from from mapping
     k, rear_mask, Tsel, seg, ho  = I
 
     Tsel['process_mask']  = rear_mask
-    B1save[k]             = Tsel
+    #B1save[k]             = Tsel
     B[k]                  = Tsel[rear_mask].drop(columns='process_mask')
     SEG[k]                = seg
 
@@ -232,7 +265,7 @@ print('done with 1st loop')
 del Tsel
 del A
 
-print( 'B_save MB '  + get_size(B1save) )
+#print( 'B_save MB '  + get_size(B1save) )
 print( 'B MB '  +  get_size(B) )
 print( 'SEG MB '  +  get_size(SEG) )
 
@@ -256,17 +289,15 @@ total_segment_dist_x_min = min(total_segment_dist_x_min)
 
 # %%
 def make_x_coorindate(k):
-
     """
     Returns the "true" along track coordindate but finding the correpsonding segment length
     also adds the segment_ID to the main table T
     """
     print(k, ' make coodindate')
     T, seg  = B[k], SEG[k]
-
     # make sure data is strictly ordered by delta_time
     T   = T.sort_values('delta_time').reset_index(drop=True)
-
+    seg   = seg.sort_values('delta_time').reset_index(drop=True)
     # find positions where segmetn length is reset
     # shifts segment length postions in time
     delta_onehalf           = seg['delta_time'].diff()/2
@@ -363,15 +394,15 @@ for k, I in B.items():
 
 if (np.array(p_densities_l).mean() < 0.5) & (np.array(p_densities_r).mean() < 0.5): # in photons per meter
     print('photon density too low, this track is classified as bad track and pushed to bad list')
-    MT.json_save(track_name, bad_track_path, {'densities': [ np.array(p_densities_r).mean(), np.array(p_densities_l).mean()] , 'date': str(datetime.date.today()) })
+    MT.json_save(ID_name, bad_track_path, {'densities': [ np.array(p_densities_r).mean(), np.array(p_densities_l).mean()] , 'date': str(datetime.date.today()) })
     print('exit.')
     exit()
 
 
 # %% save corrected data and delete from cash
-io.save_pandas_table(B1save, track_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with
-#io.save_pandas_table(B, track_name + '_B01_new_coords'  , save_path) # all photos but heights adjusted and with distance coordinate
-del B1save
+#io.save_pandas_table(B1save, ID_name + '_B01_corrected'  , save_path) # all photos but heights adjusted and with
+#io.save_pandas_table(B, ID_name + '_B01_new_coords'  , save_path) # all photos but heights adjusted and with distance coordinate
+#del B1save
 
 # for testing
 # T2 = B['gt1r']
@@ -394,7 +425,7 @@ for k,I in B.items():
     #plt.xlim(3e6, 3.25e6)
 plt.xlabel('lats')
 plt.ylabel('x')
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_lat_x')
+F.save_light(path= plot_path, name='B01_ALT03_'+ID_name+'_tracks_check_lat_x')
 
 # %%
 F = M.figure_axis_xy(4, 3, view_scale = 0.7)
@@ -404,7 +435,7 @@ for k,I in B.items():
 
 plt.xlabel('delta time')
 plt.ylabel('lat')
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_time_lat')
+F.save_light(path= plot_path, name='B01_ALT03_'+ID_name+'_tracks_check_time_lat')
 # %%
 F = M.figure_axis_xy(4, 3, view_scale = 0.7)
 
@@ -414,7 +445,7 @@ for k,I in B.items():
 plt.xlabel('delta time')
 plt.ylabel('x')
 
-F.save_light(path= plot_path, name='B01_ALT03_'+track_name+'_tracks_check_time_x')
+F.save_light(path= plot_path, name='B01_ALT03_'+ID_name+'_tracks_check_time_x')
 
 # %%
 ##### 1.) derive common axis for beams and filter out low density area at the beginning
@@ -521,11 +552,11 @@ F.ax.axvline(track_dist_bounds[0]/xscale, color='gray', zorder= 2)
 F.ax.axvline(track_dist_bounds[1]/xscale, color='gray', zorder= 2)
 F.ax.axhline(0, color='gray', zorder= 2)
 
-plt.title('B01 filter and regrid | ' + track_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
+plt.title('B01 filter and regrid | ' + ID_name +'\npoleward '+str(track_poleward)+' \n \n', loc='left')
 plt.xlabel('along track distance (km)')
 plt.ylabel('across track distance (km)')
 
-F.save_light(path= plot_path +'../', name='B01_ALT03_'+track_name+'_tracks_all')
+F.save_light(path= plot_path +'../', name='B01_ALT03_'+ID_name+'_tracks_all')
 
 # %%
 # for testing
@@ -581,11 +612,11 @@ for k,I in B3.items():
     B3[k] = I
 
 # save Json
-MT.json_save(track_name + '_B01_stats',save_path, D_info, verbose= True )
+MT.json_save(ID_name + '_B01_stats',save_path, D_info, verbose= True )
 
 # %% saving data
-io.save_pandas_table(B2, track_name + '_B01_regridded'  , save_path) # all photos but heights adjusted and with distance coordinate
-io.save_pandas_table(B3, track_name + '_B01_binned'     , save_path) # regridding heights
+io.save_pandas_table(B2, ID_name + '_B01_regridded'  , save_path) # all photos but heights adjusted and with distance coordinate
+io.save_pandas_table(B3, ID_name + '_B01_binned'     , save_path) # regridding heights
 
 
 # %% plotting just for checking
