@@ -125,7 +125,7 @@ ID_flag	= True
 # infer parameters
 batch_key = $(hemis)_$(batch)
 # infer hemis number, needed for ALT07/10 tracks
-ifeq ($(hemis), SH)
+ifeq ($(hemis), 'SH')
 hemis_num = 02
 else
 hemis_num = 01
