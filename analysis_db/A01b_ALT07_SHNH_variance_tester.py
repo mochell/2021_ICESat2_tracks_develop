@@ -46,6 +46,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190102130012_00780201_005_01', 'SH_batch04', False
 #track_name, batch_key, test_flag = '20190101005132_00550201_005_01', 'SH_batch04', False # <-- !
 #track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
+#track_name, batch_key, test_flag = '20190102191722_00820201_005_01', 'SH_batch04', False
 
 
 
@@ -389,8 +390,12 @@ for Ti in DD_pos_start:
 
     ddtime_start, ddtime_end = list(), list()
     for k in all_beams:
-        ddtime_start.append(DD_pos_start[Ti][k][1]) # get latitude
-        ddtime_end.append(DD_pos_end[Ti][k][1])     # get latitude
+        if (type(DD_pos_start[Ti][k]) is not tuple):
+            ddtime_start.append(np.nan) # get latitude
+            ddtime_end.append(np.nan)     # get latitude
+        else:
+            ddtime_start.append(DD_pos_start[Ti][k][1]) # get latitude
+            ddtime_end.append(DD_pos_end[Ti][k][1])     # get latitude
 
     #print(ddtime_start, ddtime_end)
     TT_start[Ti] = DD_pos_start[Ti].iloc[np.array(ddtime_start).argmin()]
