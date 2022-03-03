@@ -46,7 +46,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190102130012_00780201_005_01', 'SH_batch04', False
 #track_name, batch_key, test_flag = '20190101005132_00550201_005_01', 'SH_batch04', False # <-- !
 #track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
-#track_name, batch_key, test_flag = '20190102191722_00820201_005_01', 'SH_batch04', False
+
+#track_name, batch_key, test_flag = '20190101211718_00680201_005_01', 'SH_batch04', False
 
 
 
@@ -195,7 +196,7 @@ DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 plot_flag = False
 for k in beams:
 
-    #k = beams[0]
+    #k = 'gt2r'#beams[0]
     #imp.reload(io)
     print(k)
     try:
@@ -216,6 +217,15 @@ for k in beams:
         mask2 = ~mask1
         tot_size =T_freeboard['ref']['latitude'].shape[0]
 
+        TF2, TF1 = None, None
+        if (sum(mask1) > 1000):
+            if mask1.iloc[-1]:
+                TF2 = T_freeboard[mask1]
+            else:
+                TF1 = T_freeboard[mask1]
+        if (sum(mask2) > 1000):
+            TF2 = T_freeboard[mask2]
+
     else:
         ###### for NH tracks
         from scipy.ndimage.measurements import label
@@ -226,16 +236,16 @@ for k in beams:
         mask2 = ~mask1
         tot_size =T_freeboard['ref']['latitude'].shape[0]
 
-    # cut data accordingly
-    if (sum(mask1)/tot_size < 0.05) or (sum(mask1) < 1000):
-        TF1 = None
-        TF2 = T_freeboard[mask2]
-    elif (sum(mask2)/tot_size < 0.05) or (sum(mask2) < 1000):
-        TF1 = T_freeboard[mask1]
-        TF2 = None
-    else:
-        TF1 = T_freeboard[mask1]
-        TF2 = T_freeboard[mask2]
+        # cut data accordingly
+        if (sum(mask1)/tot_size < 0.05) or (sum(mask1) < 1000):
+            TF1 = None
+            TF2 = T_freeboard[mask2]
+        elif (sum(mask2)/tot_size < 0.05) or (sum(mask2) < 1000):
+            TF1 = T_freeboard[mask1]
+            TF2 = None
+        else:
+            TF1 = T_freeboard[mask1]
+            TF2 = T_freeboard[mask2]
 
     # plot splits
     if plot_flag:
@@ -406,7 +416,7 @@ for Ti in DD_pos_start:
 DD_slope_mask = DD_slope <0
 
 # if there is at leat one slope pair download data, otherwise write files and exit
-if (DD_slope_mask.sum() > 1).sum() > 0:
+if ( (DD_slope_mask.sum() > 1).sum() > 0) :
     print('download data')
 
 else:
