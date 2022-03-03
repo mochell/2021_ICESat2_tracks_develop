@@ -160,7 +160,7 @@ A01a_targets=  $(foreach i, $(A01a_track_names) , $(addprefix $(scratch_folder)$
 
 # downloads each file from from NISDC
 $(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
-					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key) -F ATL07-02_$*.h5
+					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key) -F ATL07-$(hemis_num)_$*.h5
 
 endif
 
