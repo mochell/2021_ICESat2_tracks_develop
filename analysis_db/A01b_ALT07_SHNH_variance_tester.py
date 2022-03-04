@@ -65,7 +65,7 @@ scratch_path = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
 #bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
-plot_flag   = False
+plot_flag   = True
 test_flag   = False #writes dummy variable for download files, instead of downloading
 
 # username= "mhell@ucsd.edu"
