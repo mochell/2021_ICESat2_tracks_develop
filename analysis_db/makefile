@@ -247,8 +247,8 @@ A02 : $(A02_targets)
 #A01c_success= $(shell ls $(A01c_download)/ATL03_*.h5)
 #ID_track_list= $(foreach i, $(basename $(A01c_success)), $(subst $(A01c_download)/ATL03_,,$(i))  )
 
-B01_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
-B02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B02_spectra_SH/, B02_${i}_FFT.nc ) )
+B01_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B01_regrid_$(hemis)/, ${i}_B01_binned.h5 ) )
+B02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B02_spectra_$(hemis)/, B02_${i}_FFT.nc ) )
 
 .PHONY : B01 B02# B03
 B01 : make_folder $(B01_targets)
