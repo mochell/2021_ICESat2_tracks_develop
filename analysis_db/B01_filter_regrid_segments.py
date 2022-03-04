@@ -54,6 +54,9 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 # NH
 #ID_name, batch_key, ID_flag = 'NH_20190301_09560205', 'NH_batch05', True # poleward false
 
+# SH
+#ID_name, batch_key, ID_flag = 'SH_20190101_00550210', 'SH_batch04', True
+
 # equatorward track
 #ID_name, batch_key, ID_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
 
@@ -149,7 +152,7 @@ def load_data_and_cut(k):
     #T = T[T['mask_seaice']] # only take sea ice points, no ocean points
     #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
     #T = T.drop(labels=[ 'ph_id_count', 'mask_seaice'], axis= 1)
-    print( 'T MB '  + get_size(T) )
+    print( 'T MB '  + get_size(Tsel) )
 
     ho = k
     # ho = MT.add_line_var(ho, 'size', str(T.shape[0]))
