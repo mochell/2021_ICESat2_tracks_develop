@@ -42,27 +42,27 @@ def get_size(x):
 #processed_ATL03_20190605061807_10380310_004_01.h5
 
 #imp.reload(io)
-ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-#ID_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
-#ID_name, batch_key, test_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
-#ID_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
-#ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
+#ID_name, batch_key, ID_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#ID_name, batch_key, ID_flag = '20190207234532_06340210_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
-#ID_name, batch_key, test_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
-#ID_name, batch_key, test_flag = '20190101020504_00550212_005_01', 'SH_batch04', False
+#ID_name, batch_key, ID_flag = '20190224023410_08800212_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190101020504_00550212_005_01', 'SH_batch04', False
 
 # NH
 #ID_name, batch_key, ID_flag = 'NH_20190301_09560205', 'NH_batch05', True # poleward false
 
 # equatorward track
-#ID_name, batch_key, test_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190208154150_06440212_004_01', 'SH_batch02', False
 
 # poleward track
-#ID_name, batch_key, test_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190209150245_06590210_004_01', 'SH_batch02', False
 #conner
 
 # for plotting
-#rack_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#rack_name, batch_key, ID_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
 ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'] )
 
