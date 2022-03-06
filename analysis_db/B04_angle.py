@@ -58,16 +58,14 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
-
-
-
+track_name, batch_key, test_flag = 'NH_20190301_09570203', 'NH_batch05', True
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 #track_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
 
-save_path   = mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+save_path   = mconfig['paths']['work'] +batch_key+'/B04_angle/'
 save_name   = 'B04_'+track_name
 
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
@@ -83,19 +81,25 @@ beam_groups = mconfig['beams']['groups']
 
 #Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 
-load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
-G_binned      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+load_path   = mconfig['paths']['work'] +batch_key+'/B01_regrid/'
+#G_binned      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+G_binned_store = h5py.File(load_path +'/'+track_name + '_B01_binned.h5', 'r')
+G_binned = dict()
+for b in all_beams:
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+    G_binned[b]  = io.get_beam_hdf_store(G_binned_store[b])
+G_binned_store.close()
+
+load_path   = mconfig['paths']['work'] +batch_key+'/B02_spectra/'
 Gx      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_x.nc' )  #
 Gk      = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_k.nc' )  #
 
 
 # %% load prior information
-load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key+'/A02_prior/'
 #track_name = '20190208104534_06410210_004_01'
 try:
-    Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
+    Prior = MT.load_pandas_table_dict('/A02_'+track_name, load_path)['priors_hindcast']
 except:
     print('Prior not founds exit')
     MT.json_save('B04_fail', plot_path,  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'Prior not found'})

@@ -36,12 +36,14 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
+#track_name, batch_key, test_flag = 'SH_20190101_00570212', 'SH_batch04', True
+
 
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key+'/B02_spectra/'
 load_file   = load_path + 'B02_' + track_name #+ '.nc'
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
 MT.mkdirs_r(plot_path)
@@ -60,7 +62,6 @@ high_beams  = mconfig['beams']['high_beams']
 low_beams   = mconfig['beams']['low_beams']
 #Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
 #Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
-
 col.colormaps2(21)
 
 # %% check paths (again)

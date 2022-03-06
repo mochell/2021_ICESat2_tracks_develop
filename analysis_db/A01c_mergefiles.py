@@ -37,6 +37,7 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 
 # SH example
 #ID_name, batch_key, ID_flag = 'SH_20190101_00550210', 'SH_batch04', True
+#ID_name, batch_key, ID_flag = 'SH_20190102_00770210', 'SH_batch04', True
 
 # NH example
 #ID_name, batch_key, ID_flag = 'NH_20190301_09560203', 'NH_batch05', True # poleward false
@@ -44,6 +45,7 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 
 # ID example
 #ID_name, batch_key, ID_flag = '20190101015140_00550210_005_01', 'SH_batch04', False
+
 
 #imp.reload(io)
 ID, track_names, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'] )
@@ -114,9 +116,13 @@ def ATL03_loader(k):
     return k, Tsel, Si
 
 
-Nworkers_load = 2
-with futures.ProcessPoolExecutor(max_workers=Nworkers_load) as executor:
-    A = list( executor.map(ATL03_loader, all_beams)  )
+# Nworkers_load = 2
+# with futures.ProcessPoolExecutor(max_workers=Nworkers_load) as executor:
+#     A = list( executor.map(ATL03_loader, all_beams)  )
+
+A = list()
+for bb in all_beams:
+    A.append( ATL03_loader(bb)  )
 
 # %% reorganize loaderd data
 TT, SS, TCC =dict(), dict(), dict()

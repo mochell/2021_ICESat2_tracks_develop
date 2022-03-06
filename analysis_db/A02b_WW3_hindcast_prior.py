@@ -28,26 +28,27 @@ import concurrent.futures as futures
 col.colormaps2(21)
 
 # %%
-track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
+track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190217194220_07840212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, ID_flag = 'NH_20190301_09560203', 'NH_batch05', True
 track_name_short = track_name[0:-16]
 
-
+ID, track_names, hemis, batch = io.init_data(track_name, batch_key, ID_flag, mconfig['paths']['work'] )
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 #track_name= '20190605061807_10380310_004_01'
 ATlevel= 'ATL03'
 
-save_path   = mconfig['paths']['work'] + '/A02_prior_'+hemis+'/'
+save_path   = mconfig['paths']['work'] + batch_key+'/A02_prior/'
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
-save_name   = 'A02b_'+track_name
-plot_name    = 'A02b_'+track_name_short
+save_name   = 'A02_'+track_name
+plot_name    = 'A02_'+track_name_short
 MT.mkdirs_r(plot_path)
 MT.mkdirs_r(save_path)
 bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
@@ -62,20 +63,21 @@ load_path_WAVE_GLO  = mconfig['paths']['work'] +'/GLOBMULTI_ERA5_GLOBCUR_01/'
 file_name_base      = 'LOPS_WW3-GLOB-30M_'
 
 
-load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
-Gd          = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+load_path   = mconfig['paths']['work'] +batch_key+'/B01_regrid/'
+#Gd          = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+Gd          = h5py.File(load_path +'/'+track_name + '_B01_binned.h5', 'r')
 
 # %%
 G1 = dict()
 for b in all_beams:
     # find 1st point
-    G1[b] = Gd[b].iloc[abs(Gd[b]['lats']).argmin()]
+    Gi  = io.get_beam_hdf_store(Gd[b])
+    G1[b] = Gi.iloc[abs(Gi['lats']).argmin()]
 
+Gd.close()
 G1 = pd.DataFrame.from_dict(G1).T
 
-
 # DEFINE SEARCH REGION AND SIZE OF BOXES FOR AVERAGES
-
 dlon_deg = 1 # degree range aroud 1st point
 dlat_deg = 30, 5 # degree range aroud 1st point
 dlat_deg_prior = 2, 1 # degree range aroud 1st point
@@ -85,7 +87,12 @@ dtime = 4 # in hours
 lon_range       = G1['lons'].min() - dlon_deg , G1['lons'].max() + dlon_deg
 lat_range       = np.sign(G1['lats'].min())*78 , G1['lats'].max() + dlat_deg[1]
 lat_range_prior = G1['lats'].min() - dlat_deg_prior[0] , G1['lats'].max() + dlat_deg_prior[1]
-timestamp       = pd.to_datetime(G1[['year', 'month', 'day', 'hour', 'minute', 'second']]).mean()
+
+
+# load .json to get time
+#ID['tracks']['ATL07'].split('_')[1]
+timestamp       = pd.to_datetime(ID['tracks']['ATL07'].split('_')[1])
+#timestamp       = pd.to_datetime(G1[['year', 'month', 'day', 'hour', 'minute', 'second']]).mean()
 time_range      = np.datetime64(timestamp) - np.timedelta64(dtime, 'h') , np.datetime64(timestamp) + np.timedelta64(dtime, 'h')
 #print(time_range)
 
@@ -98,11 +105,11 @@ import glob
 
 if time_range[0].astype('M8[M]') != time_range[1].astype('M8[M]'): # spanning two years
     MM_str =  str(time_range[0].astype('M8[M]')).replace('-', '_')
-    f_list = glob.glob(load_path_WAVE_GLO+'/*'+MM_str+'_'+hemis+'*.nc')
+    f_list1 = glob.glob(load_path_WAVE_GLO+'/*'+MM_str+'_'+hemis+'*.nc')
 
     MM_str =  str(time_range[-1].astype('M8[M]')).replace('-', '_')
-    f_list = glob.glob(load_path_WAVE_GLO+'/*'+MM_str+'_'+hemis+'*.nc')
-    f_list = f_list + f_list
+    f_list2 = glob.glob(load_path_WAVE_GLO+'/*'+MM_str+'_'+hemis+'*.nc')
+    f_list = f_list1 + f_list2
 else:
     MM_str =  str(time_range[0].astype('M8[M]')).replace('-', '_')
     f_list = glob.glob(load_path_WAVE_GLO+'/*'+MM_str+'_'+hemis+'*.nc')
@@ -208,7 +215,8 @@ try:
         #G_beam.ice.plot(cmap=plt.cm.Blues_r, )
         if fv != 'ice':
             cm = plt.pcolor(lon, lat,G_beam[fv].where(~ice_mask, np.nan), vmin=cl[0], vmax=cl[-1] , cmap=fc)
-            plt.contour(lon, lat,G_beam.ice, colors= 'black', linewidths = 0.6)
+            if G_beam.ice.shape[0] > 1:
+                plt.contour(lon, lat,G_beam.ice, colors= 'black', linewidths = 0.6)
         else:
             cm =plt.pcolor(lon, lat,G_beam[fv], vmin=cl[0], vmax=cl[-1],  cmap=fc)
 

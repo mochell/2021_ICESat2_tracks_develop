@@ -160,7 +160,11 @@ k = G_gFT_smth.k
 # %%
 k_lead_peak = k[G_gFT_smth.isel(x=0).argmax().data].data
 if k_lead_peak== k[0].data or k_lead_peak == k[-1].data:
-    raise ValueError('wavenumber Peak on Boundary!')
+    #raise ValueError('wavenumber Peak on Boundary!')
+    print('wavenumber Peak on Boundary!')
+    MT.json_save('B06_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'wavenumber Peak on Boundary!'})
+    print('exit()')
+    exit()
 
 k_lims =0.01
 k_span = [k_lead_peak- k_lims , k_lead_peak, k_lead_peak+ k_lims]
@@ -206,10 +210,17 @@ def define_noise_wavenumber_tresh_simple(data_xr, k_peak, k_end_lim =None,  plot
         k_end_lim =data_xr.k[-1]
 
     k_lead_peak_margin = k_peak *1.05
-    data_log = np.log(data_xr).isel(k =(data_xr.k > k_lead_peak_margin)).rolling(k =10,  center=True, min_periods=1).mean()
-    k_log= np.log(data_log.k)
-    d_grad = data_log.differentiate('k').rolling(k =40, center=True, min_periods=4).mean()
+    try:
+        data_log = np.log(data_xr).isel(k =(data_xr.k > k_lead_peak_margin)).rolling(k =10,  center=True, min_periods=1).mean()
 
+    except:
+        data_log = np.log(data_xr).isel(k =(data_xr.k > k_lead_peak_margin/2)).rolling(k =10,  center=True, min_periods=1).mean()
+
+    k_log= np.log(data_log.k)
+    try:
+        d_grad = data_log.differentiate('k').rolling(k =40, center=True, min_periods=4).mean()
+    except:
+        d_grad = data_log.differentiate('k').rolling(k =20, center=True, min_periods=2).mean()
     ll = label( d_grad >=-5  )
 
     #test if plausible minium exist:
@@ -308,8 +319,8 @@ plt.title('Weigthen mean spectral Power ', loc='left')
 G_gFT_smth.isel(x = slice(0, -1)).k_lim.plot(color= col.black, linewidth = 1)
 plt.ylabel('wavenumber k')
 
-F.save_light(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
-F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
+F.save_light(path=plot_path, name = str(track_name)+ '_B06_atten_ov')
+#F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
 
 
 #%% reconstruct slope displacement data

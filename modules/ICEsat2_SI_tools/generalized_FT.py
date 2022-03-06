@@ -76,6 +76,18 @@ class wavenumber_spectrogram_gFT(object):
         #self.LS = LombScargle(X[0:L] , np.random.randn(L)*0.001, fit_mean=True)
 
         # define  weight function
+        def smooth_data_to_weight(dd, m=150):
+
+            import lanczos
+            dd_fake = np.ones( 4*m + dd.size)*dd.max()*0.01
+            dd_fake[2*m:-2*m]=dd
+
+            weight = lanczos.lanczos_filter_1d_wrapping(np.arange(dd_fake.size), dd_fake, m)
+            #weight= M.runningmean_wrap_around(dd_fake, m=m)
+            weight=weight[2*m:-2*m]
+            weight=weight/weight.max()
+
+            return weight
 
         def get_weights_from_data(x, y, dx, stancil, k, plot_flag=False, method = 'gaussian' ):
 
@@ -149,7 +161,7 @@ class wavenumber_spectrogram_gFT(object):
 
                 #plt.plot(k_fft[1:], Spec_fft.model_func(Spec_fft.freq, pars), 'b--' )
 
-                plt.plot(k, weight, zorder=12, label = 'weights')
+                plt.plot(k, weight, zorder=12, label = 'weights from fft')
                 plt.plot(k_fft[1:], Spec_fft.data, label='fft for prior')
                 plt.xlim(k[0],k[-1] )
 
@@ -160,7 +172,7 @@ class wavenumber_spectrogram_gFT(object):
             return weight, params
 
 
-        def calc_gFT_apply(stancil):
+        def calc_gFT_apply(stancil, prior):
 
             """
             windows the data accoding to stencil and applies LS spectrogram
@@ -177,7 +189,7 @@ class wavenumber_spectrogram_gFT(object):
             x = X[x_mask]
             if x.size/Lpoints < 0.1: # if there are not enough photos set results to nan
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
-                return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size
+                return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size, False, False
             y = DATA[x_mask]
 
             y_var = y.var()
@@ -186,8 +198,20 @@ class wavenumber_spectrogram_gFT(object):
             H = FT.get_H()
 
             # define weights
-            weight, prior_pars = get_weights_from_data(x, y, self.dx, stancil, self.k, plot_flag=plot_flag, method='parametric')
+            if (type(prior[0]) is bool) and not prior[0] :
+                weight, prior_pars = get_weights_from_data(x, y, self.dx, stancil, self.k, plot_flag=plot_flag, method='parametric')
+            elif (type(prior) is tuple):
+                weight = 0.2 * smooth_data_to_weight(prior[0]) + 0.8 * prior[1]
+                weight = weight/weight.max()
+                prior_pars = {'alpha': None, 'amp': None, 'f_max': None, 'gamma':None}
+            else:
+                weight = smooth_data_to_weight(prior)
+                prior_pars = {'alpha': None, 'amp': None, 'f_max': None, 'gamma':None}
+
             weight = weight * y_var
+
+            if plot_flag:
+                plt.plot(self.k, 10 * weight, zorder=12, label = '10 * scaled weights')
 
             # define error
             noise_amp = 10
@@ -216,8 +240,10 @@ class wavenumber_spectrogram_gFT(object):
             inverse_stats = FT.get_stats(print_flag=False)
             # add fitting parameters of Prior to stats dict
             for k,I in prior_pars.items():
-                inverse_stats[k] = I.value
-
+                try:
+                    inverse_stats[k] = I.value
+                except:
+                    inverse_stats[k] = np.nan
             print( 'stats : ', time.perf_counter() - ta)
             # Z = complex_represenation(b_hat, FT.M, Lpoints )
 
@@ -238,21 +264,29 @@ class wavenumber_spectrogram_gFT(object):
                 print('---------------------------------')
 
 
-            return stancil[1], b_hat, inverse_stats, y_model_grid , y_data_grid,  x.size
+            return stancil[1], b_hat, inverse_stats, y_model_grid , y_data_grid,  x.size, PSD, weight
+
+
+
 
         # % derive L2 stancil
         self.stancil_iter = spec.create_chunk_boundaries_unit_lengths(Lmeters, self.xlims, ov= self.ov, iter_flag=True)
         #stancil_iter = create_chunk_boundaries_unit_lengths(L, ( np.round(X.min()), X.max() ), ov= self.ov, iter_flag=True)
 
         # apply func to all stancils
-        # Spec_returns=list()
-        # for ss in stancil_iter:
-        #     print(ss)
-        #     Spec_returns.append( calc_spectrum_apply(ss) )
+        Spec_returns=list()
+        prior= False, False
+        for ss in copy.copy(self.stancil_iter):
+            #print(ss)
+            #prior= False, False
+            I_return = calc_gFT_apply(ss, prior=prior)
+            prior = I_return[6], I_return[7]
+            #print(I_return[6])
+            Spec_returns.append( [I_return[0],I_return[1],I_return[2],I_return[3],I_return[4],I_return[5]] )
 
-        map_func = map if map_func is None else map_func
-        print(map_func)
-        Spec_returns = list(map_func( calc_gFT_apply, copy.copy(self.stancil_iter)   ))
+        # map_func = map if map_func is None else map_func
+        # print(map_func)
+        # Spec_returns = list(map_func( calc_gFT_apply, copy.copy(self.stancil_iter)   ))
         # # linear version
         #Spec_returns = list(map( calc_spectrum_and_field_apply, copy.copy(self.stancil_iter)   ))
 
@@ -362,7 +396,8 @@ class wavenumber_spectrogram_gFT(object):
         for k, I in Pars.items():
             if I is not np.nan:
                 PP2[k] =I
-
+        #print(Pars)
+        #print(PP2)
         keys = Pars[next(iter(PP2))].keys()
         keys_DF = set(keys) - set(['model_error_k', 'model_error_x'])
         params_dataframe = pd.DataFrame(index =keys_DF)

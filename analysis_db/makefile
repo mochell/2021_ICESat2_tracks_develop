@@ -164,7 +164,7 @@ $(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
 
 endif
 
-A01b_path=$(work_folder)/$(batch_key)/A01b_ID_$(hemis)
+A01b_path=$(work_folder)/$(batch_key)/A01b_ID
 A01b_targets= $(foreach i, $(A01a_tracks) ,$(addprefix $(A01b_path)/, A01b_$(i)_success.json ) )
 
 # checks weather or not if its is worth it to downlaod data and then downloads the corresponding ATL03 data
@@ -225,8 +225,8 @@ make_A01_folders:
 					${MKDIR_P} $(A01b_path)
 
 ## generate prior data from WW3 data, for a given, existing ATL03 track
-A02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/A02_prior_$(hemis)/, A02b_${i}_hindcast_success.json) )
-$(A02_targets) : $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json : $(A01c_path)/A01c_success_%.txt $(analysisfolder)/A02b_WW3_hindcast_prior.py
+A02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/$(batch_key)/A02_prior/, A02_${i}_hindcast_success.json) )
+$(A02_targets) : $(work_folder)/$(batch_key)/A02_prior/A02_%_hindcast_success.json : $(A01b_path)/A01b_ID_%.json $(analysisfolder)/A02b_WW3_hindcast_prior.py
 					python $(analysisfolder)/A02b_WW3_hindcast_prior.py $* $(batch_key) $(ID_flag) > log/A02/$*.txt 2>&1
 
 #/Users/Shared/Projects/2021_IceSAT2_tracks/data/scratch//SH_batch02/processed_ATL10_20190207001112_06190210_004_01.h5
@@ -247,25 +247,25 @@ A02 : $(A02_targets)
 #A01c_success= $(shell ls $(A01c_download)/ATL03_*.h5)
 #ID_track_list= $(foreach i, $(basename $(A01c_success)), $(subst $(A01c_download)/ATL03_,,$(i))  )
 
-B01_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B01_regrid_$(hemis)/, ${i}_B01_binned.h5 ) )
-B02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/B02_spectra_$(hemis)/, B02_${i}_FFT.nc ) )
+B01_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/$(batch_key)/B01_regrid/, ${i}_B01_binned.h5 ) )
+B02_targets := $(foreach i, $(ID_track_list) ,$(addprefix $(work_folder)/$(batch_key)/B02_spectra/, B02_${i}_FFT.nc ) )
 
 .PHONY : B01 B02# B03
-B01 : make_folder $(B01_targets)
-B02 : $(B02_targets) B02_collect
+B01 : $(B01_targets)
+B02 : $(B02_targets) #B02_collect
 
 # !!!!!!!!! this does not work because the track ID chanegs from ALT10 to ALT03
-$(B01_targets) : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 : $(A01b_path)/A01b_ID_%.json $(analysisfolder)/B01_filter_regrid_segments.py
+$(B01_targets) : $(work_folder)/$(batch_key)/B01_regrid/%_B01_binned.h5 : $(A01b_path)/A01b_ID_%.json #$(analysisfolder)/B01_filter_regrid_segments.py
 					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(ID_flag) > log/B01/$*.txt 2>&1
 
-$(B02_targets) : $(work_folder)/B02_spectra_$(hemis)/B02_%_FFT.nc : $(work_folder)/B01_regrid_$(hemis)/%_B01_binned.h5 #$(analysisfolder)/B02_make_spectra.py
+$(B02_targets) : $(work_folder)/$(batch_key)/B02_spectra/B02_%_FFT.nc : $(work_folder)/$(batch_key)/B01_regrid/%_B01_binned.h5 #$(analysisfolder)/B02_make_spectra.py
 					sleep $${RANDOM:0:2}s
 					python $(analysisfolder)/B02_make_spectra_gFT.py $* $(batch_key) $(ID_flag) > log/B02/$*.txt 2>&1
 
-B02_collect : #B01 B02
-					${MKDIR_P} $(plot_folder)$(hemis)/$(batch_key)/B02/
-					rm -fv $(plot_folder)$(hemis)/$(batch_key)/B02/*
-					cp $(plot_folder)$(hemis)/$(batch_key)/*/B_spectra/B02_specs_*.png $(plot_folder)$(hemis)/$(batch_key)/B02/
+# B02_collect : #B01 B02
+# 					${MKDIR_P} $(plot_folder)$(hemis)/$(batch_key)/B03/
+# 					rm -fv $(plot_folder)$(hemis)/$(batch_key)/B03/*
+# 					cp $(plot_folder)$(hemis)/$(batch_key)/*/B03_specs_*.png $(plot_folder)$(hemis)/$(batch_key)/B03/
 
 #### delete bad tracks ###
 
@@ -274,7 +274,7 @@ bad_beams_files := $(shell ls $(bad_tracks_folder)/$(batch_key)) #$(shell jq -r 
 bad_beams := $(basename $(bad_beams_files))
 
 source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch_key), /ATL03_${i}.h5 ) )
-#B01_files_01 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_binned.h5 ) )
+bad_ID_files     := $(foreach i, $(bad_beams) ,$(addprefix $(A01b_path)/, A01b_ID_${i}.json) )x
 #B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
 #B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
 
@@ -285,13 +285,14 @@ rm_bad_beams: #rm_B01_files
 					sleep 5
 					rm -fv $(source_files)
 					rm -fv -r $(plot_folders)
+					rm -fr $(bad_ID_files)
 					mv $(bad_tracks_folder)/$(batch_key)/*.json $(bad_tracks_folder)/$(batch_key)_deleted/
 
 #rm -fv $(B01_targets) $(B01_files_02) $(B01_files_03)
 
 
 # B03 overview plots
-B02_path := $(work_folder)B02_spectra_$(hemis)/B02_
+B02_path := $(work_folder)/$(batch_key)/B02_spectra/B02_
 # find sources
 B02_success := $(basename $(shell ls $(B02_path)*_gFT_x.nc) )
 # B02_fail := $(basename $(shell ls $(B02_path)*_fail.json) )
@@ -312,7 +313,7 @@ B03_mkdir :
 					${MKDIR_P} $(B03_collect_path)
 					${MKDIR_P} $(B03_collect_path)coord_check
 
-$(B03_targets) : $(B03_path)%/B03_success.json : $(work_folder)B02_spectra_$(hemis)/B02_%_FFT.nc
+$(B03_targets) : $(B03_path)%/B03_success.json : $(work_folder)/$(batch_key)/B02_spectra/B02_%_FFT.nc
 					python $(analysisfolder)/B03_plot_spectra_ov.py $* $(batch_key) $(ID_flag) > log/B03/$*.txt 2>&1
 
 B03_collect_path := $(plot_folder)$(hemis)/$(batch_key)/B03_ov/
@@ -334,7 +335,7 @@ B04_targets := $(foreach i, $(B03_success) , $(subst B03_success,B04_success,$(i
 
 B04 : $(B04_targets) B04_collect
 
-$(B04_targets) : $(B03_path)%/B04_success.json : $(B03_path)%/B03_success.json $(work_folder)/A02_prior_$(hemis)/A02b_%_hindcast_success.json
+$(B04_targets) : $(B03_path)%/B04_success.json : $(B03_path)%/B03_success.json $(work_folder)/$(batch_key)/A02_prior/A02_%_hindcast_success.json
 					python $(analysisfolder)/B04_angle.py $* $(batch_key) $(ID_flag) > log/B04/$*.txt 2>&1
 
 B04_success := $(shell ls $(B03_path)*/B04_success.json)

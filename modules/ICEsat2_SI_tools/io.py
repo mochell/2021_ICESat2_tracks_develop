@@ -34,7 +34,7 @@ def init_from_input(arguments):
     print('----- test_flag: ' + str(test_flag))
     return track_name, batch_key, test_flag
 
-def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID_'):
+def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID'):
     """
     Takes inputs and retrieves the ID, track_names that can be loaded, hemis, batch
     inputs: are the outputs from init_from_input, specifically
@@ -51,8 +51,8 @@ def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID_'):
     hemis, batch = batch_key.split('_')
 
     if ID_flag:
-        ID_path = ID_root +'/'+batch_key+'/'+prefix+hemis+'/'
-        ID      = json_load( prefix +ID_name, ID_path )
+        ID_path = ID_root +'/'+batch_key+'/'+prefix+'/'
+        ID      = json_load( prefix +'_'+ID_name, ID_path )
         track_names = ID['tracks']['ATL03']
 
     else:
@@ -306,6 +306,23 @@ def load_pandas_table_dict(name , save_path):
             return_dict[k[1:]]=store.get(k)
 
     return return_dict
+
+def get_beam_hdf_store(ATL03_k):
+
+    import pandas as pd
+    DD = pd.DataFrame()#columns = ATL03.keys())
+    for ikey in ATL03_k.keys():
+        DD[ikey] = ATL03_k[ikey]
+
+    return DD
+
+def get_beam_var_hdf_store(ATL03_k, ikey):
+
+    import pandas as pd
+    DD = pd.DataFrame()#columns = ATL03.keys())
+    DD[ikey] = ATL03_k[ikey]
+    return DD
+
 
 def write_track_to_HDF5(data_dict, name, path, verbose=False, mode='w'):
     import os

@@ -152,10 +152,8 @@ for k in all_beams:
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
     imp.reload(gFT)
     S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
-    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = None, plot_flag = False)
+    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = None, plot_flag = True)
 
-    GG_x
-    #plt.plot(Params.loc['normalized_residual'])
 
     # np.nanmean( (GG.gFT_PSD_model.sum('k') *dk) )
     # GG.gFT_PSD_model.median('x').plot()
