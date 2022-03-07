@@ -58,7 +58,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = 'NH_20190301_09570203', 'NH_batch05', True
+#track_name, batch_key, test_flag = 'NH_20190301_09570203', 'NH_batch05', True
+#track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')

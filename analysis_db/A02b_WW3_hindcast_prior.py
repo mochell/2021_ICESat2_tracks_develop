@@ -365,9 +365,9 @@ try:
 
     MT.save_pandas_table({'priors_hindcast':Tend}, save_name, save_path)
 
-    target_name = 'A02b_'+track_name+'_hindcast_success'
+    target_name = 'A02_'+track_name+'_hindcast_success'
 
 except:
-    target_name = 'A02b_'+track_name+'hindcast_fail'
+    target_name = 'A02_'+track_name+'hindcast_fail'
 
 MT.json_save(target_name, save_path, str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")) )

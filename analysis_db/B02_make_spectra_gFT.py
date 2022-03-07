@@ -11,6 +11,9 @@ exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
 #%matplotlib inline
+from threadpoolctl import threadpool_info, threadpool_limits
+from pprint import pprint
+
 
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import h5py
@@ -63,6 +66,9 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = 'NH_20190301_09590203', 'NH_batch05', False
 #track_name, batch_key, test_flag = 'SH_20190101_00630212', 'SH_batch04', False
 #track_name, batch_key, test_flag = 'NH_20190301_09570205',  'NH_batch05', True
+#track_name, batch_key, test_flag = 'SH_20190219_08070212',  'SH_publish', True
+
+
 
 
 #print(track_name, batch_key, test_flag)
@@ -89,6 +95,9 @@ low_beams   = mconfig['beams']['low_beams']
 
 # laod with pandas
 #Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+
+N_process = 4
+print('N_process=', N_process)
 
 # open with hdf5
 Gd = h5py.File(load_path +'/'+track_name + '_B01_binned.h5', 'r')
@@ -222,8 +231,9 @@ G_rar_fft= dict()
 Pars_optm = dict()
 #imp.reload(spec)
 
-k=all_beams[2]
+k=all_beams[0]
 for k in all_beams:
+
     tracemalloc.start()
     # -------------------------------  use gridded data
     hkey= 'heights_c_weighted_mean'
@@ -271,12 +281,15 @@ for k in all_beams:
     print('gFT')
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
 
-    imp.reload(gFT)
-    S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
-    GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
+    #imp.reload(gFT)
+
+    with threadpool_limits(limits=N_process, user_api='blas'):
+        pprint(threadpool_info())
+
+        S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)
+        GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
 
     print('after ', k , tracemalloc.get_traced_memory()[0]/1e6, tracemalloc.get_traced_memory()[1]/1e6)
-
     plot_data_model=False
     if plot_data_model:
         for i in np.arange(0,29,2):
@@ -420,12 +433,14 @@ for k in all_beams:
 
 
     #for plotting
-    G_rar_fft_p = G.squeeze()
-    plt.plot(G_rar_fft_p.k, G_rar_fft_p[:, G_rar_fft_p['N_per_stancil'] > 10 ].mean('x'), 'darkblue', label='mean FFT')
-    #plt.plot(G.k, GG.mean('x'), 'lightblue', label='mean FFT')
-    plt.legend()
-    plt.show()
-
+    try:
+        G_rar_fft_p = G.squeeze()
+        plt.plot(G_rar_fft_p.k, G_rar_fft_p[:, G_rar_fft_p['N_per_stancil'] > 10 ].mean('x'), 'darkblue', label='mean FFT')
+        #plt.plot(G.k, GG.mean('x'), 'lightblue', label='mean FFT')
+        plt.legend()
+        plt.show()
+    except:
+        pass
     time.sleep(3)
     #F.save_light(path=plot_path, name = 'B02_control_'+k+'_' + track_name)
     #print('saved as '+'B02_control_'+k+'_' + track_name)

@@ -255,7 +255,7 @@ B01 : $(B01_targets)
 B02 : $(B02_targets) #B02_collect
 
 # !!!!!!!!! this does not work because the track ID chanegs from ALT10 to ALT03
-$(B01_targets) : $(work_folder)/$(batch_key)/B01_regrid/%_B01_binned.h5 : $(A01b_path)/A01b_ID_%.json #$(analysisfolder)/B01_filter_regrid_segments.py
+$(B01_targets) : $(work_folder)/$(batch_key)/B01_regrid/%_B01_binned.h5 : $(A01c_path)/A01c_ATL03_%_corrected.h5 $(A01b_path)/A01b_ID_%.json #$(analysisfolder)/B01_filter_regrid_segments.py
 					python $(analysisfolder)/B01_filter_regrid_segments.py $* $(batch_key) $(ID_flag) > log/B01/$*.txt 2>&1
 
 $(B02_targets) : $(work_folder)/$(batch_key)/B02_spectra/B02_%_FFT.nc : $(work_folder)/$(batch_key)/B01_regrid/%_B01_binned.h5 #$(analysisfolder)/B02_make_spectra.py
