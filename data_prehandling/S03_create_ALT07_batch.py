@@ -30,7 +30,7 @@ path = mconfig['paths']['analysis']+'../track_lists/'
 
 with open(path+  'batch05_NA_ATL10.txt', 'r') as f:
     h5_files = f.readlines()
-    batch05_NA_ATL10
+    #batch05_NA_ATL10
 
 print('total number of tracks:', len(h5_files))
 
@@ -88,16 +88,17 @@ D['date'].max()
 # dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-30')
 # hemis = 'SH'
 
-batch = 'batch04_test'
-dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-03')
-hemis = 'SH'
-
-Dsel = D[ (D['date'] > dmin) & (D['date'] < dmax)  & (D['hemis'] == hemis)]
-len(Dsel)
+# batch = 'batch04_test'
+# dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-03')
+# hemis = 'SH'
+#
+# Dsel = D[ (D['date'] > dmin) & (D['date'] < dmax)  & (D['hemis'] == hemis)]
+# len(Dsel)
 
 # Dsel = D[ (D['date'] > dmin) & (D['date'] < dmax)  & (D['hemis'] == 'NH')]
 # len(Dsel)
-
+Dsel = D
+batch='batch05'
 
 
 MT.json_save(batch+'_ATL07_A00', path, list(Dsel.index))

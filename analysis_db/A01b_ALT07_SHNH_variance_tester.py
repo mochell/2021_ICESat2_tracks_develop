@@ -16,6 +16,9 @@ sys.path
 exec(open(os.environ['PYTHONSTARTUP']).read())
 exec(open(STARTUP_2021_IceSAT2).read())
 
+from threadpoolctl import threadpool_info, threadpool_limits
+from pprint import pprint
+
 import datetime
 import h5py
 from random import sample
@@ -70,7 +73,7 @@ plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'
 MT.mkdirs_r(save_path)
 plot_flag   = True
 test_flag   = False #writes dummy variable for download files, instead of downloading
-
+N_process   = 4
 # username= "mhell@ucsd.edu"
 # pword   = "@[49[4tK\-qBWB%5"
 
@@ -351,12 +354,13 @@ for k in beams:
         # plt.plot(Tsel['x']/1e3, Tsel['freeboard']['height_segment_height'], '.')
         # #plt.xlim(60,70)
         # plt.ylim(-1, 5)
-
+        # limit number of processes
         # % cut data in the back: only usefull for SH:
         xx0, dd0 = np.array(Tsel['x']), np.array(Tsel['heights']['height_segment_height'])
         if hemis is 'SH':
             # cut data around the contiental margin
-            rear_mask = cut_rear_data(xx0, dd0)
+            with threadpool_limits(limits=N_process, user_api='blas'):
+                rear_mask = cut_rear_data(xx0, dd0)
         else:
             # assume all data points are valid for NH ...
             rear_mask = np.array(Tsel['x'] > -1)
@@ -372,7 +376,9 @@ for k in beams:
             continue
 
         # estmiate slope at the beginning
-        slope_test, pw_fit, breakpoint = get_breakingpoints(xx0[rear_mask], dd0[rear_mask], Lmeter= 3000)
+        with threadpool_limits(limits=N_process, user_api='blas'):
+            pprint(threadpool_info())
+            slope_test, pw_fit, breakpoint = get_breakingpoints(xx0[rear_mask], dd0[rear_mask], Lmeter= 3000)
 
         if plot_flag:
             plt.figure()
