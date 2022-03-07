@@ -37,9 +37,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
-
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
@@ -164,7 +163,7 @@ if k_lead_peak== k[0].data or k_lead_peak == k[-1].data:
     print('wavenumber Peak on Boundary!')
     MT.json_save('B06_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'wavenumber Peak on Boundary!'})
     print('exit()')
-    exit()
+    #exit()
 
 k_lims =0.01
 k_span = [k_lead_peak- k_lims , k_lead_peak, k_lead_peak+ k_lims]
@@ -250,14 +249,95 @@ def define_noise_wavenumber_tresh_simple(data_xr, k_peak, k_end_lim =None,  plot
     return k_end
 
 
+
+# %% new version
+def get_breakingpoints(xx, dd):
+
+    import piecewise_regression
+    x2, y2 = xx, dd
+    convergence_flag =True
+    n_breakpoints= 1
+    while convergence_flag:
+        pw_fit = piecewise_regression.Fit(x2, y2, n_breakpoints=1)
+        print('n_breakpoints', n_breakpoints, pw_fit.get_results()['converged'])
+        convergence_flag = not pw_fit.get_results()['converged']
+        n_breakpoints += 1
+        if n_breakpoints ==3:
+            convergence_flag = False
+
+    pw_results = pw_fit.get_results()
+    if pw_results['converged']:
+        if pw_results['estimates']['alpha1']['estimate'] < 0:
+            print('decay at the front')
+            print('n_breakpoints',pw_fit.n_breakpoints )
+
+        breakpoint = pw_results['estimates']['breakpoint1']['estimate']
+        return pw_results['estimates']['alpha1']['estimate'], pw_fit, breakpoint
+
+    else:
+        return np.nan, pw_fit, False
+
+
+data_xr, k_peak = G_gFT_smth.sel(x=x), k_lead_peak
+k_end_lim= k_end_0
+
+def define_noise_wavenumber_piecewise(data_xr, k_peak, k_end_lim =None,  plot_flag = False):
+
+    from scipy.ndimage.measurements import label
+
+
+    if k_end_lim is None:
+        k_end_lim =data_xr.k[-1]
+
+    k_lead_peak_margin = k_peak * 1.05
+
+
+    try:
+        data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin))#.rolling(k =10,  center=True, min_periods=1).mean()
+    except:
+        data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin/2))#.rolling(k =10,  center=True, min_periods=1).mean()
+
+    k =data_log.k.data
+    k_log= np.log(k)
+
+    slope, pw_fit, breakpoint_log   = get_breakingpoints(k_log, data_log.data)
+
+    if (type(breakpoint_log) is bool) and not breakpoint_log:
+        #print(sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0)
+        print('no decay, set to peak')
+        breakpoint_k =  k_peak
+        slope       = 1
+    else:
+        breakpoint_pos                  = abs(k_log -breakpoint_log).argmin()
+        breakpoint_k                    = k[breakpoint_pos]
+
+    plot_flag= True
+    if plot_flag:
+        # plt.plot(np.log(d_grad.k), d_grad)
+        # plt.show()
+        pw_fit.plot()
+        #plt.plot(np.log(data_xr.k), np.log(data_xr))
+        plt.plot(k_log, data_log )
+        #plt.plot([np.log(breakpoint_k), np.log(breakpoint_k)], [-6, -5])
+        #print(k_end)
+
+    return breakpoint_k, slope
+
+
+
+# %%
 k_lim_list = list()
 k_end_0 = None
+x = G_gFT_smth.x.data[0]
 for x in G_gFT_smth.x.data:
     #print(x)
-    k_end = define_noise_wavenumber_tresh_simple(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
+    k_end, slope = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
+    #k_end = define_noise_wavenumber_tresh_simple(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
     k_end_0 = k_end if k_end_0 is None else k_end_0
     plt.show()
     k_save = np.nan if k_end == k_lead_peak else k_end
+    k_save = np.nan if slope >= 0 else k_end
+
     k_lim_list.append(k_save)
 
 

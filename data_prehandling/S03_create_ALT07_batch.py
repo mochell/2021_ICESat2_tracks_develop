@@ -27,10 +27,8 @@ path = mconfig['paths']['analysis']+'../track_lists/'
 # with open(path+  'ALT10_tracks_complete.txt', 'r') as f:
 #     h5_files = f.readlines()
 
-
 with open(path+  'batch05_NA_ATL10.txt', 'r') as f:
     h5_files = f.readlines()
-    batch05_NA_ATL10
 
 print('total number of tracks:', len(h5_files))
 
@@ -88,11 +86,16 @@ D['date'].max()
 # dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-30')
 # hemis = 'SH'
 
-batch = 'batch04_test'
-dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-03')
-hemis = 'SH'
+# batch = 'batch04_test'
+# dmin, dmax = np.datetime64('2019-01-01'), np.datetime64('2019-01-03')
+# hemis = 'SH'
 
-Dsel = D[ (D['date'] > dmin) & (D['date'] < dmax)  & (D['hemis'] == hemis)]
+batch = 'batch05_test'
+dmin, dmax = np.datetime64('2019-03-01'), np.datetime64('2019-03-01T12:00:00')
+hemis = 'NH'
+
+
+Dsel = D[ (D['date'] >= dmin) & (D['date'] <= dmax)  & (D['hemis'] == hemis)]
 len(Dsel)
 
 # Dsel = D[ (D['date'] > dmin) & (D['date'] < dmax)  & (D['hemis'] == 'NH')]

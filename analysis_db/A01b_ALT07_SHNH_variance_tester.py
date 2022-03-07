@@ -48,10 +48,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
 
 #track_name, batch_key, test_flag = '20190101211718_00680201_005_01', 'SH_batch04', False
-#track_name, batch_key, test_flag = '20190102191722_00820201_005_01', 'SH_batch04', False
-#track_name, batch_key, test_flag = '20190101040007_00570201_005_01', 'SH_batch04', False
 
-#track_name, batch_key, test_flag = '20190101132551_00630201_005_01', 'SH_batch04', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -63,7 +60,7 @@ ATlevel= 'ATL07-02' if hemis == 'SH' else 'ATL07-01'
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 load_file   = load_path + ATlevel+'_'+track_name+'.h5'
 
-save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/A01b_ID/'
+save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_ID_'+hemis+'/'
 scratch_path = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
 #bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
@@ -197,12 +194,9 @@ DD_pos_end   = pd.DataFrame(index =beams, columns= ['TF1', 'TF2'])
 
 
 plot_flag = False
-lon_zero= False
 for k in beams:
 
-    # k = 'gt2r'#beams[0]
-    # k = 'gt1r'#beams[0]
-
+    #k = 'gt2r'#beams[0]
     #imp.reload(io)
     print(k)
     try:
@@ -219,17 +213,14 @@ for k in beams:
     if hemis == 'SH':
         ###### for SH tracks
         lon_list = T_freeboard['ref']['longitude']
-
-        if not lon_zero:
-            lon_zero = lon_list[0]
-        mask1 = (lon_zero-5 < lon_list) & (lon_list < lon_zero+5)
+        mask1 = (lon_list[0]-5 < lon_list) & (lon_list < lon_list[0]+5)
         mask2 = ~mask1
         tot_size =T_freeboard['ref']['latitude'].shape[0]
-        #print(mask1)
+
         TF2, TF1 = None, None
         if (sum(mask1) > 1000):
             if mask1.iloc[-1]:
-                TF1 = T_freeboard[mask1]
+                TF2 = T_freeboard[mask1]
             else:
                 TF1 = T_freeboard[mask1]
         if (sum(mask2) > 1000):
@@ -395,16 +386,13 @@ for k in beams:
         print('result-------', k, TF, data_density, slope_test)
 
 
-
-DD_data
-DD_pos_start
 # %%
 #TF1_start = DD_pos_start[ ['TF1_lon', 'TF1_lat'] ].iloc[abs(DD_pos_start['TF1_lat']).astype('float').argmin() ]
 #TF1_end   = DD_pos_end[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmax() ]
 
 #TF2_start = DD_pos_start[ ['TF2_lon', 'TF2_lat'] ].iloc[abs(DD_pos_start['TF2_lat']).astype('float').argmin() ]
 #TF2_end   = DD_pos_end[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmax() ]
-DD_pos_start
+
 
 TT_start, TT_end = dict(), dict()
 for Ti in DD_pos_start:
