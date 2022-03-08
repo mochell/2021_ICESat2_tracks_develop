@@ -34,6 +34,7 @@ def init_from_input(arguments):
     print('----- test_flag: ' + str(test_flag))
     return track_name, batch_key, test_flag
 
+
 def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID'):
     """
     Takes inputs and retrieves the ID, track_names that can be loaded, hemis, batch
@@ -61,6 +62,13 @@ def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID'):
 
     return ID, track_names, hemis, batch
 
+def ID_to_str(ID_name):
+    from datetime import datetime
+
+    IDs = ID_name.split('_')
+    date = datetime.strptime(IDs[1], '%Y%m%d').strftime('%Y-%m-%d')#.strftime('%m/%d/%Y')
+    date
+    return IDs[0] +' ' +date +' granule: ' + IDs[2]
 
 class case_ID(object):
     """docstring for case_ID"""

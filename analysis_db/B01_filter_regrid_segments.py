@@ -107,12 +107,13 @@ if __name__ == '__main__':
     if ID_flag:
         track_poleward = ID['pars']['poleward']
         beams = all_beams
+        print('take poleward from ID file')
     else:
         f         = h5py.File(load_file_str, 'r')
         beams     = [b if b in f.keys() else None for b in all_beams]
         imp.reload(regrid)
         track_poleward    = regrid.track_pole_ward_file(f)
-
+        print('take poleward from ATL03 file')
     print('poleward track is ' , track_poleward)
 
 
@@ -343,13 +344,14 @@ if __name__ == '__main__':
         k               = I[0]
         B[ k ]          = I[1][::-1]
 
-        if ~track_poleward: # invert x- coordinate if there is an equatorward track
+        if not track_poleward: # invert x- coordinate if there is an equatorward track
+            print('invert table')
             B[k]            = B[k].reset_index(drop=True)
             B[k]['x_true']  = B[k]['x']
             B[k]['x']       = abs(B[k]['x'] - B[k]['x'].iloc[0])
         else:
             B[k]['x_true']  = B[k]['x']
-
+            print('no table invert needed')
 
     dist_list   = np.array([np.nan, np.nan])
     for k in B.keys():

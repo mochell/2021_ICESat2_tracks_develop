@@ -281,8 +281,8 @@ bad_ID_files     := $(foreach i, $(bad_beams) ,$(addprefix $(A01b_path)/, A01b_I
 plot_folders := $(foreach i, $(bad_beams) ,$(addprefix $(plot_folder)/$(hemis)/tracks/, ${i} ) )
 
 rm_bad_beams: #rm_B01_files
-					@echo "removing bad tracks in 5 sec"
-					sleep 5
+					@echo "removing bad tracks in 3 sec"
+					sleep 3
 					rm -fv $(source_files)
 					rm -fv -r $(plot_folders)
 					rm -fr $(bad_ID_files)
@@ -388,6 +388,8 @@ B06_collect : B06_mkdir $(B06_collect_targets)
 $(B06_collect_targets) : $(B06_collect_path)%_B06_atten_ov.png : $(B03_path)%/B06_success.json
 				cp $(B03_path)$*/B06_correction/$*_B06_atten_ov.png $(B06_collect_path)$*_B06_atten_ov.png
 
+.PHONY : B_collect
+B_collect : B03_collect B04_collect B05_collect B06_collect
 
 # ---------------- section C ------------
 

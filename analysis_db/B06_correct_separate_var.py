@@ -28,44 +28,58 @@ from scipy.ndimage.measurements import label
 xr.set_options(display_style='text')
 #import s3fs
 # %%
-track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
+ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
+#ID_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#ID_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#ID_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
+#ID_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
-#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
-#print(track_name, batch_key, test_flag)
+#ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#ID_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+ID_name, batch_key, test_flag =  'SH_20190224_08800210', 'SH_publish', True
+
+#print(ID_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
-load_path1   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
-B2          = io.load_pandas_table_dict(track_name + '_B01_regridded'  , load_path1) # rhis is the rar photon data
-B3          = io.load_pandas_table_dict(track_name + '_B01_binned'     , load_path1)  #
+all_beams   = mconfig['beams']['all_beams']
+high_beams  = mconfig['beams']['high_beams']
+low_beams   = mconfig['beams']['low_beams']
 
+load_path_work    = mconfig['paths']['work'] +'/'+ batch_key +'/'
+B2_hdf5    = h5py.File(load_path_work +'B01_regrid'+'/'+ID_name + '_B01_regridded.h5', 'r')
+B3_hdf5    = h5py.File(load_path_work +'B01_regrid'+'/'+ID_name + '_B01_binned.h5', 'r')
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
-load_file   = load_path + 'B02_' + track_name #+ '.nc'
-#plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
-plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B06_correction/'
-MT.mkdirs_r(plot_path)
+B2, B3 = dict(), dict()
+for b in all_beams:
+    B2[b] = io.get_beam_hdf_store(B2_hdf5[b])
+    B3[b] = io.get_beam_hdf_store(B3_hdf5[b])
 
-save_path   = mconfig['paths']['work'] +'/B06_correct_separate_'+hemis+'/'
-MT.mkdirs_r(save_path)
+B2_hdf5.close(), B2_hdf5.close()
 
+# B2          = io.load_pandas_table_dict(ID_name + '_B01_regridded'  , load_path1) # rhis is the rar photon data
+# B3          = io.load_pandas_table_dict(ID_name + '_B01_binned'     , load_path1)  #
+
+load_file   = load_path_work +'/B02_spectra/' + 'B02_' + ID_name #+ '.nc'
 Gk = xr.open_dataset(load_file+'_gFT_k.nc')
 Gx = xr.open_dataset(load_file+'_gFT_x.nc')
 Gfft = xr.open_dataset(load_file+'_FFT.nc')
 
+
+#plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + ID_name + '/'
+plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + ID_name + '/B06_correction/'
+MT.mkdirs_r(plot_path)
+
+save_path   = mconfig['paths']['work'] +batch_key+'/B06_corrected_separated/'
+MT.mkdirs_r(save_path)
+
+
 # %%
-all_beams   = mconfig['beams']['all_beams']
-high_beams  = mconfig['beams']['high_beams']
-low_beams   = mconfig['beams']['low_beams']
-#Gfilt   = io.load_pandas_table_dict(track_name + '_B01_regridded', load_path) # rhis is the rar photon data
-#Gd      = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
+
+#Gfilt   = io.load_pandas_table_dict(ID_name + '_B01_regridded', load_path) # rhis is the rar photon data
+#Gd      = io.load_pandas_table_dict(ID_name + '_B01_binned' , load_path)  #
 
 col.colormaps2(31, gamma=1)
 col_dict= col.rels
@@ -256,60 +270,80 @@ def get_breakingpoints(xx, dd):
     import piecewise_regression
     x2, y2 = xx, dd
     convergence_flag =True
-    n_breakpoints= 1
+    n_breakpoints= 2
     while convergence_flag:
-        pw_fit = piecewise_regression.Fit(x2, y2, n_breakpoints=1)
+        pw_fit = piecewise_regression.Fit(x2, y2, n_breakpoints=n_breakpoints)
         print('n_breakpoints', n_breakpoints, pw_fit.get_results()['converged'])
         convergence_flag = not pw_fit.get_results()['converged']
         n_breakpoints += 1
-        if n_breakpoints ==3:
+        if n_breakpoints ==4:
             convergence_flag = False
 
     pw_results = pw_fit.get_results()
     if pw_results['converged']:
-        if pw_results['estimates']['alpha1']['estimate'] < 0:
-            print('decay at the front')
-            print('n_breakpoints',pw_fit.n_breakpoints )
+        # if pw_results['estimates']['alpha1']['estimate'] < 0:
+        #     print('decay at the front')
+        #     print('n_breakpoints',pw_fit.n_breakpoints )
 
-        breakpoint = pw_results['estimates']['breakpoint1']['estimate']
-        return pw_results['estimates']['alpha1']['estimate'], pw_fit, breakpoint
+        pw_results = pd.DataFrame(pw_results['estimates'])
+
+        alphas = list()
+        for i in pw_results.keys():
+            [alphas.append(i) if 'alpha' in i else None]
+
+        alpha_df = pw_results[alphas]
+        print(alpha_df.loc['estimate'])
+        slope_mask = (alpha_df.loc['estimate'] < 0)
+        if sum(slope_mask) ==0:
+            print('no negative slope found, set to lowest')
+            breakpoint_log = xx[0]
+        else:
+            break_point_name = alpha_df.loc['estimate'][slope_mask].index[0].replace('alpha', 'breakpoint')
+            #break_point_name ='breakpoint5'
+            #print(break_point_name, pw_results.T.index ,  break_point_name in pw_results.T.index)
+            if break_point_name in pw_results.T.index:
+                breakpoint_log = pw_results[break_point_name]['estimate']
+                print('get', break_point_name)
+            else:
+                print('last slope segment, chose last wavenumber')
+                breakpoint_log = xx[-1]
+
+        return pw_fit, breakpoint_log
 
     else:
-        return np.nan, pw_fit, False
+        return pw_fit, False
 
 
-data_xr, k_peak = G_gFT_smth.sel(x=x), k_lead_peak
-k_end_lim= k_end_0
-
-def define_noise_wavenumber_piecewise(data_xr, k_peak, k_end_lim =None,  plot_flag = False):
-
-    from scipy.ndimage.measurements import label
+# data_xr, k_peak = G_gFT_smth.sel(x=x), k_lead_peak
+# k_end_lim= k_end_0
+#data_xr = G_gFT_smth.sel(x=x)
+def define_noise_wavenumber_piecewise(data_xr, plot_flag = False):
 
 
-    if k_end_lim is None:
-        k_end_lim =data_xr.k[-1]
+    # if k_end_lim is None:
+    #     k_end_lim =data_xr.k[-1]
+    #
+    # k_lead_peak_margin = k_peak * 1.05
 
-    k_lead_peak_margin = k_peak * 1.05
-
-
-    try:
-        data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin))#.rolling(k =10,  center=True, min_periods=1).mean()
-    except:
-        data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin/2))#.rolling(k =10,  center=True, min_periods=1).mean()
+    data_log = data_xr
+    data_log = np.log(data_xr)
+    # try:
+    #     data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin))#.rolling(k =10,  center=True, min_periods=1).mean()
+    # except:
+    #     data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin/2))#.rolling(k =10,  center=True, min_periods=1).mean()
 
     k =data_log.k.data
     k_log= np.log(k)
 
-    slope, pw_fit, breakpoint_log   = get_breakingpoints(k_log, data_log.data)
+    pw_fit, breakpoint_log   = get_breakingpoints(k_log, data_log.data)
 
     if (type(breakpoint_log) is bool) and not breakpoint_log:
         #print(sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0)
-        print('no decay, set to peak')
-        breakpoint_k =  k_peak
-        slope       = 1
-    else:
-        breakpoint_pos                  = abs(k_log -breakpoint_log).argmin()
-        breakpoint_k                    = k[breakpoint_pos]
+        print('no decay, set to lowerst wavenumber')
+        breakpoint_log =  k_log[0]
+
+    breakpoint_pos                  = abs(k_log -breakpoint_log).argmin()
+    breakpoint_k                    = k[breakpoint_pos]
 
     plot_flag= True
     if plot_flag:
@@ -318,29 +352,67 @@ def define_noise_wavenumber_piecewise(data_xr, k_peak, k_end_lim =None,  plot_fl
         pw_fit.plot()
         #plt.plot(np.log(data_xr.k), np.log(data_xr))
         plt.plot(k_log, data_log )
+        #plt.gca().set_xscale('log')
         #plt.plot([np.log(breakpoint_k), np.log(breakpoint_k)], [-6, -5])
         #print(k_end)
 
-    return breakpoint_k, slope
+    return breakpoint_k, pw_fit
+
+#x = G_gFT_smth.isel(x=8).x
+#k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), plot_flag =True )
+
+# k_log= np.log(G_gFT_smth.k)
+#
+# alphas = list()
+# for i in pw_results.keys():
+#     [alphas.append(i) if 'alpha' in i else None]
+#
+#
+# alpha_df = pw_results[alphas]
+# slope_mask = (alpha_df.loc['estimate'] < 0)
+# if sum(slope_mask) ==0:
+#     print('no break point found, set to lowest')
+#     breakpoint_log = k_log[0]
+# else:
+#     break_point_name = alpha_df.loc['estimate'][slope_mask].index[0].replace('alpha', 'breakpoint')
+#     break_point_name ='breakpoint5'
+#     if break_point_name in pw_results.T.index:
+#         break_point_log = pw_results[break_point_name]['estimate']
+#     else:
+#         print('last slope segment, chose last wavenumber')
+#         break_point_log = k_log[-1]
 
 
+# %%
+G_gFT_smth.isel(x=7).plot()
 
 # %%
 k_lim_list = list()
 k_end_0 = None
 x = G_gFT_smth.x.data[0]
+k = G_gFT_smth.k.data
+
 for x in G_gFT_smth.x.data:
+# %%
+    x = G_gFT_smth.isel(x=9).x
+
     #print(x)
-    k_end, slope = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
+    k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), plot_flag =True )
+    # pw_fit.get_results()
+    pw_fit.summary()
+    #k_end, slope = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
     #k_end = define_noise_wavenumber_tresh_simple(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
+
     k_end_0 = k_end if k_end_0 is None else k_end_0
+
+    k_save = np.nan if k_end == k[0] else k_end
+    #k_save = np.nan if slope >= 0 else k_end
+    plt.gca().axvline(np.log(k_save), linewidth= 2, color='red')
     plt.show()
-    k_save = np.nan if k_end == k_lead_peak else k_end
-    k_save = np.nan if slope >= 0 else k_end
-
     k_lim_list.append(k_save)
+    print('--------------------------')
 
-
+# %%
 # write k limits to datasets
 G_gFT_smth.coords['k_lim'] = ('x', k_lim_list )
 G_gFT_wmean.coords['k_lim'] = ('x', k_lim_list )
@@ -348,8 +420,8 @@ G_gFT_wmean.coords['k_lim'] = ('x', k_lim_list )
 font_for_print()
 F = M.figure_axis_xy(6, 5, container= True, view_scale =1)
 
-#plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + track_name, y = 0.98)
-gs = GridSpec(8,3,  wspace=0.25,  hspace=2.5)#figure=fig,#
+#plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + ID_name, y = 0.98)
+gs = GridSpec(8,3,  wspace=0.25,  hspace=3.5)#figure=fig,#
 
 #
 # #clev = M.clevels( [Gmean.quantile(0.6).data * 1e4, Gmean.quantile(0.99).data * 1e4], 31)/ 1e4
@@ -393,14 +465,16 @@ for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, 
 
 pos = gs[4:, 0:2]
 ax0 = F.fig.add_subplot(pos)
-plt.title('Weigthen mean spectral Power ', loc='left')
+lat_str = str(np.round( Gx.isel(x = 0).lat.mean().data, 2)  ) +' to ' + str(np.round( Gx.isel(x = -1).lat.mean().data, 2)  )
+
+plt.title('Weigthen mean spectral Power (lat='+ lat_str +')', loc='left')
 
 (10 * np.log(G_gFT_smth.isel(x = slice(0, -1)))).plot(cmap = col.white_base_blgror)
 G_gFT_smth.isel(x = slice(0, -1)).k_lim.plot(color= col.black, linewidth = 1)
 plt.ylabel('wavenumber k')
 
-F.save_light(path=plot_path, name = str(track_name)+ '_B06_atten_ov')
-#F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(track_name))
+F.save_light(path=plot_path, name = str(ID_name)+ '_B06_atten_ov')
+#F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(ID_name))
 
 
 #%% reconstruct slope displacement data
@@ -596,12 +670,26 @@ for bb in Gx.beam.data:
 
     font_for_print()
     F = M.figure_axis_xy(6, 2, view_scale= 0.7)
-    plt.plot(T2['dist'] , T2['heights_c_model'], '.', markersize=1, alpha=0.8, label='height model')
-    plt.plot(T2['dist'] , T2['heights_c_residual'],'ob', markersize=0.5, alpha=0.5, label='residual photons')
-    plt.plot(T2['dist'] , -T2['heights_c'],'ok', markersize=0.5, alpha=0.5, label='- photon height_c')
-    plt.plot(T3['dist'], T3['heights_c_residual'] , 'r', zorder=12, label='photon height_c resodual')
-    plt.xlim(60e3, 67e3)
-    plt.ylim(-2, 2)
+
+    plt.plot(T2['dist'] , T2['heights_c']+2,'ok', markersize=0.8, alpha=0.5, label='org photon height_c')
+    plt.plot(T3['dist'] , T3['heights_c_weighted_mean']+2,'.r', markersize=1, alpha=0.5, label='org photon wmean')
+
+    plt.plot(T2['dist'] , T2['heights_c_model'], '.', markersize=1, alpha=0.8, label='height model', color=col.orange, zorder= 12)
+    F.ax.axhline(2, linewidth = .7, color= 'black')
+    F.ax.axhline(0, linewidth = .7, color= 'black')
+    F.ax.axhline(-2, linewidth = .7, color= 'black')
+
+    plt.plot(T2['dist'] , T2['heights_c_residual']-2,'ob', markersize=0.5, alpha=0.5, label='residual photons')
+    plt.plot(T3['dist'], T3['heights_c_residual']-2 , 'r', linewidth= 0.8, zorder=12, label='photon height_c resodual')
+
+    xlims = np.nanmean(T2['dist']), np.nanmean(T2['dist'])+7e3
+    plt.xlim(xlims)
+    dlim = np.nanmax(T3['heights_c_residual'][(T3['dist']> xlims[0]) & (T3['dist'] < xlims[1])])
+    #plt.ylim(-dlim*1.5, dlim*1.5)
+    try:
+        plt.ylim((-2-1.5*dlim), 2+1.5*dlim)
+    except:
+        plt.ylim(-5, 5)
     plt.legend( ncol= 4)
 
     B2_v2[bb] = T2
@@ -610,15 +698,12 @@ for bb in Gx.beam.data:
     F.save_light(path = plot_path , name = 'B06_'+bb+'_decomp_check')
 
 
-
-
-
 # %% correct wave incident direction
 
 load_path = mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
 
 try:
-    G_angle = xr.open_dataset(load_path+ '/B05_'+track_name + '_angle_pdf.nc' )
+    G_angle = xr.open_dataset(load_path+ '/B05_'+ID_name + '_angle_pdf.nc' )
 
     font_for_pres()
 
@@ -673,11 +758,11 @@ Gk_v2 = Gk_v2.assign_coords(x_corrected=("x", x_corrected.data)).assign_coords(k
 Gk_v2.attrs['best_guess_incident_angle'] = theta
 
 # save collected spectral data
-Gk_v2.to_netcdf(save_path+'/B06_'+track_name + '_gFT_k_corrected.nc' )
+Gk_v2.to_netcdf(save_path+'/B06_'+ID_name + '_gFT_k_corrected.nc' )
 
 # %% save real space data
-Gx.to_netcdf(save_path+'/B06_'+track_name + '_gFT_x_corrected.nc' )
-io.save_pandas_table(B2_v2, 'B06_' +track_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
-io.save_pandas_table(B3_v2, 'B06_' +track_name + '_binned_resid' , save_path) # regridding heights
+Gx.to_netcdf(save_path+'/B06_'+ID_name + '_gFT_x_corrected.nc' )
+io.save_pandas_table(B2_v2, 'B06_' +ID_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
+io.save_pandas_table(B3_v2, 'B06_' +ID_name + '_binned_resid' , save_path) # regridding heights
 
 MT.json_save('B06_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})

@@ -52,6 +52,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag =  'SH_20190224_08800212', 'SH_publish', True
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -62,7 +63,7 @@ ATlevel= 'ATL03'
 
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/B05_angle/'
 MT.mkdirs_r(plot_path)
-bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
+#bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 # %%
 
 all_beams   = mconfig['beams']['all_beams']
@@ -75,17 +76,17 @@ group_names = mconfig['beams']['group_names']
 # load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 # G_binned    = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_path   = mconfig['paths']['work']+batch_key+'/B02_spectra/'
 Gk          = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_k.nc' )  #
 
-load_path   = mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key+'/B04_angle/'
 Marginals   = xr.load_dataset(load_path+ '/B04_'+track_name + '_marginals.nc' )  #
 
 # %% load prior information
-load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
-Prior = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
+load_path   = mconfig['paths']['work']+batch_key+'/A02_prior/'
+Prior = MT.load_pandas_table_dict('/A02_'+track_name, load_path)['priors_hindcast']
 
-save_path =  mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+save_path =  mconfig['paths']['work'] +batch_key+ '/B04_angle/'
 
 # font_for_print()
 # F = M.figure_axis_xy(5.5, 3, view_scale= 0.8)
@@ -171,7 +172,8 @@ for xi in range(x_list.size):
     F = M.figure_axis_xy(7,3.5, view_scale= 0.8, container = True)
     gs = GridSpec(3,2,  wspace=0.1,  hspace=.8)#figure=fig,
     x_str= str(int(x_list[xi]/1e3))
-    plt.suptitle('Weighted marginal PDFs\nx='+ x_str +'\n'+track_name, y= 1.05, x = 0.125, horizontalalignment= 'left')
+
+    plt.suptitle('Weighted marginal PDFs\nx='+ x_str +'\n'+io.ID_to_str(track_name), y= 1.05, x = 0.125, horizontalalignment= 'left')
     group_weight = Gweights.isel(x =xi)
 
     ax_list= dict()

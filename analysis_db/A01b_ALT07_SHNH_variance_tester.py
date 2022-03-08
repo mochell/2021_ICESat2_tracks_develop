@@ -50,8 +50,10 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190101005132_00550201_005_01', 'SH_batch04', False # <-- !
 #track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
 
-#track_name, batch_key, test_flag = '20190101211718_00680201_005_01', 'SH_batch04', False
+#track_name, batch_key, test_flag = '20190224012038_08800201_005_01', 'SH_publish', False
 
+
+#track_name, batch_key, test_flag = '20190208142818_06440201_005_01', 'SH_publish', False
 
 
 #print(track_name, batch_key, test_flag)
@@ -63,9 +65,9 @@ ATlevel= 'ATL07-02' if hemis == 'SH' else 'ATL07-01'
 load_path   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 load_file   = load_path + ATlevel+'_'+track_name+'.h5'
 
-save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/'+'/A01b_ID_'+hemis+'/'
+save_path  = mconfig['paths']['work'] +'/'+ batch_key +'/A01b_ID/'
 scratch_path = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
-plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/'+track_name +'/A01b/'
+plot_path  = mconfig['paths']['plot']+ '/'+hemis+'/'+batch_key+'/A01b/'
 #bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
 MT.mkdirs_r(save_path)
 plot_flag   = True
@@ -250,21 +252,6 @@ for k in beams:
             TF1 = T_freeboard[mask1]
             TF2 = T_freeboard[mask2]
 
-    # plot splits
-    if plot_flag:
-        plt.figure()
-        if TF1 is not None:
-            plt.plot(TF1['ref']['latitude'], TF1['ref']['longitude'], 'r.', label ='TF1')
-        if TF2 is not None:
-            plt.plot(TF2['ref']['latitude'], TF2['ref']['longitude'], 'b.', label ='TF2')
-
-        plt.title(track_name + ' '+hemis, loc= 'left')
-        plt.legend()
-        plt.xlabel('Latitude')
-        plt.ylabel('longitude')
-        M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+ hemis+'_'+k  , path=plot_path)
-        plt.close()
-        #plt.show()
 
     # check if sub-taable goes equatorward or not, then sort accordingly and define along-track axis
     def pole_ward_table(T):
@@ -323,7 +310,6 @@ for k in beams:
             # create local x axis
             Tsel['x'] = abs(Tsel['ref']['seg_dist_x'] -Tsel['ref']['seg_dist_x'].iloc[0])
 
-
         # ignore bad segments
         Tsel = Tsel[Tsel['heights']['height_segment_surface_error_est'] < 1e2]
         if (Tsel.size <= 50):
@@ -368,7 +354,7 @@ for k in beams:
 
         # estmiate slope at the beginning
         with threadpool_limits(limits=N_process, user_api='blas'):
-            pprint(threadpool_info())
+            #pprint(threadpool_info())
             slope_test, pw_fit, breakpoint = get_breakingpoints(xx0[rear_mask], dd0[rear_mask], Lmeter= 3000)
 
         if plot_flag:
@@ -379,7 +365,6 @@ for k in beams:
             M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+k +'_'+ TF , path=plot_path)
             plt.close()
             #plt.show()
-
 
         # assign to tables
         DD_slope.loc[ k, TF] = slope_test
@@ -392,13 +377,7 @@ for k in beams:
         print('result-------', k, TF, data_density, slope_test)
 
 
-# %%
-#TF1_start = DD_pos_start[ ['TF1_lon', 'TF1_lat'] ].iloc[abs(DD_pos_start['TF1_lat']).astype('float').argmin() ]
-#TF1_end   = DD_pos_end[ ['TF1_lon', 'TF1_lat'] ].iloc[  abs(DD_pos_start['TF1_lat']).astype('float').argmax() ]
-
-#TF2_start = DD_pos_start[ ['TF2_lon', 'TF2_lat'] ].iloc[abs(DD_pos_start['TF2_lat']).astype('float').argmin() ]
-#TF2_end   = DD_pos_end[ ['TF2_lon', 'TF2_lat'] ].iloc[  abs(DD_pos_start['TF2_lat']).astype('float').argmax() ]
-
+# %% check decisions
 
 TT_start, TT_end = dict(), dict()
 for Ti in DD_pos_start:
@@ -412,11 +391,57 @@ for Ti in DD_pos_start:
         else:
             ddtime_start.append(DD_pos_start[Ti][k][1]) # get latitude
             ddtime_end.append(DD_pos_end[Ti][k][1])     # get latitude
+            print('poleward check ', k , abs(DD_pos_start[Ti][k][1]) < abs(DD_pos_end[Ti][k][1]), abs(DD_pos_start[Ti][k][1]) ,  abs(DD_pos_end[Ti][k][1]))
 
     #print(ddtime_start, ddtime_end)
     TT_start[Ti] = DD_pos_start[Ti].iloc[np.array(ddtime_start).argmin()]
     TT_end[Ti] = DD_pos_end[Ti].iloc[np.array(ddtime_end).argmax()]
+    try:
+        print('poleward check sum', abs(TT_start[Ti][1]) < abs(TT_end[Ti][1]), abs(TT_start[Ti][1]) ,  abs(TT_end[Ti][1]))
+    except:
+        pass
 
+#if plot_flag:
+
+font_for_pres()
+F = M.figure_axis_xy(10, 4  ,container = True)
+#ax = F.fig.add_subplot(122, projection='polar')
+
+for Ti,figp in zip(DD_pos_start, [121, 122]):
+    ax = F.fig.add_subplot(figp, projection='polar')
+    print(Ti)
+    for k in all_beams:
+        if (type(DD_pos_start[Ti][k]) is tuple):
+            plt.scatter(  np.deg2rad( DD_pos_start[Ti][k][0]), DD_pos_start[Ti][k][1] ,s=20, color='green')#, label='start')
+        if (type(DD_pos_end[Ti][k]) is tuple):
+            plt.scatter(  np.deg2rad( DD_pos_end[Ti][k][0])  , DD_pos_end[Ti][k][1] ,s=20, color='red')#, label='end')
+
+        if (type(DD_pos_start[Ti][k]) is tuple) & (type(DD_pos_end[Ti][k]) is tuple):
+            plt.plot( [np.deg2rad( DD_pos_start[Ti][k][0]),  np.deg2rad( DD_pos_end[Ti][k][0])], [DD_pos_start[Ti][k][1], DD_pos_end[Ti][k][1]], color='black', linewidth=0.5 )# , width=0.5, edgecolor='none', facecolor= 'black')
+        # plt.quiver( DD_pos_start[Ti][k][0], DD_pos_start[Ti][k][1], DD_pos_end[Ti][k][0]-DD_pos_start[Ti][k][0] , DD_pos_end[Ti][k][1]- DD_pos_start[Ti][k][1], scale=5)# , width=0.5, edgecolor='none', facecolor= 'black')
+
+    #plt.ylim(TT_start[Ti][1]-1, TT_end[Ti][1] +1)
+
+plt.title(track_name + ' '+hemis, loc= 'left')
+plt.legend()
+M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+ hemis+'_'+k  , path=plot_path)
+
+
+# %%
+
+# plt.plot(Tsel['x'], Tsel['ref']['latitude'], 'b.', label ='TF2', zorder=0)
+# plt.scatter(Tsel['x'].iloc[0], Tsel['ref']['latitude'].iloc[0],s=50, color='green')
+# plt.scatter(Tsel['x'].iloc[-1], Tsel['ref']['latitude'].iloc[-1],s=50, color='red')
+
+
+#plt.close()
+#plt.show()
+
+# DD_pos_end
+#
+# DD_data
+# DD_slope
+#
 # %%
 # Test if 1st slope segment is negative. There might be better way to test for waves in the data
 DD_slope_mask = DD_slope <0
