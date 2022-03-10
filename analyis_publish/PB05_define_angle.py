@@ -414,8 +414,9 @@ class plot_polarspectra(object):
 
 font_for_print()
 fn = copy.copy(lstrings)
-F = M.figure_axis_xy(5.5, 5.5, view_scale= 0.7, container = True)
-gs = GridSpec(8,6,  wspace=0.1,  hspace=2.1)#figure=fig,
+
+F = M.figure_axis_xy(fig_sizes['23rd_width'][0] *1.2, fig_sizes['23rd_width'][0]*1.2, view_scale= 0.7, container = True)
+gs = GridSpec(8,6,  wspace=0,  hspace=4.1)#figure=fig,
 col.colormaps2(21)
 
 cmap_spec= col.white_base_blgror #plt.cm.ocean_r
@@ -443,7 +444,13 @@ clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
 dd = 10* np.log(weighted_spec.rolling(k=10, min_periods= 1, center=True).mean())
 clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 2.5], 31)* 1
 #plt.pcolor(x_spec, k, dd ,vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
-plt.pcolormesh(x_spec, k, dd, cmap=cmap_spec , vmin = clev_log[0], vmax = clev_log[-1])
+plt.pcolormesh(x_spec, lam, dd, cmap=cmap_spec , vmin = clev_log[0], vmax = clev_log[-1])
+
+max_line = dd.sel(x=slice(0,60e3)).argmax('k')
+plt.plot(max_line.x/1e3,  lam_p[max_line], linestyle='--', color='k', label='non-corrected peak')
+plt.plot(max_line.x/1e3, lam[max_line], color='k', label='corrected peak')
+
+plt.legend()
 
 plt.title(next(fn) + 'Power Spectra (m/m)$^2$ k$^{-1}$\nfor ' + track_name , loc='left')
 
@@ -454,8 +461,10 @@ clev_ticks = np.round(clev_spec[::3], 0)
 cbar.set_ticks(clev_ticks)
 cbar.set_ticklabels(clev_ticks)
 
-plt.ylabel('corrected wavenumber $k$')
+plt.ylabel('corrected wavelength $\lambda$')
 #plt.xlabel('x (km)')
+plt.ylim(50, 800)
+
 
 #plt.colorbar()
 ax2 = F.fig.add_subplot(gs[3:5, :])
@@ -508,11 +517,12 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     #print( xx_list[x_pos])
     x_range = weighted_spec.x.data[x_pos]#, x_pos[-1]]]
     print(x_range)
-    ax1.axvline(x_range/1e3, linestyle= '--', color= col.black, linewidth=0.9, alpha = 0.8)
-    ax2.axvline(x_range/1e3, linestyle= '--', color= col.black, linewidth=0.9, alpha = 0.8)
+    ax1.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
+    ax2.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
 
     i_lstring = next(lsrtrings)
-    ax1.text(x_range/1e3, weighted_spec.k.mean().data*3/2, ' '+ i_lstring, fontsize= 8)
+    #(lam.mean().data)*4/2
+    ax1.text(x_range/1e3, 700 , ' '+ i_lstring, fontsize= 8, color=col.black)
     #ax2.text(x_range/1e3, weighted_spec.k.mean().data, ' a', fontsize= 8)
 
 
@@ -551,9 +561,9 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
         FP.linear(ax = ax3, cbar_flag=False)
         #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
         #plt.show()
-        plt.title('\n\n'+i_lstring,y=1.0, pad=-6)
+        plt.title('\n\n'+i_lstring,y=1.0, pad=-6, color=col.green)
 
-# %%
+
 F.save_light(path = plot_path, name = 'B05_dir_ov')
 F.save_pup(path = plot_path, name = 'B05_dir_ov')
 # MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})

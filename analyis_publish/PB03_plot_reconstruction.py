@@ -40,6 +40,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
@@ -115,6 +116,7 @@ k = all_beams[0]
 
 plot_path   = mconfig['paths']['plot'] + '/vids/'+batch_key+'/' + track_name + '_'+k+'_x'+str(i)+'_B03/'
 MT.mkdirs_r(plot_path)
+
 
 
 num_count=1
