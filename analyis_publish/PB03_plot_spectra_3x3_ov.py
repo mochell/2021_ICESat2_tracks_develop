@@ -38,11 +38,14 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
+#track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_publish', False
+
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key +'/B02_spectra/'
 load_file   = load_path + 'B02_' + track_name #+ '.nc'
 #plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/publish/' + track_name + '/'
@@ -114,12 +117,13 @@ G_fft_wmean['N_per_stancil'] = Gfft['N_per_stancil'].sum('beam')
 #col.colormaps2(31, gamma=1)
 #col.plot()
 
-def plot_wavenumber_spectrogram(ax, Gi, clev, plot_photon_density=True ):
+def plot_wavenumber_spectrogram(ax, Gi, clev, plot_photon_density=True , cmap=None ):
 
     if Gi.k[0] ==0:
         Gi= Gi.sel(k=Gi.k[1:])
     x_lambda= 2 * np.pi/Gi.k
-    cmap = col.white_base_blgror #plt.cm.
+    if cmap is None:
+        cmap = col.white_base_blgror #plt.cm.
     if clev is None:
         clev = None, None
 
@@ -158,11 +162,14 @@ except:
 
 # %
 font_for_print()
+fn = copy.copy(lstrings)
+
 F = M.figure_axis_xy(6.5, 5.6, container= True, view_scale =1)
 Lmeters = Gk.L.data[0]
 
-plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + track_name, y = 0.98)
-gs = GridSpec(7,3,  wspace=0.25,  hspace=2.5)#figure=fig,
+
+plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + io.ID_to_str(track_name), y = 0.98)
+gs = GridSpec(7,3,  wspace=0.25,  hspace=1.2)#figure=fig,
 #clev=np.arange(0, 6, 0.1)*3
 
 #%matplotlib inline
@@ -176,13 +183,14 @@ xlims= Gmean.x[0]/1e3, Gmean.x[-1]/1e3
 k =high_beams[0]
 for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
+    ax0.tick_params(labelbottom=False)
     Gplot = Gk.sel(beam = k).gFT_PSD_model.squeeze()#rolling(k=5, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
 
     dd2 = 10 * np.log10(Gplot)
     dd2= dd2.where(~np.isinf(dd2), np.nan )
     plot_wavenumber_spectrogram(ax0, dd2,  clev_log, plot_photon_density=False )
-    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.title(next(fn)+k, color= col_dict[k], loc= 'left')
     plt.xlim(xlims)
     #
     if pflag:
@@ -191,12 +199,13 @@ for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True,
 
 for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
+    ax0.tick_params(labelbottom=False)
     Gplot = Gk.sel(beam = k).gFT_PSD_model.squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
     dd2 = 10 * np.log10(Gplot)
     dd2= dd2.where(~np.isinf(dd2), np.nan )
     plot_wavenumber_spectrogram(ax0, dd2,  clev_log, plot_photon_density=False )
-    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.title(next(fn)+k, color= col_dict[k], loc= 'left')
     plt.xlim(xlims)
     #
     if pflag:
@@ -206,7 +215,7 @@ for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, 
 
 pos = gs[4:6, 0]
 ax0 = F.fig.add_subplot(pos)
-plt.title('Photons density ($m^{-1}$)', loc='left')
+plt.title(next(fn)+'Photons density ($m^{-1}$)', loc='left')
 
 max_list = list()
 for k in all_beams:
@@ -224,7 +233,7 @@ plt.xlabel('Distance from the ice edge (km)')
 ax0 = F.fig.add_subplot(gs[4:6, 1])
 
 css = plot_wavenumber_spectrogram(ax0, dd, clev_log  , plot_photon_density= False)
-plt.title('Beam weighted mean', loc= 'left') #\n10 $\log_{10}( (m/m)^2 m )$
+plt.title(next(fn)+'Beam weighted mean', loc= 'left') #\n10 $\log_{10}( (m/m)^2 m )$
 plt.xlim(xlims)
 
 # plt.plot(Gplot.x/1e3, 10* nan_list +20 , c='black', label='NAN-density' )
@@ -241,6 +250,17 @@ plt.xlabel('Distance from the ice edge (km)')
 plt.legend(loc=1)
 
 
+
+cbaxes = F.fig.add_subplot(gs[-1, 1])
+cbaxes.axis('off')
+cbpos  = cbaxes.get_position()
+#cbaxes2 = F.fig.add_axes([cbpos.x0,cbpos.y0,cbpos.width/5,cbpos.height])
+cbaxes2 = F.fig.add_axes([cbpos.x0,cbpos.y0+ 2*cbpos.height/4,cbpos.width,cbpos.height/3])
+cb = plt.colorbar(css , cax =cbaxes2, orientation= 'horizontal')
+
+cb.set_label('Power($(m/m)^2/k$)')
+cb.outline.set_visible(False)
+#cbaxes2.tick_params(axis='both', colors=col.gray)
 
 
 
@@ -268,29 +288,35 @@ PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_data_er
 
 
 dd2 = 10 * np.log10(PSD_data_error_mean)
+#dd2 = PSD_data_error_mean
 #dd= np.where(~np.isinf(dd),  dd, np.nan )
 dd2= dd2.where(~np.isinf(dd2), np.nan )
 
 pos = gs[4:6, 2]
 ax0 = F.fig.add_subplot(pos)
 ax0.set_yscale('log')
+#clev_log
 
-css = plot_wavenumber_spectrogram(ax0, dd2, None  , plot_photon_density= False)
-plt.title('Mean error', loc= 'left') #\n10 $\log_{10}( (m/m)^2 m )$
+clev_log = M.clevels( [dd2.quantile(0.01).data*0.8, dd2.quantile(0.98).data*0.9 ], 31)
+plt.cm.OrRd
+css_err = plot_wavenumber_spectrogram(ax0, dd2, clev_log,  plot_photon_density= False, cmap= plt.cm.OrRd)
+plt.title(next(fn)+'Mean error', loc= 'left') #\n10 $\log_{10}( (m/m)^2 m )$
+plt.xlabel('Distance from the ice edge (km)')
 plt.xlim(xlims)
+#plt.colorbar()
 
 
-
-cbaxes = F.fig.add_subplot(gs[-1, 1])
+cbaxes = F.fig.add_subplot(gs[-1, 2])
 cbaxes.axis('off')
 cbpos  = cbaxes.get_position()
 #cbaxes2 = F.fig.add_axes([cbpos.x0,cbpos.y0,cbpos.width/5,cbpos.height])
-cbaxes2 = F.fig.add_axes([cbpos.x0,cbpos.y0+ 4*cbpos.height/4,cbpos.width,cbpos.height/3])
-cb = plt.colorbar(css , cax =cbaxes2, orientation= 'horizontal')
+cbaxes2 = F.fig.add_axes([cbpos.x0,cbpos.y0+ 2*cbpos.height/4,cbpos.width,cbpos.height/3])
+cb = plt.colorbar(css_err , cax =cbaxes2, orientation= 'horizontal')
 
 cb.set_label('Power($(m/m)^2/k$)')
 cb.outline.set_visible(False)
 #cbaxes2.tick_params(axis='both', colors=col.gray)
+
 
 F.save_light(path=plot_path, name = 'PB03_specs_ov_'+str(track_name))
 F.save_pup(path=plot_path, name = 'PB03_specs_ov_'+str(track_name))

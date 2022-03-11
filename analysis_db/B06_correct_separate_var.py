@@ -16,7 +16,7 @@ import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import h5py
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
-
+import ICEsat2_SI_tools.lanczos as lanczos
 import time
 import imp
 import copy
@@ -39,7 +39,7 @@ ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard ex
 
 #ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #ID_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
-ID_name, batch_key, test_flag =  'SH_20190224_08800210', 'SH_publish', True
+ID_name, batch_key, test_flag =  'SH_20190502_05160312', 'SH_publish', True
 
 #print(ID_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -151,8 +151,8 @@ for bb in Gk.beam.data:
     G_error_model[bb] =  xr.DataArray(data = PSD_error_model, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_model_error' ).expand_dims('beam')
     G_error_data[bb] =  xr.DataArray(data = PSD_error_data, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_data_error' ).expand_dims('beam')
 
-gFT_PSD_model_error_mean = xr.merge(G_error_model.values(),compat='override').gFT_PSD_model_error
-gFT_PSD_data_error_mean = xr.merge(G_error_data.values(),compat='override').gFT_PSD_data_error
+gFT_PSD_model_error_mean = xr.concat(G_error_model.values(), dim='beam')
+gFT_PSD_data_error_mean = xr.concat(G_error_data.values(), dim='beam')
 
 gFT_PSD_model_error_mean = ( gFT_PSD_model_error_mean.where( ~np.isnan(gFT_PSD_model_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
 gFT_PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_data_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
@@ -160,8 +160,8 @@ gFT_PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_dat
 G_gFT_wmean['gFT_PSD_model_err'] = gFT_PSD_model_error_mean
 G_gFT_wmean['gFT_PSD_data_err'] = gFT_PSD_data_error_mean
 
-Gk['gFT_PSD_model_err'] = xr.merge(G_error_model.values(),compat='override').gFT_PSD_model_error
-Gk['gFT_PSD_data_err']  = xr.merge(G_error_data.values(),compat='override').gFT_PSD_data_error
+Gk['gFT_PSD_model_err'] = xr.concat(G_error_model.values(), dim='beam')
+Gk['gFT_PSD_data_err']  = xr.concat(G_error_data.values(), dim='beam')
 
 
 # %%
@@ -193,9 +193,10 @@ F.ax.axvline(k_span[2])
 #plt.plot(np.log(k), np.log( k**(-3) ) )
 #plt.loglog(k, (k)**(-3) - 1e5)
 
-plt.loglog(k, G_gFT_smth)
+plt.loglog(k, G_gFT_smth/k)
 # dd= dd.where(~np.isinf(dd), np.nan )
 #plt.grid()
+plt.title('displacement power Spectra', loc='left')
 
 # %%
 def define_noise_wavenumber_tresh_simple(data_xr, k_peak, k_end_lim =None,  plot_flag = False):
@@ -265,87 +266,102 @@ def define_noise_wavenumber_tresh_simple(data_xr, k_peak, k_end_lim =None,  plot
 
 
 # %% new version
+def get_correct_breakpoint(pw_results):
+    br_points   = list()
+    for i in pw_results.keys():
+        [br_points.append(i) if 'breakpoint' in i else None]
+    br_points_df = pw_results[br_points]
+    br_points_sorted = br_points_df.sort_values()
+
+    alphas_sorted = [i.replace('breakpoint', 'alpha') for i in br_points_df.sort_values().index]
+    alphas_sorted.append('alpha'+ str(len(alphas_sorted)+1) )
+
+
+    betas_sorted = [i.replace('breakpoint', 'beta') for i in br_points_df.sort_values().index]
+
+    #betas_sorted
+    alphas_v2 = list()
+    alpha_i = pw_results['alpha1']
+    for i in [0] + list(pw_results[betas_sorted]):
+        alpha_i += i
+        alphas_v2.append(alpha_i)
+
+    alphas_v2_sorted   = pd.Series(index = alphas_sorted, data =alphas_v2)
+    br_points_sorted['breakpoint'+ str(br_points_sorted.size+1)] = 'end'
+
+    print('all alphas')
+    print(alphas_v2_sorted)
+    slope_mask = alphas_v2_sorted < 0
+
+    if sum(slope_mask) ==0:
+        print('no negative slope found, set to lowest')
+        breakpoint = 'start'
+    else:
+
+        # take steepest slope
+        alpah_v2_sub = alphas_v2_sorted[slope_mask]
+        print(alpah_v2_sub)
+        print(alpah_v2_sub.argmin())
+        break_point_name =  alpah_v2_sub.index[alpah_v2_sub.argmin()].replace('alpha', 'breakpoint')
+
+        # take first slope
+        #break_point_name = alphas_v2_sorted[slope_mask].index[0].replace('alpha', 'breakpoint')
+        breakpoint = br_points_sorted[break_point_name]
+
+    return breakpoint
+
 def get_breakingpoints(xx, dd):
 
     import piecewise_regression
     x2, y2 = xx, dd
     convergence_flag =True
-    n_breakpoints= 2
+    n_breakpoints= 3
     while convergence_flag:
         pw_fit = piecewise_regression.Fit(x2, y2, n_breakpoints=n_breakpoints)
         print('n_breakpoints', n_breakpoints, pw_fit.get_results()['converged'])
         convergence_flag = not pw_fit.get_results()['converged']
         n_breakpoints += 1
-        if n_breakpoints ==4:
+        if n_breakpoints >=4:
             convergence_flag = False
 
     pw_results = pw_fit.get_results()
+    #pw_fit.summary()
+
     if pw_results['converged']:
         # if pw_results['estimates']['alpha1']['estimate'] < 0:
         #     print('decay at the front')
         #     print('n_breakpoints',pw_fit.n_breakpoints )
 
-        pw_results = pd.DataFrame(pw_results['estimates'])
+        pw_results_df = pd.DataFrame(pw_results['estimates']).loc['estimate']
 
-        alphas = list()
-        for i in pw_results.keys():
-            [alphas.append(i) if 'alpha' in i else None]
+        breakpoint = get_correct_breakpoint(pw_results_df)
 
-        alpha_df = pw_results[alphas]
-        print(alpha_df.loc['estimate'])
-        slope_mask = (alpha_df.loc['estimate'] < 0)
-        if sum(slope_mask) ==0:
-            print('no negative slope found, set to lowest')
-            breakpoint_log = xx[0]
-        else:
-            break_point_name = alpha_df.loc['estimate'][slope_mask].index[0].replace('alpha', 'breakpoint')
-            #break_point_name ='breakpoint5'
-            #print(break_point_name, pw_results.T.index ,  break_point_name in pw_results.T.index)
-            if break_point_name in pw_results.T.index:
-                breakpoint_log = pw_results[break_point_name]['estimate']
-                print('get', break_point_name)
-            else:
-                print('last slope segment, chose last wavenumber')
-                breakpoint_log = xx[-1]
-
-        return pw_fit, breakpoint_log
+        return pw_fit, breakpoint
 
     else:
         return pw_fit, False
 
-
-# data_xr, k_peak = G_gFT_smth.sel(x=x), k_lead_peak
-# k_end_lim= k_end_0
-#data_xr = G_gFT_smth.sel(x=x)
 def define_noise_wavenumber_piecewise(data_xr, plot_flag = False):
-
-
-    # if k_end_lim is None:
-    #     k_end_lim =data_xr.k[-1]
-    #
-    # k_lead_peak_margin = k_peak * 1.05
 
     data_log = data_xr
     data_log = np.log(data_xr)
-    # try:
-    #     data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin))#.rolling(k =10,  center=True, min_periods=1).mean()
-    # except:
-    #     data_log = np.log(data_xr).isel(k =(data_xr.k> k_lead_peak_margin/2))#.rolling(k =10,  center=True, min_periods=1).mean()
 
     k =data_log.k.data
     k_log= np.log(k)
 
     pw_fit, breakpoint_log   = get_breakingpoints(k_log, data_log.data)
 
-    if (type(breakpoint_log) is bool) and not breakpoint_log:
-        #print(sum(  ll[0][d_grad.k <= k_end_lim] ==0) == 0)
+    if breakpoint_log is 'start':
         print('no decay, set to lowerst wavenumber')
         breakpoint_log =  k_log[0]
+    if (breakpoint_log is 'end') | (breakpoint_log is False) :
+        print('higest wavenumner')
+        breakpoint_log =  k_log[-1]
 
     breakpoint_pos                  = abs(k_log -breakpoint_log).argmin()
     breakpoint_k                    = k[breakpoint_pos]
 
-    plot_flag= True
+    #plot_flag= False
     if plot_flag:
         # plt.plot(np.log(d_grad.k), d_grad)
         # plt.show()
@@ -358,70 +374,66 @@ def define_noise_wavenumber_piecewise(data_xr, plot_flag = False):
 
     return breakpoint_k, pw_fit
 
-#x = G_gFT_smth.isel(x=8).x
-#k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), plot_flag =True )
+#G_gFT_smth.isel(x=7).plot()
 
-# k_log= np.log(G_gFT_smth.k)
-#
-# alphas = list()
-# for i in pw_results.keys():
-#     [alphas.append(i) if 'alpha' in i else None]
-#
-#
-# alpha_df = pw_results[alphas]
-# slope_mask = (alpha_df.loc['estimate'] < 0)
-# if sum(slope_mask) ==0:
-#     print('no break point found, set to lowest')
-#     breakpoint_log = k_log[0]
-# else:
-#     break_point_name = alpha_df.loc['estimate'][slope_mask].index[0].replace('alpha', 'breakpoint')
-#     break_point_name ='breakpoint5'
-#     if break_point_name in pw_results.T.index:
-#         break_point_log = pw_results[break_point_name]['estimate']
-#     else:
-#         print('last slope segment, chose last wavenumber')
-#         break_point_log = k_log[-1]
-
-
-# %%
-G_gFT_smth.isel(x=7).plot()
-
-# %%
 k_lim_list = list()
-k_end_0 = None
+k_end_previous = np.nan
 x = G_gFT_smth.x.data[0]
 k = G_gFT_smth.k.data
 
 for x in G_gFT_smth.x.data:
-# %%
-    x = G_gFT_smth.isel(x=9).x
+    #x = G_gFT_smth.isel(x=9).x
+    #x= 237500.0
+    print(x)
+    # use displacement power spectrum
+    k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x)/k, plot_flag =True )
+    #pw_fit.get_results()
+    #pw_fit.n_breakpoints
 
-    #print(x)
-    k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), plot_flag =True )
-    # pw_fit.get_results()
-    pw_fit.summary()
+    #pw_fit.summary()
     #k_end, slope = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
     #k_end = define_noise_wavenumber_tresh_simple(G_gFT_smth.sel(x=x), k_lead_peak, k_end_lim= k_end_0, plot_flag =True )
 
-    k_end_0 = k_end if k_end_0 is None else k_end_0
 
-    k_save = np.nan if k_end == k[0] else k_end
+    k_save = k_end_previous if k_end == k[0] else k_end
+    #k_save = k_end_previous if k_end >= k[-1]*0.95 else k_end
+
+    #k_save = k_end_previous if k_end == k[-1] else k_end
+    k_end_previous = k_save #if k_end_0 is None else k_end_0
+    k_lim_list.append(k_save)
+
     #k_save = np.nan if slope >= 0 else k_end
     plt.gca().axvline(np.log(k_save), linewidth= 2, color='red')
     plt.show()
-    k_lim_list.append(k_save)
     print('--------------------------')
-
 # %%
 # write k limits to datasets
+# lanczos.lanczos_filter_1d(G_gFT_smth.x, k_lim_list, 2)
+# lanczos.lanczos_filter_1d_wrapping
+
+font_for_pres()
 G_gFT_smth.coords['k_lim'] = ('x', k_lim_list )
-G_gFT_wmean.coords['k_lim'] = ('x', k_lim_list )
+G_gFT_smth.k_lim.plot()
+#G_gFT_smth.k_lim.rolling(x=4,  center=True, min_periods=1).median().plot()
+k_lim_smth = G_gFT_smth.k_lim.rolling(x=3,  center=True, min_periods=1).mean()
+k_lim_smth.plot(c='r')
+
+plt.title('k_c filter', loc='left')
+F.save_light(path=plot_path, name = str(ID_name)+ '_B06_atten_ov')
+
+G_gFT_smth['k_lim']  = k_lim_smth #G_gFT_smth.k_lim.rolling(x=3,  center=True, min_periods=1).mean().plot(c='r').data
+G_gFT_wmean.coords['k_lim'] = k_lim_smth #('x', k_lim_smth )
+
+
 # %%
 font_for_print()
-F = M.figure_axis_xy(6, 5, container= True, view_scale =1)
 
-#plt.suptitle('Generalized Fourier Transform Slope Spectral Power\n' + ID_name, y = 0.98)
-gs = GridSpec(8,3,  wspace=0.25,  hspace=3.5)#figure=fig,#
+fn = copy.copy(lstrings)
+F = M.figure_axis_xy(fig_sizes['two_column'][0], fig_sizes['two_column'][0], container= True, view_scale =1)
+
+
+plt.suptitle('Cut-off Frequency for Displacement Spectral\n' + io.ID_to_str(ID_name), y = 0.97)
+gs = GridSpec(8,3,  wspace=0.1,  hspace=1.5)#figure=fig,#
 
 #
 # #clev = M.clevels( [Gmean.quantile(0.6).data * 1e4, Gmean.quantile(0.99).data * 1e4], 31)/ 1e4
@@ -437,15 +449,20 @@ for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True,
 
     alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
     for x in Gplot.x.data:
-        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x), linewidth = 0.5, color= col.rels[k], alpha= next(alpha_range))
-        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0)
+        ialpha =next(alpha_range)
+        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
+        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0, alpha=ialpha)
 
-    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.title(next(fn) + k, color= col_dict[k], loc= 'left')
     plt.xlim(xlims)
     #
     if pflag:
-        plt.ylabel('log Amplitude')
+        ax0.tick_params(labelbottom=False, bottom=True)
+        plt.ylabel('Power (m$^2$/k)')
         plt.legend()
+    else:
+        ax0.tick_params(labelbottom=False, bottom=True, labelleft=False)
+
 for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
     Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
@@ -453,31 +470,47 @@ for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, 
 
     alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
     for x in Gplot.x.data:
-        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x), linewidth = 0.5, color= col.rels[k], alpha= next(alpha_range))
-        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black')
+        ialpha =next(alpha_range)
+        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
+        ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0, alpha=ialpha)
 
-    plt.title(k, color= col_dict[k], loc= 'left')
+    plt.title(next(fn) + k, color= col_dict[k], loc= 'left')
     plt.xlim(xlims)
+    plt.xlabel('wavenumber k')
+
     #
     if pflag:
-        plt.ylabel('log Amplitude')
+        ax0.tick_params( bottom=True)
+        plt.ylabel('Power (m$^2$/k)')
         plt.legend()
+    else:
+        ax0.tick_params(bottom=True, labelleft=False)
 
-pos = gs[4:, 0:2]
+F.save_light(path=plot_path, name =str(ID_name) + '_B06_atten_ov_simple')
+F.save_pup(path=plot_path, name = str(ID_name) + '_B06_atten_ov_simple')
+
+
+pos = gs[5:, 0:2]
 ax0 = F.fig.add_subplot(pos)
 lat_str = str(np.round( Gx.isel(x = 0).lat.mean().data, 2)  ) +' to ' + str(np.round( Gx.isel(x = -1).lat.mean().data, 2)  )
 
-plt.title('Weigthen mean spectral Power (lat='+ lat_str +')', loc='left')
+plt.title(next(fn) + 'Mean Displacement Spectra\n(lat='+ lat_str +')', loc='left')
 
-(10 * np.log(G_gFT_smth.isel(x = slice(0, -1)))).plot(cmap = col.white_base_blgror)
+
+dd = (10 * np.log( (G_gFT_smth/G_gFT_smth.k) .isel(x = slice(0, -1))))#.plot()
+
+plt.pcolor(dd.x, dd.k, dd, cmap = col.white_base_blgror)
+cb = plt.colorbar(orientation= 'vertical')
+cb.set_label('Power (m$^2$/k)')
 G_gFT_smth.isel(x = slice(0, -1)).k_lim.plot(color= col.black, linewidth = 1)
 plt.ylabel('wavenumber k')
+plt.xlabel('X (meter)')
 
-F.save_light(path=plot_path, name = str(ID_name)+ '_B06_atten_ov')
-#F.save_pup(path=plot_path, name = 'B06_atten_ov_'+str(ID_name))
+F.save_light(path=plot_path, name =str(ID_name) + '_B06_atten_ov')
+F.save_pup(path=plot_path, name = str(ID_name) + '_B06_atten_ov')
 
 
-#%% reconstruct slope displacement data
+# %% reconstruct slope displacement data
 def fit_offset(x, data,  model, nan_mask, deg):
 
     #x, data,  model, nan_mask, deg = dist_stencil, height_data, height_model, dist_nanmask, 1

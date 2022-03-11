@@ -50,7 +50,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190101005132_00550201_005_01', 'SH_batch04', False # <-- !
 #track_name, batch_key, test_flag = '20190101225136_00690201_005_01', 'SH_batch04', False
 
-#track_name, batch_key, test_flag = '20190224012038_08800201_005_01', 'SH_publish', False
+track_name, batch_key, test_flag = '20190219063727_08070201_005_01', 'SH_publish', False
 
 
 #track_name, batch_key, test_flag = '20190208142818_06440201_005_01', 'SH_publish', False
@@ -443,8 +443,11 @@ M.save_anyfig(plt.gcf(), name='A01b_'+track_name+'_'+ hemis+'_'+k  , path=plot_p
 # DD_slope
 #
 # %%
+
 # Test if 1st slope segment is negative. There might be better way to test for waves in the data
-DD_slope_mask = DD_slope <0
+DD_slope_mask = DD_slope < 1e-3
+# DD_slope < 1e-3
+# DD_slope < 0
 
 # if there is at leat one slope pair download data, otherwise write files and exit
 if ( (DD_slope_mask.sum() > 1).sum() > 0) :

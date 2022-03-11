@@ -58,7 +58,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = 'NH_20190301_09570203', 'NH_batch05', True
+#track_name, batch_key, test_flag = 'NH_20190301_09580203', 'NH_batch05', True
 #track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
 
 #print(track_name, batch_key, test_flag)
@@ -119,6 +119,7 @@ except:
 # prior_sel= {'alpha': ( dominant_dir *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
 #prior_sel= {'alpha': ( -60 *np.pi/180 , dominant_dir_spread *np.pi/180) } # to radiens
 
+Prior
 
 Pperiod     = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
 Pdir        = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
@@ -143,15 +144,28 @@ dir_best = np.array(dir_best[1:])
 
 # %%
 
-Pwavenumber     = (2 * np.pi / Pperiod  )**2 / 9.81
-kk              = Gk.k
-dir_interp      = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , dir_best[Pwavenumber.argsort()] )
-dir_interp_smth = M.runningmean(dir_interp, 30, tailcopy= True)
-dir_interp_smth[-1] = dir_interp_smth[-2]
+if len(Pperiod) == 0:
+    print('constant peak wave number')
+    kk              = Gk.k
+    Pwavenumber     = kk*0 + (2 * np.pi / (1/ Prior.loc['fp']['mean'])  )**2 / 9.81
+    dir_best        = kk*0 + Prior.loc['dp']['mean']
+    #dir_interp      = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , dir_best[Pwavenumber.argsort()] )
+    dir_interp_smth = dir_interp    = kk*0 + Prior.loc['dp']['mean']
+    spread_smth     = spread_interp = kk*0 + Prior.loc['spr']['mean']
+    #spread_interp   = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , Pspread[Pwavenumber.argsort()].astype('float')  )
+    #spread_smth     = M.runningmean(spread_interp, 30, tailcopy= True)
+    #spread_smth[-1] = spread_smth[-2]
 
-spread_interp   = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , Pspread[Pwavenumber.argsort()].astype('float')  )
-spread_smth     = M.runningmean(spread_interp, 30, tailcopy= True)
-spread_smth[-1] = spread_smth[-2]
+else:
+    Pwavenumber     = (2 * np.pi / Pperiod  )**2 / 9.81
+    kk              = Gk.k
+    dir_interp      = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , dir_best[Pwavenumber.argsort()] )
+    dir_interp_smth = M.runningmean(dir_interp, 30, tailcopy= True)
+    dir_interp_smth[-1] = dir_interp_smth[-2]
+
+    spread_interp   = np.interp(kk, Pwavenumber[Pwavenumber.argsort()] , Pspread[Pwavenumber.argsort()].astype('float')  )
+    spread_smth     = M.runningmean(spread_interp, 30, tailcopy= True)
+    spread_smth[-1] = spread_smth[-2]
 
 
 font_for_pres()

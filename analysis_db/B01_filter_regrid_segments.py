@@ -96,7 +96,7 @@ Lmeter_large= 100e3 # stancil width for testing photon density. stancils do not 
 minium_photon_density = 0.02 # minimum photon density per meter in Lmeter_large chunk to be counted as real signal
 
 plot_flag   = True
-Nworkers_process = 3  # number of threads for parallel processing  # outer loop
+Nworkers_process = 6  # number of threads for parallel processing  # outer loop
 # %%
 # test which beams exist:
 all_beams   = mconfig['beams']['all_beams']

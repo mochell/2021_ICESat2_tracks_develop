@@ -25,10 +25,10 @@ import datetime
 import generalized_FT as gFT
 from scipy.ndimage.measurements import label
 
-
 imp.reload(M_color)
 col=M_color.color(path=mconfig['paths']['analysis']+'../config/', name='color_def')
 
+xr.set_options(display_style='text')
 #import s3fs
 # %%
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
@@ -41,16 +41,19 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
 
-track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 
 # local track
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+
+track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_publish', True
+
 x_pos= 3
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key +'/B02_spectra/'
 load_file   = load_path + 'B02_' + track_name #+ '.nc'
 #plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + track_name + '/'
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/publish/' + track_name + '/'
@@ -61,7 +64,6 @@ Gx = xr.open_dataset(load_file+'_gFT_x.nc')
 
 Gfft = xr.open_dataset(load_file+'_FFT.nc')
 
-time.sleep(5)
 
 # %%
 all_beams   = mconfig['beams']['all_beams']
@@ -110,6 +112,32 @@ else:
     MT.json_save('B03_fail', plot_path, {'reason':'no y_data'})
     print('failed, exit')
     exit()
+
+
+
+# %%
+
+# derive spectral errors:
+Lpoints=  Gk.Lpoints.mean('beam').data
+N_per_stancil = Gk.N_per_stancil.mean('beam').data#[0:-2]
+
+G_error_model =dict()
+G_error_data =dict()
+
+for bb in Gk.beam.data:
+    I = Gk.sel(beam= bb)
+    b_bat_error =  np.concatenate([ I.model_error_k_cos.data , I.model_error_k_sin.data ])
+    Z_error = gFT.complex_represenation(b_bat_error, Gk.k.size, Lpoints)
+    PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error, np.diff(Gk.k)[0],N_per_stancil  , Lpoints )
+
+    #np.expand_dims(PSD_error_model, axis =)
+    G_error_model[bb] =  xr.DataArray(data = PSD_error_model, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_model_error' ).expand_dims('beam')
+    G_error_data[bb] =  xr.DataArray(data = PSD_error_data, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_data_error' ).expand_dims('beam')
+
+
+Gk['gFT_PSD_model_err'] = xr.concat(G_error_model.values(), dim='beam')
+Gk['gFT_PSD_data_err']  = xr.concat(G_error_data.values(), dim='beam')
+
 
 
 # %%
@@ -210,6 +238,17 @@ ax0.set_xticklabels(eta_ticks_labels)
 plt.xlim( eta_1[0].data - 40 * dx, eta_1[-1].data+  40 * dx )
 plt.xlabel('segment distance $\eta$ (km) @ X='+ numtostr(Gx_1.x.data/1e3)+' km')
 
+
+# make spectral error
+# Lpoints=  Gk.Lpoints.sel(beam = beam_group).mean('beam').data
+# N_per_stancil = Gk.N_per_stancil.sel(beam = beam_group).mean('beam').data[0:-2]
+# b_bat_error =  np.concatenate([Gplot.model_error_k_cos.data, Gplot.model_error_k_sin.data ])
+# Z_error = gFT.complex_represenation(b_bat_error, Gplot.k.size, Lpoints)
+# PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error,np.diff(Gplot.k)[0],N_per_stancil  , Lpoints )
+#PSD_error_data.shape
+#Gk['PSD_error_data'] = ( ('x', 'k'), PSD_error_data)
+
+
 # spectra
 # define threshold
 k_thresh = 0.085
@@ -233,8 +272,10 @@ for pos, k, lflag in zip([ gs[6:9, 0:3],  gs[9:12, 0:3] ],  beam_group, [True, F
 
     dd = Gk_1.gFT_PSD_data.rolling(k=10, min_periods= 1, center=True).mean()
     plt.plot(Gk_1.k,  dd, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
-    plt.plot(Gk_1.k,  dd, color=col.gridcolor, linewidth=1.4, zorder=6 )
+    #plt.plot(Gk_1.k,  dd, color=col.gridcolor, linewidth=2.4, zorder=6 )
 
+    # dd_err = Gk_1.gFT_PSD_model_err.rolling(k=10, min_periods= 1, center=True).mean()
+    # plt.fill_between(Gk_1.k,  dd- 20*dd_err,  dd+ 20*dd_err, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
 
     dd_fft = Gfft_1.power_spec.rolling(k=10, min_periods= 1, center=True).mean()
     plt.plot(Gfft_1.k,  dd_fft, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
@@ -278,7 +319,6 @@ if ~np.isnan(np.nanmax(dd_max)):
 
 Gplot= Gk.sel(beam = beam_group, x=Gk.x[0:-2]).mean('beam').rolling(k=10, x=2, min_periods= 1, center=True).median()
 
-
 # define 2nd part of the axis
 ax1 = F.fig.add_subplot(gs[6:9, 3:])
 ax2 = F.fig.add_subplot(gs[9:12, 3:])
@@ -309,16 +349,11 @@ plt.xlim(xlims)
 plt.ylabel('Wave length\n(meters)')
 plt.title('Mean Spectrogram', loc='left')
 
-# make spectral error
-Lpoints=  Gk.Lpoints.sel(beam = beam_group).mean('beam').data
-N_per_stancil = Gk.N_per_stancil.sel(beam = beam_group).mean('beam').data[0:-2]
-b_bat_error =  np.concatenate([Gplot.model_error_k_cos.data, Gplot.model_error_k_sin.data ])
-Z_error = gFT.complex_represenation(b_bat_error, Gplot.k.size, Lpoints)
-PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error,np.diff(Gplot.k)[0],N_per_stancil  , Lpoints )
 
 
 F.fig.add_subplot(ax2)
-dd = 10 * np.log10(PSD_error_data)
+
+dd = 10 * np.log10(Gplot.gFT_PSD_data_err)
 dd= np.where(~np.isinf(dd),  dd, np.nan )
 
 #clev = M.clevels( [np.percentile(dd, 0.01)* 0.75,np.percentile(dd, 0.98)  * 1], 31)* 1
@@ -373,5 +408,5 @@ cbaxes2.tick_params(axis='both', colors=col.gray)
 # cbaxes2.spines['bottom'].set_visible(False)
 # cbaxes2.spines['top'].set_visible(False)
 
-F.save_light(path= plot_path, name='B03_gFT_exmpl_x'+str(i)+'_'+track_name)
-F.save_pup(path= plot_path, name='B03_gFT_exmpl_x'+str(i)+'_'+track_name)
+# F.save_light(path= plot_path, name='B03_gFT_exmpl_x'+str(i)+'_'+track_name)
+# F.save_pup(path= plot_path, name='B03_gFT_exmpl_x'+str(i)+'_'+track_name)

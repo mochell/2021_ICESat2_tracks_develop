@@ -171,7 +171,6 @@ class wavenumber_spectrogram_gFT(object):
 
             return weight, params
 
-
         def calc_gFT_apply(stancil, prior):
 
             """
@@ -199,8 +198,10 @@ class wavenumber_spectrogram_gFT(object):
 
             # define weights
             if (type(prior[0]) is bool) and not prior[0] :
+                # fit function to data
                 weight, prior_pars = get_weights_from_data(x, y, self.dx, stancil, self.k, plot_flag=plot_flag, method='parametric')
-            elif (type(prior) is tuple):
+            elif (type(prior) is tuple): # prior= (PSD_from_GFT, weight_used in inversion)
+                # combine old and new weights
                 weight = 0.2 * smooth_data_to_weight(prior[0]) + 0.8 * prior[1]
                 weight = weight/weight.max()
                 prior_pars = {'alpha': None, 'amp': None, 'f_max': None, 'gamma':None}
@@ -223,6 +224,8 @@ class wavenumber_spectrogram_gFT(object):
             ta = time.perf_counter()
             FT.define_problem(1/weight, err) # 1st arg is Penalty, 2nd is error
 
+
+            # solve problem:
             b_hat = FT.solve()
 
             print( 'solve : ', time.perf_counter() - ta)
@@ -267,20 +270,31 @@ class wavenumber_spectrogram_gFT(object):
             return stancil[1], b_hat, inverse_stats, y_model_grid , y_data_grid,  x.size, PSD, weight
 
 
-
-
         # % derive L2 stancil
         self.stancil_iter = spec.create_chunk_boundaries_unit_lengths(Lmeters, self.xlims, ov= self.ov, iter_flag=True)
         #stancil_iter = create_chunk_boundaries_unit_lengths(L, ( np.round(X.min()), X.max() ), ov= self.ov, iter_flag=True)
 
         # apply func to all stancils
         Spec_returns=list()
+        # form: PSD_from_GFT, weight_used in inversion
         prior= False, False
+
         for ss in copy.copy(self.stancil_iter):
             #print(ss)
             #prior= False, False
-            I_return = calc_gFT_apply(ss, prior=prior)
-            prior = I_return[6], I_return[7]
+            # prior step
+            if prior[0] is False: # make NL fit of piors do not exist
+                print('1st step with NL-fit')
+                I_return = calc_gFT_apply(ss, prior=prior)
+                prior = I_return[6], I_return[7]
+
+            # 2nd step
+            if prior[0] is False:
+                print('priors still false skip 2nd step')
+            else:
+                print('2nd step use set priors:', type(prior[0]), type(prior[0]) )
+                I_return = calc_gFT_apply(ss, prior=prior)
+                prior = I_return[6], I_return[7]
             #print(I_return[6])
             Spec_returns.append( [I_return[0],I_return[1],I_return[2],I_return[3],I_return[4],I_return[5]] )
 
