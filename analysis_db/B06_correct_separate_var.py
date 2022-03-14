@@ -39,7 +39,7 @@ ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard ex
 
 #ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #ID_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
-ID_name, batch_key, test_flag =  'SH_20190224_08800210', 'SH_publish', True
+#ID_name, batch_key, test_flag =  'SH_20190224_08800210', 'SH_publish', True
 
 #print(ID_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
