@@ -28,32 +28,45 @@ from scipy.ndimage.measurements import label
 xr.set_options(display_style='text')
 #import s3fs
 # %%
-track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
-#track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
-#track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
-#track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
+ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
+#ID_name, batch_key, ID_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
+#ID_name, batch_key, ID_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
+#ID_name, batch_key, ID_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
+#ID_name, batch_key, ID_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
 
-#track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#ID_name, batch_key, ID_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
+ID_name, batch_key, ID_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+ID_name, batch_key, ID_flag = 'SH_20190219_08070210', 'SH_publish', True
 
-#print(track_name, batch_key, test_flag)
+
+ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'],  )
+#print(ID_name, batch_key, ID_flag)
 hemis, batch = batch_key.split('_')
 
 ATlevel= 'ATL03'
-load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
-load_file   = load_path + 'processed_' + ATlevel + '_' + track_name + '.h5'
-#B0   = io.load_pandas_table_dict(track_name + '_B01_corrected'  , load_path)
-#B1   = io.load_pandas_table_dict(track_name + '_B01_new_coords' , load_path)
-B2          = io.load_pandas_table_dict(track_name + '_B01_regridded'  , load_path) # rhis is the rar photon data
-B3          = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
 
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
-load_file   = load_path + 'B02_' + track_name #+ '.nc'
+load_path_scratch = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
+load_path_work    = mconfig['paths']['work'] +'/'+ batch_key +'/'
+
+
+#B0_hdf5    = h5py.File(load_path_scratch +'/A01c_ATL03_'+ID_name+ '_corrected.h5', 'r')
+B2_hdf5    = h5py.File(load_path_work +'B01_regrid'+'/'+ID_name + '_B01_regridded.h5', 'r')
+B3_hdf5    = h5py.File(load_path_work +'B01_regrid'+'/'+ID_name + '_B01_binned.h5', 'r')
+
+B0, B2, B3 = dict(), dict(), dict()
+for b in all_beams:
+    #B0[b] = io.get_beam_hdf_store(B0_hdf5[b])
+    B2[b] = io.get_beam_hdf_store(B2_hdf5[b])
+    B3[b] = io.get_beam_hdf_store(B3_hdf5[b])
+
+B2_hdf5.close(), B2_hdf5.close()
+
+load_path   = mconfig['paths']['work']+ batch_key  +'/B02_spectra/'
+load_file   = load_path + 'B02_' + ID_name #+ '.nc'
 #MT.mkdirs_r(plot_path)
 
 Gk   = xr.open_dataset(load_file+'_gFT_k.nc')
@@ -94,7 +107,6 @@ def plot_model_eta(D, ax,  offset = 0,  **kargs ):
 # %%
 fltostr  = MT.float_to_str
 numtostr = MT.num_to_str
-
 font_for_print()
 
 #for i in x_pos_sel[::2]:
@@ -114,21 +126,20 @@ i = 5
 k = all_beams[0]
 #k = 'gt2l'
 
-plot_path   = mconfig['paths']['plot'] + '/vids/'+batch_key+'/' + track_name + '_'+k+'_x'+str(i)+'_B03/'
+plot_path   = mconfig['paths']['plot'] + '/vids/'+batch_key+'/' + ID_name + '_'+k+'_x'+str(i)+'_B03/'
 MT.mkdirs_r(plot_path)
-
-
 
 num_count=1
 k_list = np.concatenate([ np.arange(0.005, 0.14, 0.001)[::-1], np.arange(0.005, 0.14, 0.001) ])
 for k_thresh in k_list:
 
+# %%
     print(num_count)
-    #k_thresh = 0.12 * 1
+    k_thresh = 0.12 * 1
     F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
 
-    plt.suptitle('ALT03 Decomposition\nID: '+ track_name, y = 0.93, x = 0.13, horizontalalignment ='left')
-    #Photon height reconstruction | x='+str(Gk.x[i].data)+' \n' + track_name, y = 0.95)
+    plt.suptitle('ALT03 Decomposition\nID: '+ ID_name, y = 0.93, x = 0.13, horizontalalignment ='left')
+    #Photon height reconstruction | x='+str(Gk.x[i].data)+' \n' + ID_name, y = 0.95)
     gs = GridSpec(12+4,6,  wspace=0,  hspace=0.2)#figure=fig,
 
     ax0 = F.fig.add_subplot(gs[0:6, :])
@@ -328,14 +339,14 @@ for k_thresh in k_list:
     ylim_slope= np.round(Gx_1.y_data.std().data*4 * 10)/10
     ax0.set_ylim(-1* ylim_slope ,ylim_slope)
 
-    y_tick_labels, y_ticks = MT.tick_formatter(np.arange(-0.5, 2, 0.5), interval= 2, expt_flag= False, shift=1)
+    y_tick_labels, y_ticks = MT.tick_formatter(np.arange(-0.5, 3, 0.5), interval= 2, expt_flag= False, shift=1)
     ax1.set_yticks(y_ticks)
     ax1.set_yticklabels(y_tick_labels)
     ax1.set_ylim(-0.4, 1.5)
 
     ax2.set_yticks(y_ticks)
     ax2.set_yticklabels(y_tick_labels)
-    ax2.set_ylim(0, 1.8)
+    ax2.set_ylim(0, 2.8)
 
     ax3.set_yticks(y_ticks)
     ax3.set_yticklabels(y_tick_labels)
@@ -353,7 +364,7 @@ for k_thresh in k_list:
 
 
     F.save_light(path= plot_path, name='B03_decomposition_'+str(num_count).zfill(4))
-    #F.save_pup(path= plot_path, name='B02_decomposition_'+k+'_x'+str(i)+'_'+track_name)
+    #F.save_pup(path= plot_path, name='B02_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
     num_count +=1
 # %%
 

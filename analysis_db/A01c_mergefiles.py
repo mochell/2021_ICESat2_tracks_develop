@@ -54,7 +54,9 @@ ID, track_names, hemis, batch
 # %%
 load_path_data   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
 save_path_data   = mconfig['paths']['scratch'] +'/'+ batch_key +'/'
-imp.reload(io)
+bad_track_path =mconfig['paths']['work'] +'bad_tracks/'+ batch_key+'/'
+
+#imp.reload(io)
 def ATL03_loader(k):
     """
     returns tables with merged ATL03 data
@@ -65,13 +67,21 @@ def ATL03_loader(k):
         print('tracklist found')
         T_lists, seg_list,Tsel_c_list = list(), list(), list()
         for ATLi in track_names:
-            T0, seg0 = io.getATL03_beam(load_path_data + ATLi +'.h5', beam= k)
-            T_lists.append(T0)
-            seg_list.append(seg0)
+            try:
+                T0, seg0 = io.getATL03_beam(load_path_data + ATLi +'.h5', beam= k)
+                T_lists.append(T0)
+                seg_list.append(seg0)
 
-            Tsel_c  = io.getATL03_height_correction(load_path_data + ATLi +'.h5', beam= k)
-            Tsel_c_list.append(Tsel_c)
+                Tsel_c  = io.getATL03_height_correction(load_path_data + ATLi +'.h5', beam= k)
+                Tsel_c_list.append(Tsel_c)
+            except:
+                print(ATLi, ' not found!! continue with single file!')
 
+        if len(T_lists) == 0: # in photons per meter
+            print('no files found, this track is classified as bad track and pushed to bad list')
+            MT.json_save(ID_name, bad_track_path, {'A01c': 'no files found, this track is classified as bad track and pushed to bad list','track_names':track_names ,  'date': str(datetime.date.today()) })
+            print('exit.')
+            exit()
 
         Ti = pd.concat(T_lists)
         Si = pd.concat(seg_list)
@@ -98,6 +108,11 @@ def ATL03_loader(k):
     Ti = Ti[Ti['mask_seaice']] # only take sea ice points, no ocean points
     #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
     Ti = Ti.drop(labels=[ 'ph_id_count', 'mask_seaice'], axis= 1)
+
+    #Ti = Ti[Ti['mask_seaice']] # only take sea ice points, no ocean points
+    #T = T.drop(labels=[ 'year', 'month', 'day', 'hour', 'minute', 'second', 'ph_id_count', 'mask_seaice'], axis= 1)
+    #Ti = Ti.drop(labels=[ 'ph_id_count'], axis= 1)
+
     print( 'T MB '  + get_size(Ti) )
 
     # filter:

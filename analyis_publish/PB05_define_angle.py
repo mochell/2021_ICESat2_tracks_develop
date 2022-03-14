@@ -46,11 +46,14 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 
 # good track
-track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190216200800_07690212_004_01', 'SH_batch02', False
 
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
+
+track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
+#track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_publish', False
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -74,17 +77,15 @@ group_names = mconfig['beams']['group_names']
 
 # load_path   = mconfig['paths']['work'] +'/B01_regrid_'+hemis+'/'
 # G_binned    = io.load_pandas_table_dict(track_name + '_B01_binned' , load_path)  #
-
-load_path   = mconfig['paths']['work'] +'/B02_spectra_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key +'/B02_spectra/'
 Gk          = xr.load_dataset(load_path+ '/B02_'+track_name + '_gFT_k.nc' )  #
 
-load_path   = mconfig['paths']['work'] + '/B04_angle_'+hemis+'/'
+load_path   = mconfig['paths']['work'] +batch_key +'/B04_angle/'
 Marginals   = xr.load_dataset(load_path+ '/B04_'+track_name + '_marginals.nc' )  #
 
 # %% load prior information
-load_path   = mconfig['paths']['work'] +'/A02_prior_'+hemis+'/'
-Prior       = MT.load_pandas_table_dict('/A02b_'+track_name, load_path)['priors_hindcast']
-
+load_path   = mconfig['paths']['work']+batch_key  +'/A02_prior/'
+Prior       = MT.load_pandas_table_dict('/A02_'+track_name, load_path)['priors_hindcast']
 
 
 # font_for_print()
@@ -294,10 +295,17 @@ M_final.name='weighted_angle_PDF'
 M_final_smth.name='weighted_angle_PDF_smth'
 Gpdf = xr.merge([M_final,M_final_smth])
 
+Gpdf.weighted_angle_PDF_smth.plot()
+#Gpdf.isel( x=slice(0, 3 )).weighted_angle_PDF_smth.mean('x')
+#Gpdf.angle[Gpdf.mean('x').weighted_angle_PDF_smth.argmax()].data
 
+Gpdf.mean('x').weighted_angle_PDF_smth.plot()
 best_guess_angle = Gpdf.angle[Gpdf.mean('x').weighted_angle_PDF_smth.argmax()].data
 
+best_guess_angle * 180/np.pi
 
+best_guess_angle/np.pi
+Gpdf.mean('x').weighted_angle_PDF_smth.plot()
 #Gpdf.weighted_angle_PDF.where(~np.isnan(Gpdf.weighted_angle_PDF),0 ).plot()
 
 # if len(Gpdf.x) < 2:
@@ -411,12 +419,13 @@ class plot_polarspectra(object):
             ax.set_rlabel_position(87)
             self.ax=ax
 
-
+# %%
 font_for_print()
 fn = copy.copy(lstrings)
 
-F = M.figure_axis_xy(fig_sizes['23rd_width'][0] *1.2, fig_sizes['23rd_width'][0]*1.2, view_scale= 0.7, container = True)
-gs = GridSpec(8,6,  wspace=0,  hspace=4.1)#figure=fig,
+
+F = M.figure_axis_xy(fig_sizes['two_column_square'][0], fig_sizes['two_column_square'][1], view_scale= 0.7, container = True)
+gs = GridSpec(8,6,  wspace=0.1,  hspace=2.1)#figure=fig,
 col.colormaps2(21)
 
 cmap_spec= col.white_base_blgror #plt.cm.ocean_r
@@ -436,7 +445,7 @@ lam = lam_p * np.cos(best_guess_angle)
 k               = 2 * np.pi/lam
 #weighted_spec.k/np.cos(best_guess_angle)
 
-xlims = x_spec[0]-12.5/2, x_spec[-8]
+xlims = x_spec[0]-12.5/2, x_spec[-5]
 #weighted_spec.plot()
 #clev_spec = np.linspace(-8, -1, 21) *10
 clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
@@ -446,13 +455,14 @@ clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 2.
 #plt.pcolor(x_spec, k, dd ,vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
 plt.pcolormesh(x_spec, lam, dd, cmap=cmap_spec , vmin = clev_log[0], vmax = clev_log[-1])
 
-max_line = dd.sel(x=slice(0,60e3)).argmax('k')
-plt.plot(max_line.x/1e3,  lam_p[max_line], linestyle='--', color='k', label='non-corrected peak')
-plt.plot(max_line.x/1e3, lam[max_line], color='k', label='corrected peak')
 
-plt.legend()
+plt.plot(x_spec[0:5], lam[dd.argmax('k')][0:5], linestyle= '-', color='black')
+plt.text(x_spec[0:5].max()+2, lam[dd.argmax('k')][0:5].mean()+0, 'corrected peak', ha='left', color='black', fontsize = 8)
 
-plt.title(next(fn) + 'Power Spectra (m/m)$^2$ k$^{-1}$\nfor ' + track_name , loc='left')
+plt.plot(x_spec[0:5], lam_p[dd.argmax('k')][0:5], linestyle= '--', color='black')
+plt.text(x_spec[0:5].max()+2, lam_p[dd.argmax('k')][0:5].mean()+0, 'observed peak', ha='left', color='black', fontsize = 8)
+
+plt.title(next(fn) + 'Slope Power Spectra (m/m)$^2$ k$^{-1}$\nfor ' + io.ID_to_str(track_name) , loc='left')
 
 cbar = plt.colorbar( fraction=0.018, pad=0.01, orientation="vertical", label ='Power')
 cbar.outline.set_visible(False)
@@ -461,10 +471,8 @@ clev_ticks = np.round(clev_spec[::3], 0)
 cbar.set_ticks(clev_ticks)
 cbar.set_ticklabels(clev_ticks)
 
-plt.ylabel('corrected wavelength $\lambda$')
+plt.ylabel('corrected wavelength $(m)$')
 #plt.xlabel('x (km)')
-plt.ylim(50, 800)
-
 
 #plt.colorbar()
 ax2 = F.fig.add_subplot(gs[3:5, :])
@@ -488,6 +496,7 @@ plt.xlabel('X (km)')
 
 ax2.set_yticks(xticks_pi)
 ax2.set_yticklabels(xtick_labels_pi)
+ax2.set_ylim(angle[0], angle[-1])
 
 
 x_ticks  = np.arange(0, xlims[-1].data, 25)
@@ -498,14 +507,20 @@ ax2.set_xticks(x_ticks)
 ax1.set_xticklabels(x_tick_labels)
 ax2.set_xticklabels(x_tick_labels)
 
+#ax1.set_yscale('log')
+lam_lim= lam[-1].data, 600
+ax1.set_ylim(lam_lim)
+
 ax1.set_xlim(xlims)
 ax2.set_xlim(xlims)
+#ax2.set_yscale('log')
+ax2.axhline(best_guess_angle, color=col.orange, linewidth=0.8)
 
 #xx_list = np.insert(weighted_spec.x.data, 0, 0)
 # x_pos_list = spec.create_chunk_boundaries( 1,  xx_list.size,  iter_flag= False )
 # #x_pos_list = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
 # x_pos_list = x_pos_list[:, ::2]
-# x_pos_list[-1, -1] = xx_list.size-1
+# x_pos_list[-1, -1] = xx_list.size-1re
 #x_pos_list#.shape
 
 x_pos_list =  [0, 1, 2]#np.arange(0,9, 1)#np.vstack([np.arange(1,3), np.arange(0,3)+1])
@@ -521,8 +536,7 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     ax2.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
 
     i_lstring = next(lsrtrings)
-    #(lam.mean().data)*4/2
-    ax1.text(x_range/1e3, 700 , ' '+ i_lstring, fontsize= 8, color=col.black)
+    ax1.text(x_range/1e3, np.array(lam_lim).mean()*3/2, ' '+ i_lstring, fontsize= 8, color =col.green)
     #ax2.text(x_range/1e3, weighted_spec.k.mean().data, ' a', fontsize= 8)
 
 
@@ -537,15 +551,17 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     i_spec  = weighted_spec.isel(x= x_pos )
     i_dir   = corrected_marginals.interp(x= weighted_spec.x).isel(x= x_pos )
     print(i_spec.x.data, i_spec.x.data)
-
     dir_data  = (i_dir * i_dir.N_data).sum([ 'beam_group'])/ i_dir.N_data.sum([ 'beam_group'])
     lims = dir_data.k[ (dir_data.sum('angle')!=0) ][0].data, dir_data.k[ (dir_data.sum('angle')!=0)  ][-1].data
 
+    #dir_data.plot()
+    #dir_data.rolling(angle =5,  min_periods= 1, center=True ).mean().plot()
+
     N_angle = i_dir.angle.size
-    dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
+    #dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
 
     plot_data  = dir_data2  * i_spec#.mean('x')
-    plot_data  = plot_data.rolling(angle =5, k =10).median()#.plot()
+    plot_data  = dir_data2.rolling(angle =2, k =15, min_periods= 1, center=True ).median()  * i_spec#.mean('x')
 
     plot_data = plot_data.sel(k=slice(lims[0],lims[-1] ) )
     xx = 2 * np.pi/plot_data.k
@@ -556,14 +572,16 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     if np.nanmax(plot_data.data) != np.nanmin(plot_data.data):
 
         ax3 = F.fig.add_subplot(gs, polar=True)
-        FP= plot_polarspectra(xx, plot_data.angle, plot_data, lims=None , verbose= False, data_type= 'fraction')
+        FP= plot_polarspectra(xx, plot_data.angle, plot_data, lims=[xx[-1], 340 ] , verbose= False, data_type= 'fraction')
         FP.clevs=np.linspace(np.nanpercentile(plot_data.data, 1), np.round(plot_data.max(), 4), 21)
         FP.linear(ax = ax3, cbar_flag=False)
         #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
         #plt.show()
         plt.title('\n\n'+i_lstring,y=1.0, pad=-6, color=col.green)
 
-
-F.save_light(path = plot_path, name = 'B05_dir_ov')
-F.save_pup(path = plot_path, name = 'B05_dir_ov')
+F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name)
+F.save_light(path = plot_path, name = 'B05_dir_ov_'+track_name)
+# %%
+#F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name)
 # MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})
+                                                                                                                                                                                                                                                                                                                                                        

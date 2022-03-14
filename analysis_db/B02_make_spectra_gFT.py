@@ -68,6 +68,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = 'NH_20190301_09570205',  'NH_batch05', True
 #track_name, batch_key, test_flag = 'SH_20190219_08070212',  'SH_publish', True
 
+#track_name, batch_key, test_flag = 'NH_20190302_09830203',  'NH_batch06', True
+
 
 
 
@@ -187,6 +189,7 @@ print('2 M = ',  kk.size *2 )
 # plt.ylabel('across track distance (km)')
 
 # %%
+
 #Gd.keys()
 print('define global xlims')
 dist_list   = np.array([np.nan, np.nan])
@@ -201,11 +204,11 @@ xlims   = np.nanmin(dist_list[:, 0]) - dx, np.nanmin(dist_list[:, 1])
 
 dist_lim = 400e3#800e3 # maximum distanc in the sea ice tha tis analysed:
 
-if xlims[1] > dist_lim:
-    xlims = xlims[0], dist_lim
-    print('-reduced xlims length to ' , dist_lim , 'm')
 
-Gd[k]
+if (xlims[1]- xlims[0]) > dist_lim:
+    xlims = xlims[0], xlims[0]+dist_lim
+    print('-reduced xlims length to ' , xlims[0]+dist_lim , 'm')
+
 #nan_fraction= list()
 for k in all_beams:
     dist_i = io.get_beam_var_hdf_store(Gd[k], 'dist')
@@ -231,6 +234,8 @@ G_rar_fft= dict()
 Pars_optm = dict()
 #imp.reload(spec)
 
+
+
 k=all_beams[0]
 for k in all_beams:
 
@@ -247,7 +252,7 @@ for k in all_beams:
     x       = Gd_cut['dist']
     del Gi
     # cut data:
-    x_mask= (x>xlims[0]) & (x<xlims[1])
+    x_mask= (x>=xlims[0]) & (x<=xlims[1])
     x = x[x_mask]
     #xlims   = x.iloc[0], x.iloc[-1]
     dd      = np.copy(Gd_cut[hkey])
@@ -282,7 +287,6 @@ for k in all_beams:
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
 
     #imp.reload(gFT)
-
     with threadpool_limits(limits=N_process, user_api='blas'):
         pprint(threadpool_info())
 
@@ -290,6 +294,7 @@ for k in all_beams:
         GG, GG_x, Params = S.cal_spectrogram(xlims= xlims, max_nfev = 8000, plot_flag = False)
 
     print('after ', k , tracemalloc.get_traced_memory()[0]/1e6, tracemalloc.get_traced_memory()[1]/1e6)
+
     plot_data_model=False
     if plot_data_model:
         for i in np.arange(0,29,2):

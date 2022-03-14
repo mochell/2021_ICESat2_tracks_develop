@@ -35,7 +35,7 @@ track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard e
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190217194220_07840212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
-#track_name, batch_key, ID_flag = 'NH_20190301_09560203', 'NH_batch05', True
+#track_name, batch_key, ID_flag = 'NH_20190301_09600205', 'NH_batch05', True
 track_name_short = track_name[0:-16]
 
 ID, track_names, hemis, batch = io.init_data(track_name, batch_key, ID_flag, mconfig['paths']['work'] )
@@ -77,16 +77,36 @@ for b in all_beams:
 Gd.close()
 G1 = pd.DataFrame.from_dict(G1).T
 
-# DEFINE SEARCH REGION AND SIZE OF BOXES FOR AVERAGES
-dlon_deg = 1 # degree range aroud 1st point
-dlat_deg = 30, 5 # degree range aroud 1st point
-dlat_deg_prior = 2, 1 # degree range aroud 1st point
 
-dtime = 4 # in hours
+if hemis == 'SH':
 
-lon_range       = G1['lons'].min() - dlon_deg , G1['lons'].max() + dlon_deg
-lat_range       = np.sign(G1['lats'].min())*78 , G1['lats'].max() + dlat_deg[1]
-lat_range_prior = G1['lats'].min() - dlat_deg_prior[0] , G1['lats'].max() + dlat_deg_prior[1]
+    # DEFINE SEARCH REGION AND SIZE OF BOXES FOR AVERAGES
+    dlon_deg = 1 # degree range aroud 1st point
+    dlat_deg = 30, 5 # degree range aroud 1st point
+    dlat_deg_prior = 2, 1 # degree range aroud 1st point
+
+    dtime = 4 # in hours
+
+    lon_range       = G1['lons'].min() - dlon_deg , G1['lons'].max() + dlon_deg
+    lat_range       = np.sign(G1['lats'].min())*78 , G1['lats'].max() + dlat_deg[1]
+    lat_range_prior = G1['lats'].min() - dlat_deg_prior[0] , G1['lats'].max() + dlat_deg_prior[1]
+
+else:
+    # DEFINE SEARCH REGION AND SIZE OF BOXES FOR AVERAGES
+    dlon_deg = 2            # lon degree range aroud 1st point
+    dlat_deg = 20, 20        # lat degree range aroud 1st point
+    dlat_deg_prior = 2, 1   # degree range aroud 1st point
+
+    dtime = 4 # in hours
+
+    #ID['pars']['end']
+    lon_range       = G1['lons'].min() - dlon_deg , G1['lons'].max() + dlon_deg
+    lat_range       = G1['lats'].min() - dlat_deg[0] , G1['lats'].max() + dlat_deg[1]
+    lat_range_prior = G1['lats'].min() - dlat_deg_prior[0] , G1['lats'].max() + dlat_deg_prior[1]
+
+    # lon_range       = ID['pars']['start']['longitude'] - dlon_deg , ID['pars']['start']['longitude'] + dlon_deg
+    # lat_range       = ID['pars']['start']['latitude']  - dlat_deg[0] , ID['pars']['start']['latitude'] + dlat_deg[1]
+    # lat_range_prior = ID['pars']['start']['latitude'] - dlat_deg_prior[0] , ID['pars']['start']['latitude'] + dlat_deg_prior[1]
 
 
 # load .json to get time
@@ -151,31 +171,56 @@ try:
     G_prior = sel_data(G_beam   , lon_range, lat_range_prior)
 
 
-    # % create Ice mask
-    ice_mask = (G_beam.ice > 0) | np.isnan(G_beam.ice)
+    if hemis == 'SH':
+        # % create Ice mask
+        ice_mask = (G_beam.ice > 0) | np.isnan(G_beam.ice)
 
-    #G1.mean()['lats']
-    # mask_at_points = (ice_mask.sum('longitude') == ice_mask.shape[1]).sel(latitude =slice(G1['lats'].min(), G1['lats'].max()))
-    # if (mask_at_points.sum().data == mask_at_points.size):
-    #     print('all points in ice mask')
-    #     lat_range_prior
-    #     lat_range_prior = lat_range_prior, lat_range_prior[1] + 2
-    #ice_mask.sel(latitude=G1.mean()['lats'], longitude =G1.mean()['lons'], method ='nearest')
+        #G1.mean()['lats']
+        # mask_at_points = (ice_mask.sum('longitude') == ice_mask.shape[1]).sel(latitude =slice(G1['lats'].min(), G1['lats'].max()))
+        # if (mask_at_points.sum().data == mask_at_points.size):
+        #     print('all points in ice mask')
+        #     lat_range_prior
+        #     lat_range_prior = lat_range_prior, lat_range_prior[1] + 2
+        #ice_mask.sel(latitude=G1.mean()['lats'], longitude =G1.mean()['lons'], method ='nearest')
 
-    # mask all latitudes that are completely full with sea ice.
-    lats = list(ice_mask.latitude.data)
-    lats.sort(reverse= True)
-    #(ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)
+        # mask all latitudes that are completely full with sea ice.
+        lats = list(ice_mask.latitude.data)
+        lats.sort(reverse= True)
+        #(ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)
 
-    # find 1st latitude that is completely full with sea ice.
-    ice_lat_pos = next((i for i, j in enumerate((ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)) if j), None)
-    # recreate lat mask based on this criteria
-    lat_mask = lats < lats[ice_lat_pos]
-    lat_mask = xr.DataArray( lat_mask.repeat(ice_mask.longitude.size ).reshape(ice_mask.shape), dims = ice_mask.dims, coords = ice_mask.coords )
-    lat_mask['latitude'] =lats
+        # find 1st latitude that is completely full with sea ice.
+        ice_lat_pos = next((i for i, j in enumerate(  (ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude = lats)) if j), None)
+        # recreate lat mask based on this criteria
+        lat_mask = lats < lats[ice_lat_pos]
+        lat_mask = xr.DataArray( lat_mask.repeat(ice_mask.longitude.size ).reshape(ice_mask.shape), dims = ice_mask.dims, coords = ice_mask.coords )
+        lat_mask['latitude'] =lats
 
-    # combine ice mask and new lat mask
-    ice_mask = ice_mask + lat_mask
+        # combine ice mask and new lat mask
+        ice_mask = ice_mask + lat_mask
+
+    else:
+        ice_mask =np.isnan(G_beam.ice)
+
+        #G_beam.hs.sum('longitude').plot()
+        lats = ice_mask.latitude
+        #lats.sort(reverse= True)
+
+
+        # find closed latituyde with with non-nan data
+        ice_lat_pos = abs(lats.where(ice_mask.sum('longitude') > 4, np.nan) - np.array(lat_range).mean()).argmin().data
+
+        #redefine lat-range
+        lat_range       = lats[ice_lat_pos].data  - 2 , lats[ice_lat_pos].data + 2
+        lat_flag2 = (lat_range[0] < lats.data) & (lats.data < lat_range[1])
+        # find 1st latitude that has non-zero HS .
+        #ice_lat_pos = next((i for i, j in enumerate(  (G_beam.hs.sum('longitude') != 0).sel(latitude = lats)) if j), None)
+        # recreate lat mask based on this criteria
+        #lat_mask = lats < lats[ice_lat_pos]
+        lat_mask = xr.DataArray( lat_flag2.repeat(ice_mask.longitude.size ).reshape(ice_mask.shape), dims = ice_mask.dims, coords = ice_mask.coords )
+        lat_mask['latitude'] =lats
+
+        # combine ice mask and new lat mask
+        #ice_mask = ~lat_mask
 
 
     # plot 1st figure
@@ -214,7 +259,8 @@ try:
         draw_range(lon_range, lat_range, c='blue', linewidth = 0.7, zorder=10)
         #G_beam.ice.plot(cmap=plt.cm.Blues_r, )
         if fv != 'ice':
-            cm = plt.pcolor(lon, lat,G_beam[fv].where(~ice_mask, np.nan), vmin=cl[0], vmax=cl[-1] , cmap=fc)
+            #.where(~ice_mask, np.nan)
+            cm = plt.pcolor(lon, lat,G_beam[fv], vmin=cl[0], vmax=cl[-1] , cmap=fc)
             if G_beam.ice.shape[0] > 1:
                 plt.contour(lon, lat,G_beam.ice, colors= 'black', linewidths = 0.6)
         else:
