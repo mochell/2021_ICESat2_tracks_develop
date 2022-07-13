@@ -507,3 +507,97 @@ ax1.set_ylim(-2, 2)
 
 F.save_light(path= plot_path, name='B01_ALT03_intro_'+ID_name)
 F.save_pup(path= plot_path, name='B01_ALT03_intro_'+ID_name)
+
+
+# %%
+# GFT alternation figure
+
+dl = 25e3
+chunk_list = np.arange( np.floor(latlims[0]/1e3/10) *1e4 , latlims[1], dl )[::1]
+
+chunk_list_i= 1
+ll_large = chunk_list[chunk_list_i]#+2000
+tt_large = ll_large + 25e3 *3
+
+
+font_for_print()
+
+F = M.figure_axis_xy(fig_sizes['two_column'][0], fig_sizes['two_column'][1]*0.25, view_scale=0.8, container =True)
+
+gs = GridSpec(3,1,  wspace=0.1,  hspace=0.7)#figure=fig,
+ax1 = F.fig.add_subplot(gs[0:2, :]) #plt.subplot(1, 6, fp)
+#ax1 = F.ax
+
+key         = 'gt2l'
+T2         = B2[key].copy()
+T2['dist'] = T2['x'] - track_dist_bounds[0]
+T2_large  = T2[ (T2['dist'] > ll_large) & (T2['dist'] < tt_large) ]
+xlims_large = T2_large['dist'].min()/xscale, T2_large['dist'].max()/xscale
+
+
+#plt.title('Beam ' + str(key), loc='left')
+#, s= 1,  marker='o', color='black',   alpha =0.02, edgecolors= 'none' )
+plt.plot( T2_large[x_key]/xscale, T2_large['heights_c'],   'o', color= col.rels[key],  markersize= 0.4, alpha =0.04 )
+#plt.plot( T3_large[x_key]/xscale, T3_large['heights_c_weighted_mean'] , '.', color=lead_color, linewidth=0.5, markersize=1,alpha=0.9, label='x-gauss weighted mean +1')
+
+y_ticks =  MT.tick_formatter(   np.arange(0, 2+1, 1),  interval=1, rounder=1, expt_flag=False, shift=0 )
+ax1.spines['bottom'].set_visible(False)
+# ax1.spines['top'].set_visible(True)
+ax1.spines['bottom'].set_linewidth(0.5)
+ax1.spines['left'].set_linewidth(0.5)
+ax1.xaxis.set_ticks_position('bottom')
+ax1.xaxis.set_label_position('bottom')
+#ax1.tick_params(bottom=False, labelbottom= False)
+#ax1.axhline(0, linewidth= 0.5 , color = 'black')
+# ax1.set_yticks(y_ticks[1])
+# ax1.set_yticklabels(y_ticks[0])
+ax1.set_ylim(-2, 2)
+ax1.set_xlim(xlims_large[0], xlims_large[1]  )
+plt.ylabel('meters')
+
+#plt.grid('horizontal')
+
+x_ticks =  MT.tick_formatter( np.arange(ll_large/1e3, tt_large/1e3, 12.5)  ,  interval=1, rounder=1, expt_flag=False, shift=0 )
+ax1.set_xticks(x_ticks[1])
+ax1.set_xticklabels(x_ticks[0])
+ax1.axhline(0, linewidth= 0.5 , color = 'black')
+ax1.grid(which='major', axis='x', linestyle='-', color='black', linewidth= 0.5)
+
+# ax1 = F.fig.add_subplot(gs[1:3, :]) #plt.subplot(1, 6, fp)
+#
+# key         = 'gt2l'
+# T2         = B2[key].copy()
+# T2['dist'] = T2['x'] - track_dist_bounds[0]
+# T2_large  = T2[ (T2['dist'] > ll_large) & (T2['dist'] < tt_large) ]
+#
+# #plt.title('Beam ' + str(key), loc='left')
+# #, s= 1,  marker='o', color='black',   alpha =0.02, edgecolors= 'none' )
+# plt.plot( T2_large[x_key]/xscale, T2_large['heights_c'],   'o', color= col.rels[key],  markersize= 0.4, alpha =0.04 )
+# #plt.plot( T3_large[x_key]/xscale, T3_large['heights_c_weighted_mean'] , '.', color=lead_color, linewidth=0.5, markersize=1,alpha=0.9, label='x-gauss weighted mean +1')
+
+
+# xlims_large = T2_large['dist'].min()/xscale, T2_large['dist'].max()/xscale
+#ax1.set_xlim(xlims_large[0], xlims_large[1]  )
+#plt.xlim(T2_large[x_key][0]/xscale, T2_large[x_key][-1]/xscale)
+#plt.xlabel('Meters from the Sea Ice Edge')
+ax1.set_xlabel('Along track distance x (km)')
+#ax2.xaxis.set_ticks_position('top')
+#ax2.xaxis.set_label_position('top')
+
+# ax1.set_facecolor((1.0, 1.00, 1.00, 0))
+# ax1.spines['bottom'].set_visible(False)
+# ax1.spines['right'].set_visible(True)
+# ax1.spines['left'].set_visible(False)
+# ax1.spines['bottom'].set_linewidth(0.5)
+# ax1.spines['right'].set_linewidth(0.5)
+# ax1.xaxis.set_ticks_position('bottom')
+# ax1.xaxis.set_label_position('bottom')
+#ax1.tick_params(bottom=False, right = True, left = False, labelright= True, labelleft= False, labelbottom= True)
+#ax1.axhline(0, linewidth= 0.5 , color = 'black')
+#ax1.set_yticks(y_ticks[1])
+#ax1.set_yticklabels(y_ticks[0])
+#ax1.set_ylim(-2, 2)
+# plt.ylabel('meters')
+
+F.save_light(path= plot_path, name='B01_ALT03_GFT_alter_'+ID_name)
+F.save_pup(path= plot_path, name='B01_ALT03_GFT_alter_'+ID_name)

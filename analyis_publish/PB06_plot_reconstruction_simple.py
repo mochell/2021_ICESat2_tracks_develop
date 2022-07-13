@@ -26,7 +26,7 @@ import datetime
 import generalized_FT as gFT
 from scipy.ndimage.measurements import label
 
-xr.set_options(display_style='text')
+#xr.set_options(display_style='text')()
 #import s3fs
 # %%
 ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
@@ -41,7 +41,11 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 
 #ID_name, batch_key, ID_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #ID_name, batch_key, ID_flag = 'SH_20190219_08070210', 'SH_publish', True
-ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
+#ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
+#ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
+
+#ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
+ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
 
 
 ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'],  )
@@ -75,6 +79,9 @@ hemis, batch = batch_key.split('_')
 # Gx   = xr.open_dataset(load_file+'_gFT_x.nc')
 
 ## -------------------- use final prodiucts
+all_beams   = mconfig['beams']['all_beams']
+high_beams  = mconfig['beams']['high_beams']
+low_beams   = mconfig['beams']['low_beams']
 
 load_path_work  = mconfig['paths']['work'] +'/'+ batch_key +'/'
 load_path       = load_path_work  +'/B06_corrected_separated/'
@@ -95,9 +102,7 @@ for b in all_beams:
 # print(Gk)
 # print(Gx)
 
-all_beams   = mconfig['beams']['all_beams']
-high_beams  = mconfig['beams']['high_beams']
-low_beams   = mconfig['beams']['low_beams']
+
 
 # %% check paths (again)
 col.colormaps2(21)
@@ -133,7 +138,9 @@ font_for_print()
 #i =x_pos_sel[20]
 #MT.mkdirs_r(plot_path+'B03_spectra/')
 
-x_pos_sel =  np.arange(Gk.x.size)[~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data.data)]
+
+#~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data.data)
+x_pos_sel =  np.arange(Gk.x.size)[(Gk.mean('beam').mean('k').gFT_PSD_data.data >0 )]
 x_pos_max = Gk.mean('beam').mean('k').gFT_PSD_data[~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data)].argmax().data
 xpp = x_pos_sel[ [int(i) for i in np.round(np.linspace(0, x_pos_sel.size-1, 4))]]
 #xpp = np.insert(xpp, 0, x_pos_max)
@@ -153,9 +160,6 @@ font_for_print()
 
 for i in xpp:
 
-# %%
-
-    i =2
     fn = copy.copy(lstrings)
 
     F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
@@ -234,7 +238,7 @@ for i in xpp:
 
     ### height decomposition
     # plotting observed datazx
-    #T3_sel['heights_c_weighted_mean']
+    # T3_sel['heights_c_weighted_mean']
     plt.plot( T3_sel['dist'] , T3_sel['heights_c_weighted_mean'], '-' , color =col_d[k], linewidth = 1, label = 'observed $h_c$ mean')
 
     if T2_sel['x_true'].iloc[0] > T2_sel['x_true'].iloc[-1]:
@@ -243,12 +247,15 @@ for i in xpp:
         T2_sel['dist'] = np.interp(T2_sel['x_true'][::1], T3_sel['x_true'][::1],  T3_sel['dist'] )
     plt.scatter( T2_sel['dist'] , T2_sel['heights_c'], s= 1,  marker='o', color='black',   alpha =0.02, edgecolors= 'none' )
 
-    if (T3_sel['delta_time'].iloc[0] > T3_sel['delta_time'].iloc[-1]) is (B07_sel['time']['delta_time'].iloc[0] > B07_sel['time']['delta_time'].iloc[-1]):
-        B07_sel['dist'] = np.interp(B07_sel['time']['delta_time'], T2_sel['delta_time'],  T3_sel['dist'] )
-    else:
-        B07_sel['dist'] = np.interp(np.array(B07_sel['time']['delta_time']), np.array(T3_sel['delta_time'][::-1]),  np.array(T3_sel['dist'][::-1]) )
+    try:
+        if (T3_sel['delta_time'].iloc[0] > T3_sel['delta_time'].iloc[-1]) is (B07_sel['time']['delta_time'].iloc[0] > B07_sel['time']['delta_time'].iloc[-1]):
+            B07_sel['dist'] = np.interp(B07_sel['time']['delta_time'], T3_sel['delta_time'],  T3_sel['dist'] )
+        else:
+            B07_sel['dist'] = np.interp(np.array(B07_sel['time']['delta_time']), np.array(T3_sel['delta_time'][::-1]),  np.array(T3_sel['dist'][::-1]) )
+        B07_flag = True
+    except:
+        B07_flag = False
 
-    # import scipy
     # B07_sel['dist'] = scipy.interpolate.griddata(np.array(T3_sel['delta_time'][::-1]), np.array(T3_sel['dist'][::-1]) ,np.array(B07_sel['time']['delta_time']),  method= 'nearest' )
     # plt.plot(np.array(B07_sel['time']['delta_time']))
     # plt.plot(np.array(T3_sel['delta_time'][::-1]))
@@ -279,30 +286,28 @@ for i in xpp:
 
     plt.legend(loc = 4, ncol =2)
 
-
-
-    ax1b = F.fig.add_subplot(gs[13:19, :])
-    plt.title(' '+next(fn)+ 'ATL07', loc='left', y= 0.83)
-    x_key= 'dist'
-    AT07_cat_offset= 0
-    AT07_bool_offset =0
-    htype_cmap = [col.orange, col.cascade3, col.cascade2, col.cascade1]
-    htype_list= ['cloud_covered','other', 'specular_lead', 'dark_lead' , 'other']
-    for htype, hcolor, htype_str in zip( [0, 1, (2, 5), (6, 9)] , htype_cmap , htype_list ):
-        if type(htype) is tuple:
-            imask = (B07_sel['heights']['height_segment_type'] >= htype[0]) & (B07_sel['heights']['height_segment_type'] <= htype[1])
-        else:
-            imask = B07_sel['heights']['height_segment_type'] == htype
-        pdata = B07_sel[imask]
-        plt.plot( pdata[x_key], pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=1, label=htype_str)
-
-
-    for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , [None, 'ssh'] , [0.8, 5]):
-
-        pdata = B07_sel[B07_sel['heights']['height_segment_ssh_flag'] == htype]
-        plt.plot( pdata[x_key], pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize,alpha=0.9, label=htype_str)
-
-    plt.legend(ncol=3, loc=1)
+    # ax1b = F.fig.add_subplot(gs[13:19, :])
+    # plt.title(' '+next(fn)+ 'ATL07', loc='left', y= 0.83)
+    # x_key= 'dist'
+    # AT07_cat_offset= 0
+    # AT07_bool_offset =0
+    # htype_cmap = [col.orange, col.cascade3, col.cascade2, col.cascade1]
+    # htype_list= ['cloud_covered','other', 'specular_lead', 'dark_lead' , 'other']
+    # for htype, hcolor, htype_str in zip( [0, 1, (2, 5), (6, 9)] , htype_cmap , htype_list ):
+    #     if type(htype) is tuple:
+    #         imask = (B07_sel['heights']['height_segment_type'] >= htype[0]) & (B07_sel['heights']['height_segment_type'] <= htype[1])
+    #     else:
+    #         imask = B07_sel['heights']['height_segment_type'] == htype
+    #     pdata = B07_sel[imask]
+    #     plt.plot( pdata[x_key], pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=1, label=htype_str)
+    #
+    #
+    # for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , [None, 'ssh'] , [0.8, 5]):
+    #
+    #     pdata = B07_sel[B07_sel['heights']['height_segment_ssh_flag'] == htype]
+    #     plt.plot( pdata[x_key], pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize,alpha=0.9, label=htype_str)
+    #
+    # plt.legend(ncol=3, loc=1)
 
     #plt.plot( B07_sel['dist_np'] , B07_sel['heights']['height_segment_height'], color='red',  alpha =1, linewidth = 0.6 )
 
@@ -337,7 +342,7 @@ for i in xpp:
 
 
 
-    ax2 = F.fig.add_subplot(gs[19:25, :])
+    ax2 = F.fig.add_subplot(gs[13:19, :])
     plt.title(' '+next(fn)+ 'Residual heights of ATL03', loc='left', y= 0.83)
     height_residual = T2_sel['heights_c_residual'] #T2_sel['heights_c'] - np.interp(T2_sel['dist'], dist_stencil, height_model2 +  poly_offset)
     plt.scatter(T2_sel['dist'], height_residual, s= 1,  marker='o', color='black',   alpha =0.02, edgecolors= 'none' )
@@ -391,13 +396,13 @@ for i in xpp:
     for s in stencil_pos:
         V0_list.append( T2_sel['heights_c'].loc[M.cut_nparray( np.array(T2_sel['dist']), s[0], s[-1]) ].var() )
         V1_list.append( T3_sel['heights_c_weighted_mean'].loc[M.cut_nparray( np.array(T3_sel['dist']), s[0], s[-1]) ].var() )
-        V2_list.append( np.nanvar(height_model2[M.cut_nparray( dist_stencil, s[0], s[-1])]) )
+        V2_list.append( np.nanvar( T3_sel['heights_c_model'].loc[M.cut_nparray( np.array(T3_sel['dist']), s[0], s[-1])]) )
         V3_list.append( np.nanvar(height_residual_mean[ M.cut_nparray( np.array(height_residual_mean_x), s[0], s[-1])]) )
 
         no_nan_sum.append( (~dist_nanmask[M.cut_nparray( dist_stencil, s[0], s[-1])].data).sum())
 
 
-    ax3 = F.fig.add_subplot(gs[-2:, :])
+    ax3 = F.fig.add_subplot(gs[22:24, :])
 
     plt.title(next(fn) + 'Variance Decomposition', loc='left')
     V0_list, V1_list, V2_list = np.array(V0_list),np.array(V1_list),np.array(V2_list),
@@ -470,10 +475,11 @@ for i in xpp:
 
 
     #F.save_light(path= plot_path, name='B03_decomposition_'+str(num_count).zfill(4))
-    F.save_light(path= plot_path, name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
-    #F.save_pup(path= plot_path, name='B02_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
+    F.save_light(path= plot_path, name='B06_decomposition_simple_'+k+'_x'+str(i)+'_'+ID_name)
+    F.save_pup(path= plot_path, name='B06_decomposition_simple_'+k+'_x'+str(i)+'_'+ID_name)
+    #F.save(path= plot_path, name='B06_decomposition_2_'+k+'_x'+str(i)+'_'+ID_name)
 
-    num_count +=1
+    #num_count +=1
 # %%
 
 V0_photon_var       = T2_sel['heights_c'].var()

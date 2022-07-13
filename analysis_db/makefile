@@ -369,11 +369,13 @@ $(B05_collect_targets) : $(B04_B05_collect_path)%_B05_dir_ov.pdf : $(B03_path)%/
 
 ## ---------------- B6
 
-B06_targets := $(foreach i, $(B05_success) , $(subst B05_success,B06_success,$(i)) )
+B06_targets := $(foreach i, $(B03_success) , $(subst B03_success,B06_success,$(i)) )
+#B06_targets := $(foreach i, $(B05_success) , $(subst B05_success,B06_success,$(i)) )
 
-B06 : $(B06_targets) B06_collect
+B06 : $(B06_targets) #B06_collect
 
-$(B06_targets) : $(B03_path)%/B06_success.json : $(B03_path)%/B05_success.json
+$(B06_targets) : $(B03_path)%/B06_success.json : $(B03_path)%/B03_success.json $(analysisfolder)/B06_correct_separate_var.py
+					sleep $${RANDOM:0:1}s
 					python $(analysisfolder)/B06_correct_separate_var.py $* $(batch_key) $(ID_flag) > log/B04/$*.txt 2>&1
 
 B06_success := $(shell ls $(B03_path)*/B06_success.json)
@@ -396,10 +398,16 @@ B_collect : B03_collect B04_collect B05_collect B06_collect
 
 # ---------------- misc -----------------
 # sync plots from batch key to gdrive folder.
-sync_gdrive :
+sync_plots :
+					rclone mkdir gdrive_brown:2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)
 					rclone sync $(plot_folder)$(hemis)/$(batch_key)/ gdrive_brown:2021_ICESat2_tracks/plots/$(hemis)/$(batch_key)/
 					#rclone sync $(plot_folder)../movie_temp_files/$(key) gdrive:Projects/2020_moist_two_layer/plots/movie_temp_files/$(key)/
 
+sync_B06 :
+					rclone mkdir gdrive_brown:2021_ICESat2_tracks/work/$(batch_key)
+					rclone sync $(work_folder)/$(batch_key)/B06_corrected_separated gdrive_brown:2021_ICESat2_tracks/work/$(batch_key)/
+
+#/gpfs/data/chorvat/IS2/2021_ICESat2_tracks/work/NH_batch06/B06_corrected_separated/
 # for printing variables, used for debugging
 print-%  : ; @echo $* = $($*)
 

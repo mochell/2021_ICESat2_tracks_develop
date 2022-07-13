@@ -59,7 +59,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = 'NH_20190301_09580203', 'NH_batch05', True
-#track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
+track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -557,8 +557,8 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
         L_optimize_i = None
         L_brute_i = None
         if sample_flag:
-            with suppress_stdout():
-                SM.sample(verbose= False, steps=N_sample_chain,progress= False, workers= None)
+            #with suppress_stdout():
+            SM.sample(verbose= False, steps=N_sample_chain,progress= False, workers= None)
             L_sample_i       =  list(SM.fitter.params.valuesdict().values())  # mcmc results
 
         elif optimize_flag:

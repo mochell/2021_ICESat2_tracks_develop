@@ -31,7 +31,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #track_name, batch_key, test_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
+#track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 
 
 

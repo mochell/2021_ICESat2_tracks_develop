@@ -39,7 +39,14 @@ ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard ex
 
 #ID_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #ID_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
-#ID_name, batch_key, test_flag =  'SH_20190224_08800210', 'SH_publish', True
+
+#ID_name, batch_key, test_flag =  'SH_20190208_06440212', 'SH_publish', True
+#ID_name, batch_key, test_flag =  'SH_20190219_08070210', 'SH_publish', True
+
+#ID_name, batch_key, test_flag =  'NH_20190311_11200203', 'NH_batch06', True
+#ID_name, batch_key, test_flag =  'NH_20210312_11961005', 'NH_batch07', True
+
+
 
 #print(ID_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -165,31 +172,35 @@ Gk['gFT_PSD_data_err']  = xr.concat(G_error_data.values(), dim='beam')
 
 
 # %%
-font_for_pres()
 
 G_gFT_smth = G_gFT_wmean['gFT_PSD_data'].rolling(k=30, center=True, min_periods=1).mean()
+G_gFT_smth['N_photons'] = G_gFT_wmean.N_photons
+G_gFT_smth["N_per_stancil_fraction"] = Gk['N_per_stancil'].T.mean('beam')/Gk.Lpoints.mean('beam')
+
 k = G_gFT_smth.k
 
 # %%
-k_lead_peak = k[G_gFT_smth.isel(x=0).argmax().data].data
-if k_lead_peak== k[0].data or k_lead_peak == k[-1].data:
-    #raise ValueError('wavenumber Peak on Boundary!')
-    print('wavenumber Peak on Boundary!')
-    MT.json_save('B06_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'wavenumber Peak on Boundary!'})
-    print('exit()')
-    #exit()
-
-k_lims =0.01
-k_span = [k_lead_peak- k_lims , k_lead_peak, k_lead_peak+ k_lims]
+# GG_no_nan = G_gFT_smth.isel( x = ~np.isnan(G_gFT_smth.mean('k')) )
+# k_lead_peak = GG_no_nan.k[GG_no_nan.isel(x=0).argmax().data].data
+# if k_lead_peak== k[0].data or k_lead_peak == k[-1].data:
+#     #raise ValueError('wavenumber Peak on Boundary!')
+#     print('wavenumber Peak on Boundary!')
+#     MT.json_save('B06_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'wavenumber Peak on Boundary!'})
+#     print('exit()')
+#     #exit()
+#
+# # %%
+# k_lims =0.01
+# k_span = [k_lead_peak- k_lims , k_lead_peak, k_lead_peak+ k_lims]
 
 F = M.figure_axis_xy()
 #plt.loglog(k, k**(-2))
 # plt.loglog(k, 1e-4 *k**(-2))
 # plt.loglog(k, 1e-5 *k**(-3))
 
-F.ax.axvline(k_span[0])
-F.ax.axvline(k_span[1])
-F.ax.axvline(k_span[2])
+# F.ax.axvline(k_span[0])
+# F.ax.axvline(k_span[1])
+# F.ax.axvline(k_span[2])
 #plt.plot(np.log(k), np.log( k**(-3) ) )
 #plt.loglog(k, (k)**(-3) - 1e5)
 
@@ -386,7 +397,7 @@ for x in G_gFT_smth.x.data:
     #x= 237500.0
     print(x)
     # use displacement power spectrum
-    k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x)/k, plot_flag =True )
+    k_end, pw_fit = define_noise_wavenumber_piecewise(G_gFT_smth.sel(x=x)/k, plot_flag =False )
     #pw_fit.get_results()
     #pw_fit.n_breakpoints
 
@@ -403,8 +414,8 @@ for x in G_gFT_smth.x.data:
     k_lim_list.append(k_save)
 
     #k_save = np.nan if slope >= 0 else k_end
-    plt.gca().axvline(np.log(k_save), linewidth= 2, color='red')
-    plt.show()
+    # plt.gca().axvline(np.log(k_save), linewidth= 2, color='red')
+    # plt.show()
     print('--------------------------')
 # %%
 # write k limits to datasets
@@ -429,7 +440,7 @@ G_gFT_wmean.coords['k_lim'] = k_lim_smth #('x', k_lim_smth )
 font_for_print()
 
 fn = copy.copy(lstrings)
-F = M.figure_axis_xy(fig_sizes['two_column'][0], fig_sizes['two_column'][0], container= True, view_scale =1)
+F = M.figure_axis_xy(fig_sizes['two_column'][0], fig_sizes['two_column'][0]* 0.9, container= True, view_scale =1)
 
 
 plt.suptitle('Cut-off Frequency for Displacement Spectral\n' + io.ID_to_str(ID_name), y = 0.97)
@@ -445,12 +456,16 @@ k =high_beams[0]
 for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
     Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
-    #Gplot.mean('x').plot()
+    #Gplot.plot()
+
+    Gplot= Gplot.where(Gplot["N_per_stancil"] / Gplot["Lpoints"] >= 0.1)#.plot()
+    #Gplot.plot()
+
 
     alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
     for x in Gplot.x.data:
         ialpha =next(alpha_range)
-        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
+        plt.loglog(Gplot.k, Gplot.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
         ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0, alpha=ialpha)
 
     plt.title(next(fn) + k, color= col_dict[k], loc= 'left')
@@ -468,10 +483,12 @@ for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, 
     Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
 
+    Gplot= Gplot.where(Gplot["N_per_stancil"] / Gplot["Lpoints"] >= 0.1)#.plot()
+
     alpha_range= iter(np.linspace(1,0, Gplot.x.data.size))
     for x in Gplot.x.data:
         ialpha =next(alpha_range)
-        plt.loglog(Gplot.k, G_gFT_smth.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
+        plt.loglog(Gplot.k, Gplot.sel(x=x)/Gplot.k, linewidth = 0.5, color= col.rels[k], alpha= ialpha)
         ax0.axvline(k_lims.sel(x=x), linewidth= 0.4, color= 'black', zorder= 0, alpha=ialpha)
 
     plt.title(next(fn) + k, color= col_dict[k], loc= 'left')
@@ -492,19 +509,37 @@ F.save_pup(path=plot_path, name = str(ID_name) + '_B06_atten_ov_simple')
 
 pos = gs[5:, 0:2]
 ax0 = F.fig.add_subplot(pos)
-lat_str = str(np.round( Gx.isel(x = 0).lat.mean().data, 2)  ) +' to ' + str(np.round( Gx.isel(x = -1).lat.mean().data, 2)  )
 
+lat_str = str(np.round( Gx.isel(x = 0).lat.mean().data, 2)  ) +' to ' + str(np.round( Gx.isel(x = -1).lat.mean().data, 2)  )
 plt.title(next(fn) + 'Mean Displacement Spectra\n(lat='+ lat_str +')', loc='left')
 
-
 dd = (10 * np.log( (G_gFT_smth/G_gFT_smth.k) .isel(x = slice(0, -1))))#.plot()
+dd = dd.where(~np.isinf(dd), np.nan)
 
-plt.pcolor(dd.x, dd.k, dd, cmap = col.white_base_blgror)
+## filter out segments with less then 10% of data points
+dd= dd.where(G_gFT_smth["N_per_stancil_fraction"] >= 0.1)#.plot()
+
+dd_lims = np.round(dd.quantile(0.01).data*0.95, 0) , np.round(dd.quantile(0.95).data*1.05, 0)
+plt.pcolor(dd.x/1e3, dd.k, dd, vmin=dd_lims[0], vmax= dd_lims[-1], cmap = col.white_base_blgror)
 cb = plt.colorbar(orientation= 'vertical')
+
 cb.set_label('Power (m$^2$/k)')
-G_gFT_smth.isel(x = slice(0, -1)).k_lim.plot(color= col.black, linewidth = 1)
+plt.plot( G_gFT_smth.isel(x = slice(0, -1)).x/1e3 ,  G_gFT_smth.isel(x = slice(0, -1)).k_lim , color= col.black, linewidth = 1)
 plt.ylabel('wavenumber k')
-plt.xlabel('X (meter)')
+plt.xlabel('X (km)')
+
+pos = gs[6:, -1]
+ax9 = F.fig.add_subplot(pos)
+
+plt.title('Data Coverage (%)', loc ='left')
+plt.plot(G_gFT_smth.x/1e3 , G_gFT_smth["N_per_stancil_fraction"]*100 , linewidth = 0.8, color = 'black')
+ax9.spines['left'].set_visible(False)
+ax9.spines['right'].set_visible(True)
+ax9.tick_params(labelright=True, right=True, labelleft=False, left=False)
+ax9.axhline(10, linewidth = 0.8, linestyle= '--', color ='black')
+#plt.ylabel('(%)')
+plt.xlabel('X (km)')
+
 
 F.save_light(path=plot_path, name =str(ID_name) + '_B06_atten_ov')
 F.save_pup(path=plot_path, name = str(ID_name) + '_B06_atten_ov')
@@ -701,34 +736,34 @@ for bb in Gx.beam.data:
     T2['heights_c_residual']  = T2['heights_c'] - T2['heights_c_model']
 
 
-    font_for_print()
-    F = M.figure_axis_xy(6, 2, view_scale= 0.7)
-
-    plt.plot(T2['dist'] , T2['heights_c']+2,'ok', markersize=0.8, alpha=0.5, label='org photon height_c')
-    plt.plot(T3['dist'] , T3['heights_c_weighted_mean']+2,'.r', markersize=1, alpha=0.5, label='org photon wmean')
-
-    plt.plot(T2['dist'] , T2['heights_c_model'], '.', markersize=1, alpha=0.8, label='height model', color=col.orange, zorder= 12)
-    F.ax.axhline(2, linewidth = .7, color= 'black')
-    F.ax.axhline(0, linewidth = .7, color= 'black')
-    F.ax.axhline(-2, linewidth = .7, color= 'black')
-
-    plt.plot(T2['dist'] , T2['heights_c_residual']-2,'ob', markersize=0.5, alpha=0.5, label='residual photons')
-    plt.plot(T3['dist'], T3['heights_c_residual']-2 , 'r', linewidth= 0.8, zorder=12, label='photon height_c resodual')
-
-    xlims = np.nanmean(T2['dist']), np.nanmean(T2['dist'])+7e3
-    plt.xlim(xlims)
-    dlim = np.nanmax(T3['heights_c_residual'][(T3['dist']> xlims[0]) & (T3['dist'] < xlims[1])])
-    #plt.ylim(-dlim*1.5, dlim*1.5)
-    try:
-        plt.ylim((-2-1.5*dlim), 2+1.5*dlim)
-    except:
-        plt.ylim(-5, 5)
-    plt.legend( ncol= 4)
-
     B2_v2[bb] = T2
     B3_v2[bb] = T3
     Gx_v2[bb] = Gx_k
-    F.save_light(path = plot_path , name = 'B06_'+bb+'_decomp_check')
+
+    # font_for_print()
+    # F = M.figure_axis_xy(6, 2, view_scale= 0.7)
+    #
+    # plt.plot(T2['dist'] , T2['heights_c']+2,'ok', markersize=0.8, alpha=0.5, label='org photon height_c')
+    # plt.plot(T3['dist'] , T3['heights_c_weighted_mean']+2,'.r', markersize=1, alpha=0.5, label='org photon wmean')
+    #
+    # plt.plot(T2['dist'] , T2['heights_c_model'], '.', markersize=1, alpha=0.8, label='height model', color=col.orange, zorder= 12)
+    # F.ax.axhline(2, linewidth = .7, color= 'black')
+    # F.ax.axhline(0, linewidth = .7, color= 'black')
+    # F.ax.axhline(-2, linewidth = .7, color= 'black')
+    #
+    # plt.plot(T2['dist'] , T2['heights_c_residual']-2,'ob', markersize=0.5, alpha=0.5, label='residual photons')
+    # plt.plot(T3['dist'], T3['heights_c_residual']-2 , 'r', linewidth= 0.8, zorder=12, label='photon height_c resodual')
+    #
+    # xlims = np.nanmean(T2['dist']), np.nanmean(T2['dist'])+7e3
+    # plt.xlim(xlims)
+    # dlim = np.nanmax(T3['heights_c_residual'][(T3['dist']> xlims[0]) & (T3['dist'] < xlims[1])])
+    # #plt.ylim(-dlim*1.5, dlim*1.5)
+    # try:
+    #     plt.ylim((-2-1.5*dlim), 2+1.5*dlim)
+    # except:
+    #     plt.ylim(-5, 5)
+    # plt.legend( ncol= 4)
+    #F.save_light(path = plot_path , name = 'B06_'+bb+'__check')
 
 
 # %% correct wave incident direction
@@ -780,22 +815,34 @@ else:
     x_corrected  = Gk.x * np.cos(theta) *np.nan
 
 # %% spectral save
-
 G5 = G_gFT_wmean.expand_dims(dim = 'beam', axis = 1)
 G5.coords['beam'] = ['weighted_mean']#(('beam'), 'weighted_mean')
 G5 = G5.assign_coords(N_photons= G5.N_photons)
+G5['N_photons'] = G5['N_photons'].expand_dims('beam')
+G5['N_per_stancil_fraction'] = G5['N_per_stancil_fraction'].expand_dims('beam')
 
 Gk_v2 = xr.merge([Gk, G5])
+
 Gk_v2 = Gk_v2.assign_coords(x_corrected=("x", x_corrected.data)).assign_coords(k_corrected=("k", k_corrected.data))
 
 Gk_v2.attrs['best_guess_incident_angle'] = theta
 
 # save collected spectral data
 Gk_v2.to_netcdf(save_path+'/B06_'+ID_name + '_gFT_k_corrected.nc' )
-
+Gx
 # %% save real space data
 Gx.to_netcdf(save_path+'/B06_'+ID_name + '_gFT_x_corrected.nc' )
-io.save_pandas_table(B2_v2, 'B06_' +ID_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
-io.save_pandas_table(B3_v2, 'B06_' +ID_name + '_binned_resid' , save_path) # regridding heights
+try:
+    io.save_pandas_table(B2_v2, 'B06_' +ID_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
+except:
+    os.remove(save_path+'B06_' +ID_name + '_B06_corrected_resid.h5')
+    io.save_pandas_table(B2_v2, 'B06_' +ID_name + '_B06_corrected_resid' , save_path) # all photos but heights adjusted and with distance coordinate
+
+try:
+    io.save_pandas_table(B3_v2, 'B06_' +ID_name + '_binned_resid' , save_path) # regridding heights
+except:
+    os.remove(save_path+'B06_' +ID_name + '_binned_resid.h5')
+    io.save_pandas_table(B3_v2, 'B06_' +ID_name + '_binned_resid' , save_path) # regridding heights
 
 MT.json_save('B06_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})
+print('done. saved target at ' + plot_path + '../B06_success' )

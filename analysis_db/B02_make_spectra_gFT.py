@@ -202,7 +202,7 @@ for k in all_beams:
 
 xlims   = np.nanmin(dist_list[:, 0]) - dx, np.nanmin(dist_list[:, 1])
 
-dist_lim = 400e3#800e3 # maximum distanc in the sea ice tha tis analysed:
+dist_lim = 2000e3 # maximum distanc in the sea ice tha tis analysed:
 
 
 if (xlims[1]- xlims[0]) > dist_lim:

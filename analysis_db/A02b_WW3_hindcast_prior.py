@@ -36,6 +36,8 @@ track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard e
 #track_name, batch_key, test_flag = '20190217194220_07840212_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, ID_flag = 'NH_20190301_09600205', 'NH_batch05', True
+
+#track_name, batch_key, ID_flag = 'NH_20210228_10231005', 'NH_batch07', True
 track_name_short = track_name[0:-16]
 
 ID, track_names, hemis, batch = io.init_data(track_name, batch_key, ID_flag, mconfig['paths']['work'] )

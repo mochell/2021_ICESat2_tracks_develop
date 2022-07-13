@@ -231,7 +231,7 @@ def poly_correct(x, y, poly_order=7, plot_flag=False):
 
 ### regridding
 
-@jit(nopython=True)
+#@jit(nopython=True)
 def get_mode(y, bins = np.arange(-5,5,  0.1)):
     "returns modes of histogram of y defined by bins"
     hist, xbin = np.histogram(y, bins = bins )
@@ -293,6 +293,7 @@ def get_stencil_stats_shift( T2, stencil_iter,  key_var , key_x_coord, stancil_w
             #Tmedian[key+ '_weighted_mean']
             key_weighted_mean = weighted_mean(np.array(x_rel), np.array(y))
             key_std           = y.std()
+            key_mode         =  get_mode(y)
 
         else:
 
@@ -300,9 +301,10 @@ def get_stencil_stats_shift( T2, stencil_iter,  key_var , key_x_coord, stancil_w
             key_weighted_mean = np.nan
             #Tmedian[key+ '_mode']           = np.nan
             key_std            = np.nan
+            key_mode           = np.nan
 
         #Tweight = pd.DataFrame([key_weighted_mean, key_std, Nphoton], index= [key+ '_weighted_mean', key+ '_std', 'N_photos' ])
-        Tweight = pd.Series([key_weighted_mean, key_std, Nphoton], index= [key+ '_weighted_mean', key+ '_std', 'N_photos' ])
+        Tweight = pd.Series([key_weighted_mean, key_std, Nphoton, key_mode], index= [key+ '_weighted_mean', key+ '_std', 'N_photos', key+ '_mode' ])
 
 
         #print ( str( istancil) + ' s' + str(time.time() - tstart))
@@ -402,7 +404,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
             Tmedian = T2[i_mask].median()
 
             Tmedian[key+ '_weighted_mean']  = np.nan
-            #Tmedian[key+ '_mode']           = np.nan
+            Tmedian[key+ '_mode']           = np.nan
             Tmedian['N_photos']             = Nphoton
             Tmedian[key+ '_std']            = np.nan
 
@@ -414,7 +416,7 @@ def get_stencil_stats(T2, stencil_iter,  key , key_x_coord, stancil_width ,  Nph
 
         Tmedian                             = T2[i_mask].median()
         Tmedian[key+ '_weighted_mean']      = weighted_mean(x_rel, y)
-        #Tmedian[key+ '_mode']               = get_mode(y)
+        Tmedian[key+ '_mode']               = get_mode(y)
         Tmedian['N_photos']                 = Nphoton
         Tmedian[key+ '_std']                = y.std()
         #Tmedian[key+  '_median'][ np.isnan(Tmedian[key+ 'std']) ]= np.nan # replace median calculation with nans

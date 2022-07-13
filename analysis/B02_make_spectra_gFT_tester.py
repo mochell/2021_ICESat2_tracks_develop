@@ -104,6 +104,7 @@ kk          = kk[k_0<=kk]
 #dk = np.diff(kk).mean()
 print('2 M = ',  kk.size *2 )
 
+dk *150
 # %%
 
 G_gFT= dict()
@@ -149,6 +150,7 @@ for k in all_beams:
     xlims = xlims[0], xlims[0] + (xlims[1] -xlims[0])/2
 
     print('gFT')
+    font_for_print()
     #S_pwelch_k2 = np.arange(S_pwelch_k[1], S_pwelch_k[-1], S_pwelch_dk*2 )
     imp.reload(gFT)
     S = gFT.wavenumber_spectrogram_gFT( np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk, data_error = dd_error_no_nans,  ov=None)

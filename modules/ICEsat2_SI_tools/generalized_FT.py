@@ -125,6 +125,7 @@ class wavenumber_spectrogram_gFT(object):
             k_max = (pars['f_max'].value *2 *np.pi)**2/ 9.81
             #print('k_max ', k_max)
 
+
             if method is 'gaussian':
                 # simple gaussian weight
                 def gaus(x, x_0, amp, sigma_g ):
@@ -142,6 +143,7 @@ class wavenumber_spectrogram_gFT(object):
                 # optimzes paramteric function to data
                 #Spec_fft.data = Spec_fft.runningmean(Spec_fft.data , 10, tailcopy=True)
                 #Spec_fft.data[np.isnan(Spec_fft.data)] = 0
+
                 weight = Spec_fft.create_weight(freq = f, plot_flag= False, max_nfev=max_nfev)
 
                 if plot_flag:
@@ -152,19 +154,18 @@ class wavenumber_spectrogram_gFT(object):
             else:
                 raise ValueError(" 'method'  must be either 'gaussian' or 'parametric' ")
 
-            # add pemnalty floor
-            weight = weight + weight.max()* 0.1
-
 
             if plot_flag:
                 import matplotlib.pyplot as plt
 
                 #plt.plot(k_fft[1:], Spec_fft.model_func(Spec_fft.freq, pars), 'b--' )
-
-                plt.plot(k, weight, zorder=12, label = 'weights from fft')
-                plt.plot(k_fft[1:], Spec_fft.data, label='fft for prior')
+                plt.plot(k_fft[1:], Spec_fft.data, c='gray',label='FFT for Prior', linewidth = 0.5)
+                plt.plot(k, weight, zorder=12, c='black' , label = 'Fitted model to FFT', linewidth = 0.5)
                 plt.xlim(k[0],k[-1] )
+                #plt.show()
 
+            # add pemnalty floor
+            weight = weight + weight.max()* 0.1
 
             # peak normlize weight
             weight = weight/weight.max()
@@ -196,14 +197,20 @@ class wavenumber_spectrogram_gFT(object):
             FT = generalized_Fourier(x, y, self.k)
             H = FT.get_H()
 
+            if plot_flag:
+                import matplotlib.pyplot as plt
+                plt.figure(figsize=(3.34, 1.8),dpi=300)
+
             # define weights
             if (type(prior[0]) is bool) and not prior[0] :
                 # fit function to data
                 weight, prior_pars = get_weights_from_data(x, y, self.dx, stancil, self.k, plot_flag=plot_flag, method='parametric')
+                weight_name = "10 * $P_{init}$ from FFT"
             elif (type(prior) is tuple): # prior= (PSD_from_GFT, weight_used in inversion)
                 # combine old and new weights
                 weight = 0.2 * smooth_data_to_weight(prior[0]) + 0.8 * prior[1]
                 weight = weight/weight.max()
+                weight_name = "10 * smth. $P_{i-1}$"
                 prior_pars = {'alpha': None, 'amp': None, 'f_max': None, 'gamma':None}
             else:
                 weight = smooth_data_to_weight(prior)
@@ -212,7 +219,7 @@ class wavenumber_spectrogram_gFT(object):
             weight = weight * y_var
 
             if plot_flag:
-                plt.plot(self.k, 10 * weight, zorder=12, label = '10 * scaled weights')
+                plt.plot(self.k, 10 * weight, zorder=12, c='darkgreen', linewidth = 0.8,label = weight_name)
 
             # define error
             noise_amp = 10
@@ -258,9 +265,11 @@ class wavenumber_spectrogram_gFT(object):
                 col= 'blue'
 
             if plot_flag:
-                plt.plot(self.k, PSD, color=col , label= 'gFT model fit')
-                plt.title( 'b_hat power, 2M='+ str(self.k.size*2) + ', N='+ str(x.size))
+                plt.plot(self.k, PSD, color=col , label= 'GFT fit', linewidth = 0.5)
+                plt.title( 'Spectral Segment Models, 2M='+ str(self.k.size*2) + ', N='+ str(x.size) +'\n@ $X_i=$'+str(round(stancil[1]/1e3, 1)) +'km' , loc='left', size=6)
                 plt.xlim(self.k[0],self.k[-1])
+                plt.xlabel('Wavenumber k')
+                plt.ylabel('Power (m^2/k)')
                 plt.legend()
                 plt.show()
 
