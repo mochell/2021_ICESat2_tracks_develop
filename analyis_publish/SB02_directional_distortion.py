@@ -66,7 +66,7 @@ for f_max in np.arange(1/25, 1/10, 1/100):
             plt.plot(1/f_prime, Jswap, c=cc, linewidth = 0.5)
 
 #F.ax.set_yscale('log')
-plt.title('Spectal Distortion with oberservation angle ($\\alpha \pm85 ^\circ$)')
+plt.title('Spectral Distortion with oberservation angle ($\\alpha \pm85 ^\circ$)')
 F.ax.set_xscale('log')
 plt.xlabel("observed Period (T')")
 plt.xlim(0, 250)
@@ -129,9 +129,9 @@ for T_max in np.arange(8, 18, 2):
 
 
 #F.ax.set_yscale('log')
-plt.title('Spectal distortion of the oberserved wave spectra\n($\\theta=0$ to $\pm85^\circ$)', loc='left')
+plt.title('Spectral distortion of the oberserved wave spectra\n($\\theta=0$ to $\pm85^\circ$)', loc='left')
 F.ax.set_xscale('log')
-plt.xlabel("observed wavelength ($\lambda'$)")
+plt.xlabel("Observed wavelength ($\lambda'$)")
 plt.ylabel("Amplitude ($m^2/k$)")
 
 plt.xlim(5e1, 4e4)

@@ -88,6 +88,28 @@ if __name__ == '__main__':
 #
 #     abs(co_spec).mean('x').plot()
 
+# %%
+
+
+x = np.linspace(-np.pi, np.pi, 200)
+
+plt.plot(x, np.cos(x /2)**1*2 )
+plt.plot(x, np.cos(x /2)**1.5*2 )
+plt.plot(x, np.cos(x /2)**2*2 )
+plt.grid()
+
+# %%
+fp= 1/12.0
+f = np.arange(1/50, 1/5, 0.001)
+beta = 2.4*(f / (0.95 *fp  ) )
+bb, xx= np.meshgrid(beta, x)
+
+# %%
+plt.contourf(x, f, (1 /np.cosh( (bb *xx) )**2).T )
+
+plt.grid()
+
+
 #(abs(co_spec)/(S_aa *S_bb).rolling(**r_ave_kargs).mean()).plot()
 #
 # (abs(A.conj() *B)/(S_aa *S_bb)).rolling(**r_ave_kargs).mean()[:,:].plot()

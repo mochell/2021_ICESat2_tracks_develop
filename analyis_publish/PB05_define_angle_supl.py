@@ -53,10 +53,11 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
 
 # main text figure
-track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
+#track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
 
 #suppl. figures:
 #track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_publish', False
+track_name, batch_key, test_flag = 'SH_20190224_08800210', 'SH_publish', False
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -442,6 +443,7 @@ ax1 = F.fig.add_subplot(gs[0:3, :])
 ax1.tick_params(labelbottom=True)
 
 weighted_spec   = (Gk.gFT_PSD_data * Gk.N_per_stancil).sum('beam') /Gk.N_per_stancil.sum('beam')
+weighted_spec = weighted_spec.isel(x=slice(0,-2))
 x_spec          = weighted_spec.x/1e3
 lam_p = 2 *np.pi/weighted_spec.k
 lam = lam_p * np.cos(best_guess_angle)
@@ -454,9 +456,10 @@ xlims = x_spec[0]-12.5/2, x_spec[-5]
 clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
 
 dd = 10* np.log(weighted_spec.rolling(k=10, min_periods= 1, center=True).mean())
-clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 2.5], 31)* 1
+clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 1.5], 31)* 1
 #plt.pcolor(x_spec, k, dd ,vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
 plt.pcolormesh(x_spec, lam, dd, cmap=cmap_spec , vmin = clev_log[0], vmax = clev_log[-1])
+
 
 
 plt.plot(x_spec[0:5], lam[dd.argmax('k')][0:5], linestyle= '-', color='black')
@@ -511,7 +514,7 @@ ax1.set_xticklabels(x_tick_labels)
 ax2.set_xticklabels(x_tick_labels)
 
 #ax1.set_yscale('log')
-lam_lim= lam[-1].data, 600
+lam_lim= lam[-1].data, lam[10].data
 ax1.set_ylim(lam_lim)
 
 ax1.set_xlim(xlims)
@@ -519,7 +522,7 @@ ax2.set_xlim(xlims)
 #ax2.set_yscale('log')
 ax2.axhline(best_guess_angle, color=col.orange, linewidth=0.8)
 
-# %%
+
 #xx_list = np.insert(weighted_spec.x.data, 0, 0)
 # x_pos_list = spec.create_chunk_boundaries( 1,  xx_list.size,  iter_flag= False )
 # #x_pos_list = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
@@ -565,7 +568,7 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
 
     plot_data  = dir_data2  * i_spec#.mean('x')
-    plot_data  = dir_data2.rolling(angle =2, k =15, min_periods= 1, center=True ).median()  * i_spec#.mean('x')
+    plot_data  = dir_data2.rolling(angle =2, k =15, min_periods= 1, center=True ).mean()  * i_spec#.mean('x')
 
     plot_data = plot_data.sel(k=slice(lims[0],lims[-1] ) )
     xx = 2 * np.pi/plot_data.k

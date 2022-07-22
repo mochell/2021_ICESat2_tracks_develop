@@ -36,18 +36,17 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 #ID_name, batch_key, ID_flag = '20190208152826_06440210_004_01', 'SH_batch01', False
 #ID_name, batch_key, ID_flag = '20190213133330_07190212_004_01', 'SH_batch02', False
 #ID_name, batch_key, ID_flag = '20190207002436_06190212_004_01', 'SH_batch02', False
-#ID_name, batch_key, ID_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
-
+#ID_name, batch_key, ID_flag = '20190206022433_06050212_004_01', 0
 
 #ID_name, batch_key, ID_flag = '20190215184558_07530210_004_01', 'SH_batch02', False
 #ID_name, batch_key, ID_flag = 'SH_20190219_08070210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
 
-ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
+
 #ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
-
-
+ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
+#ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 
 
 ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'],  )
@@ -164,7 +163,7 @@ for i in xpp:
 
     fn = copy.copy(lstrings)
 
-    F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
+    F = M.figure_axis_xy(5.5, 7, container =True, view_scale= 0.8)
 
     plt.suptitle('ALT03 Decomposition\n'+ io.ID_to_str(ID_name), y = 0.93, x = 0.13, horizontalalignment ='left')
     #Photon height reconstruction | x='+str(Gk.x[i].data)+' \n' + ID_name, y = 0.95)
@@ -288,28 +287,30 @@ for i in xpp:
 
     plt.legend(loc = 4, ncol =2)
 
-    # ax1b = F.fig.add_subplot(gs[13:19, :])
-    # plt.title(' '+next(fn)+ 'ATL07', loc='left', y= 0.83)
-    # x_key= 'dist'
-    # AT07_cat_offset= 0
-    # AT07_bool_offset =0
-    # htype_cmap = [col.orange, col.cascade3, col.cascade2, col.cascade1]
-    # htype_list= ['cloud_covered','other', 'specular_lead', 'dark_lead' , 'other']
-    # for htype, hcolor, htype_str in zip( [0, 1, (2, 5), (6, 9)] , htype_cmap , htype_list ):
-    #     if type(htype) is tuple:
-    #         imask = (B07_sel['heights']['height_segment_type'] >= htype[0]) & (B07_sel['heights']['height_segment_type'] <= htype[1])
-    #     else:
-    #         imask = B07_sel['heights']['height_segment_type'] == htype
-    #     pdata = B07_sel[imask]
-    #     plt.plot( pdata[x_key], pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=1, label=htype_str)
-    #
-    #
-    # for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , [None, 'ssh'] , [0.8, 5]):
-    #
-    #     pdata = B07_sel[B07_sel['heights']['height_segment_ssh_flag'] == htype]
-    #     plt.plot( pdata[x_key], pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize,alpha=0.9, label=htype_str)
-    #
-    # plt.legend(ncol=3, loc=1)
+    ax1b = F.fig.add_subplot(gs[13:19, :])
+    plt.title(' '+next(fn)+ 'ATL07', loc='left', y= 0.83)
+    x_key= 'dist'
+    AT07_cat_offset= 0
+    AT07_bool_offset =0
+    htype_cmap = [col.orange, col.cascade3, col.cascade2, col.cascade1]
+    htype_list= ['cloud_covered','other', 'specular_lead', 'dark_lead' , 'other']
+    for htype, hcolor, htype_str in zip( [0, 1, (2, 5), (6, 9)] , htype_cmap , htype_list ):
+        if type(htype) is tuple:
+            imask = (B07_sel['heights']['height_segment_type'] >= htype[0]) & (B07_sel['heights']['height_segment_type'] <= htype[1])
+        else:
+            imask = B07_sel['heights']['height_segment_type'] == htype
+        pdata = B07_sel[imask]
+        if pdata.size != 0:
+            plt.plot( pdata[x_key], pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=1, label=htype_str)
+
+
+    for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , [None, 'ssh'] , [0.8, 5]):
+
+        pdata = B07_sel[B07_sel['heights']['height_segment_ssh_flag'] == htype]
+        if pdata.size != 0:
+            plt.plot( pdata[x_key], pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize,alpha=0.9, label=htype_str)
+
+    plt.legend(ncol=3, loc=1)
 
 
     #plt.plot( B07_sel['dist_np'] , B07_sel['heights']['height_segment_height'], color='red',  alpha =1, linewidth = 0.6 )
@@ -345,7 +346,7 @@ for i in xpp:
 
 
 
-    ax2 = F.fig.add_subplot(gs[13:18, :])
+    ax2 = F.fig.add_subplot(gs[19:24, :])
     plt.title(' '+next(fn)+ 'Residual heights of ATL03', loc='left', y= 0.83)
     height_residual = T2_sel['heights_c_residual'] #T2_sel['heights_c'] - np.interp(T2_sel['dist'], dist_stencil, height_model2 +  poly_offset)
     plt.scatter(T2_sel['dist'], height_residual, s= 1,  marker='o', color='black',   alpha =0.02, edgecolors= 'none' )
@@ -362,6 +363,7 @@ for i in xpp:
     plt.fill_between(height_residual_mean_x , height_residual_mean, color= col.cascade2, edgecolor = None, alpha = 0.4, zorder= 0)
     plt.legend(loc = 1)
 
+    #ax2.set_ylim(0,np.nanmax(height_residual) * 1.5)
 
     # for pos, kgroup, lflag in zip([ gs[2, 0:2],  gs[2, 2:4], gs[2, 4:]],  [, ['gt2l', 'gt2r'], ['gt3l', 'gt3r']], [True, False, False] ):
 
@@ -381,7 +383,7 @@ for i in xpp:
     plt.ylabel('$(m/m)^2/k$')
     #plt.title('Spectra', loc ='left')s
     #plt.xlabel('k (2$\pi$ m$^{-1}$)')
-    plt.ylim(dd.min(),np.nanmax(dd.data) * 1.5)
+    plt.ylim(dd.min(),np.nanmax(dd.data) * 1.3)
 
     ax41.axvline(k_thresh, linewidth=1,  color='black', alpha=1)
     ax41.axvspan(k_thresh , klim[-1],   color='black', alpha=0.5, zorder=12)
@@ -405,7 +407,7 @@ for i in xpp:
         no_nan_sum.append( (~dist_nanmask[M.cut_nparray( dist_stencil, s[0], s[-1])].data).sum())
 
 
-    ax3 = F.fig.add_subplot(gs[21:23, :])
+    ax3 = F.fig.add_subplot(gs[27:29, :])
 
     plt.title(next(fn) + 'Variance Decomposition', loc='left')
     V0_list, V1_list, V2_list = np.array(V0_list),np.array(V1_list),np.array(V2_list),
@@ -451,9 +453,9 @@ for i in xpp:
     ax1.set_yticklabels(y_tick_labels)
     ax1.set_ylim(-0.8, 1.5)
 
-    # ax1b.set_yticks(y_ticks)
-    # ax1b.set_yticklabels(y_tick_labels)
-    # ax1b.set_ylim(-0.8, 0.8)
+    ax1b.set_yticks(y_ticks)
+    ax1b.set_yticklabels(y_tick_labels)
+    ax1b.set_ylim(-0.8, 0.8)
 
     ax2.set_xticks(eta_ticks*1e3)
     ax2.set_xticklabels(eta_tick_labels)
@@ -469,7 +471,7 @@ for i in xpp:
     xlims= eta_1[0].data+ 0 * dx, eta_1[-1].data- 1000 * dx
     #xlims= eta_1[0].data+ 0 * dx, eta_1[-1].data- 0 * dx
 
-    for axx in [ax0, ax1, ax3]:
+    for axx in [ax0, ax1, ax1b, ax3]:
         axx.set_xlim(xlims )
         axx.axhline(0, linewidth =0.5, color=col.black)
         axx.spines['bottom'].set_visible(False)
@@ -480,11 +482,9 @@ for i in xpp:
     #F.save_light(path= plot_path, name='B03_decomposition_'+str(num_count).zfill(4))
     #F.save(path= plot_path, name='B06_decomposition_2_'+k+'_x'+str(i)+'_'+ID_name)
 
-    F.save_light(path= plot_path, name='B06_decomposition_simple_'+k+'_x'+str(i)+'_'+ID_name)
-    #F.save_pup(path= plot_path, name='B06_decomposition_simple_'+k+'_x'+str(i)+'_'+ID_name)
+    F.save_light(path= plot_path, name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
+    #F.save_pup(path= plot_path  , name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
 
-
-    #num_count +=1
 # %%
 
 V0_photon_var       = T2_sel['heights_c'].var()
