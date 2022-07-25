@@ -222,8 +222,9 @@ chunk_list = np.arange( latlims[0], latlims[1], dl )[::1]
 font_for_print()
 xscale=1e3
 
-for chunk_list_i in np.arange(chunk_list.size)[0:20]:
-    # chunk_list_i= 250
+for chunk_list_i in np.arange(chunk_list.size)[0:40]:
+# %%
+    chunk_list_i= 252
     # for chunk_list_i in np.arange(chunk_list_i-5, chunk_list_i+5, 1):
     fn = copy.copy(lstrings)
     F = M.figure_axis_xy(fig_sizes['two_column'][0], fig_sizes['two_column'][1], view_scale=0.8, container =True)
@@ -383,7 +384,7 @@ for chunk_list_i in np.arange(chunk_list.size)[0:20]:
     ax1.set_xlim(xlims_large[0], xlims_large[1]  )
 
     ax1.spines['left'].set_position(('outward', 10))
-    y_ticks =  MT.tick_formatter(   np.arange(0, 1.4, 0.5),  interval=1, rounder=1, expt_flag=False, shift=0 )
+    y_ticks =  MT.tick_formatter(   np.arange(-2, 1.4, 1),  interval=1, rounder=1, expt_flag=False, shift=0 )
     ax1.set_yticks(y_ticks[1])
     ax1.set_yticklabels(y_ticks[0])
 
