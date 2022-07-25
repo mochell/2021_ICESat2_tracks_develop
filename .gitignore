@@ -29,3 +29,4 @@ modules/ICEsat2_SI_tools/._lanczos.py
 presentations/
 schematics/
 track_lists/._*
+analysis/.DS_Store

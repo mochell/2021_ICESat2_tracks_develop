@@ -42,6 +42,7 @@ ID_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard ex
 
 #ID_name, batch_key, test_flag =  'SH_20190208_06440212', 'SH_publish', True
 #ID_name, batch_key, test_flag =  'SH_20190219_08070210', 'SH_publish', True
+ID_name, batch_key, test_flag =  'SH_20190502_05160312', 'SH_publish', True
 
 #ID_name, batch_key, test_flag =  'NH_20190311_11200203', 'NH_batch06', True
 #ID_name, batch_key, test_flag =  'NH_20210312_11961005', 'NH_batch07', True

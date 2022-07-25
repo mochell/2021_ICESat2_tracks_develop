@@ -43,9 +43,8 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
 
-
-#ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
-ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
+ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
+#ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 
 
@@ -462,7 +461,7 @@ for i in xpp:
 
     ax2.set_yticks(y_ticks)
     ax2.set_yticklabels(y_tick_labels)
-    ax2.set_ylim(0, 1.5)
+    ax2.set_ylim(-0.5 , 1.5)
 
     ax3.set_yticks(y_ticks)
     ax3.set_yticklabels(y_tick_labels)

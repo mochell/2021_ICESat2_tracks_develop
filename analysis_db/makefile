@@ -271,10 +271,10 @@ $(B02_targets) : $(work_folder)/$(batch_key)/B02_spectra/B02_%_FFT.nc : $(work_f
 
 # defeins targets for all bad tracks.
 bad_beams_files := $(shell ls $(bad_tracks_folder)/$(batch_key)) #$(shell jq -r .[] $(config_folder)config.json)
-bad_beams := $(basename $(bad_beams_files))
+bad_beams       := $(basename $(bad_beams_files))
 
 source_files := $(foreach i, $(bad_beams) ,$(addprefix $(scratch_folder)/$(batch_key), /ATL03_${i}.h5 ) )
-bad_ID_files     := $(foreach i, $(bad_beams) ,$(addprefix $(A01b_path)/, A01b_ID_${i}.json) )x
+bad_ID_files := $(foreach i, $(bad_beams) ,$(addprefix $(A01b_path)/, A01b_ID_${i}.json) )x
 #B01_files_02 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_corrected.h5 ) )
 #B01_files_03 := $(foreach i, $(bad_beams) ,$(addprefix $(work_folder)/B01_regrid_SH/, ${i}_B01_regridded.h5 ) )
 
@@ -348,7 +348,7 @@ B04_B05_mkdir :
 
 B04_collect : B04_B05_mkdir $(B04_collect_targets)
 $(B04_collect_targets) : $(B04_B05_collect_path)%_B04_marginal_distributions.pdf : $(B03_path)%/B04_success.json
-				cp $(B03_path)$*/B04_marginal_distributions.pdf $(B04_B05_collect_path)$*_B04_marginal_distributions.pdf
+					cp $(B03_path)$*/B04_marginal_distributions.pdf $(B04_B05_collect_path)$*_B04_marginal_distributions.pdf
 
 ## ---------------- B5
 
