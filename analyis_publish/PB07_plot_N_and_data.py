@@ -56,6 +56,24 @@ ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True # no ATL07 data
 
 
+TND =mconfig['track_name_dict']
+
+# % 1 X
+# % Track 1
+# % SH_20190224_08800210
+#
+# % 3 X
+# % Track 2
+# % SH_20190219_08070210
+#
+# % 4 X
+# % Track 3
+# % SH_20190502_05160312
+#
+# % 1 X
+# % Track 4
+# % SH_20190502_05180312
+
 
 ID, _, hemis, batch = io.init_data(ID_name, batch_key, ID_flag, mconfig['paths']['work'],  )
 #print(ID_name, batch_key, ID_flag)
@@ -240,9 +258,9 @@ ax0 = F.fig.add_subplot(gs[0:3, :])
 plt.title(' '+next(fn)+ 'ATL03 Expl. Variance', loc='left', y= 0.91)
 
 #edge_pos = np.insert(VAR_stats_sum.index, VAR_stats_sum.index.size, VAR_stats_sum.index[-1])
-plt.stairs(VAR_stats_sum['ATL03_photon'],  edge_pos, baseline=0, fill=True, color= col.gridcolor, alpha=1, label = 'photon variance')
-plt.stairs(VAR_stats_sum['ATL03_smth_data'],  edge_pos, baseline=0, fill=True, color= col.cascade2, alpha=0.6, label = 'observed $h_c$ mean')
-plt.stairs(VAR_stats_sum['ATL03_wave_model'],  edge_pos, baseline=0, fill=True, edgecolor=col.black, color=  col.cascade1, alpha=1, label = 'wave variance', linewidth=0.8)
+plt.stairs(VAR_stats_sum['ATL03_photon'],  edge_pos, baseline=0, fill=True, color= col.gridcolor, alpha=1, label = 'Photon variance (<20 meter)')
+plt.stairs(VAR_stats_sum['ATL03_smth_data'],  edge_pos, baseline=0, fill=True, color= col.cascade2, alpha=0.6, label = '$h_c$ variance (> 20 meters)')
+plt.stairs(VAR_stats_sum['ATL03_wave_model'],  edge_pos, baseline=0, fill=True, edgecolor=col.black, color=  col.cascade1, alpha=1, label = 'wave variance (model)', linewidth=0.8)
 #plt.stairs(VAR_stats_sum['ATL03_smth_wave_model'],  edge_pos, baseline=0, fill=False, color= col.green, alpha=1, label = 'photon variance')
 
 
@@ -266,10 +284,13 @@ y_max  = np.nanquantile(VAR_stats_sum['ATL03_photon'], 0.8) *1.5
 
 ax1 = F.fig.add_subplot(gs[1+2:3+2, :])
 
+#\com{change label: "photon variance" -> "Photon variance (<20 meter)"; "observed hc mean" --> "$h_c$ variance > 20 meters"; "wave variance (model)"}
+
+
 plt.title(' '+next(fn)+ 'ATL07 Observed Variance', loc='left', y= 0.95)
 
 plt.stairs(VAR_stats_sum['ATL07_heights'],     edge_pos, baseline=0, fill=True, color=col.orange, edgecolor=col.gray, alpha=1, label = 'ATL07 variance')
-plt.stairs(VAR_stats_sum['ATL03_wave_model'],  edge_pos, baseline=0, fill=False, edgecolor=col.black, alpha=1, linewidth=1, label = 'wave variance as in a)')
+plt.stairs(VAR_stats_sum['ATL03_wave_model'],  edge_pos, baseline=0, fill=False, edgecolor=col.black, alpha=1, linewidth=1, label = 'wave variance as in (a)')
 
 dmask = np.isnan(VAR_stats_sum['ATL07_heights'])
 hatch_data = np.ones(VAR_stats_sum['ATL07_heights'].size) +y_max

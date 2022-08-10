@@ -30,3 +30,11 @@ presentations/
 schematics/
 track_lists/._*
 analysis/.DS_Store
+release/
+._.DS_Store
+analyis_publish/
+analysis/
+analysis_db/makefile
+config/
+data_prehandling/
+track_lists/
