@@ -206,7 +206,9 @@ for k in beams:
     #imp.reload(io)
     print(k)
     #try:
-    T_freeboard = io.getATL07_beam(load_file, beam= k)
+    #T_freeboard = io.getATL07_beam(load_file, beam= k)
+    T_freeboard = io.getATL10_beam(load_file, beam= k)
+
     # except:
     #     print('failed to load beam')
     #     slope_test = False
