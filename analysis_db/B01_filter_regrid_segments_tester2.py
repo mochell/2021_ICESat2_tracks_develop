@@ -293,7 +293,7 @@ def make_x_coorindate(k):
     delta_onehalf.iloc[0]   = delta_onehalf.iloc[1]
     seg['delta_half_time']  = seg['delta_time']  - delta_onehalf - 1e-5
 
-    # cur phontos that are not in segmentns
+    # cut phontos that are not in segmentns
     T           = T[ (T['delta_time'] > seg['delta_half_time'].iloc[0]) & (T['delta_time'] < seg['delta_half_time'].iloc[-1])]
     bin_labels  = np.digitize( T['delta_time'], seg['delta_half_time'], right = True )
 

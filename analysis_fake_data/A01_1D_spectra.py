@@ -13,7 +13,7 @@ sys.path.append(base_path +'modules/')
 sys.path.append(base_path +'modules/ICEsat2_SI_tools/')
 
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline
 
 #import m_general as M
 #import m_tools as MT
@@ -26,8 +26,6 @@ import xarray as xr
 import pandas as pd
 import h5py
 
-import ICEsat2_SI_tools.convert_GPS_time as cGPS
-import ICEsat2_SI_tools.io as io
 
 import imp
 import m_spectrum_ph3 as spec
@@ -37,9 +35,12 @@ import JONSWAP_gamma
 
 f = np.arange(0.001, 0.2,0.001)
 spec_power = JONSWAP_gamma.JONSWAP_default(f, 2e6, 10)
+
+JONSWAP_gamma.JONSWAP_default(f, 2e6, 10)
 plt.plot(f, spec_power)
 
 amps = (spec_power * np.gradient(f)) **0.5
+#plt.plot(f, amps)
 
 2/f[amps.argmax()]
 
@@ -75,7 +76,6 @@ phi2 = np.arctan2(-B, A)
 instance3 = R* np.cos(k * x + phi2 )
 plt.plot(x,  instance3, '+')
 
-
 # %%
 
 C= -3
@@ -91,3 +91,5 @@ plt.plot(x,  instance2, '-')
 
 
 plt.plot(x,  instance + instance2, '-k')
+
+# %%
