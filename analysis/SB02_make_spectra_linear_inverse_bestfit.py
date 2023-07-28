@@ -1,3 +1,4 @@
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -14,7 +15,7 @@ sys.path.append(base_path +'modules/')
 sys.path.append(base_path +'modules/ICEsat2_SI_tools/')
 
 import matplotlib.pyplot as plt
-%matplotlib inline
+#%matplotlib inline
 
 #import m_general as M
 #import m_tools as MT
@@ -171,10 +172,12 @@ S = gFT.get_prior_spec(f_weight, data_weight )
 pars = S.set_parameters()
 S.params['gamma'].set(value =1 ,vary= False)
 f= np.sqrt(9.81 * k) / (2 *np.pi)
+
 weight = S.create_weight(freq = f, plot_flag= True)
 weight = weight + weight.max()* 0.05 # add pemnalty floor
 weight = weight/weight.max()  # add pemnalty floor
 weight = weight *data_var
+
 plt.title('FFT(data) and fitted Pior model')
 plt.show()
 #weight[weight< 0] =0.001
@@ -182,6 +185,7 @@ plt.plot([kk[0], kk[0]], [0, 1/weight.min()], 'k')
 plt.plot([kk[-1], kk[-1]], [0, 1/weight.min()], 'k')
 
 plt.plot(kk, 1/weight)
+#plt.plot(kk, weight)
 plt.title('penalty')
 
 plt.plot(f, (1/f)**(1/4))
@@ -212,20 +216,21 @@ R_1d = np.diag(R)
 from numpy import linalg
 inv = linalg.inv
 
-
 plt.plot(  - 1/np.diag(P) )
 
 
-
 # Hessian_int
-%timeit Hess =(G.T @ inv(R) @ G  ) + inv(P)
-%timeit b_hat = inv( Hess) @ G.T @ inv(R) @ y[~nan_mask]
+# %timeit Hess =(G.T @ inv(R) @ G  ) + inv(P)
+# %timeit b_hat = inv( Hess) @ G.T @ inv(R) @ y[~nan_mask]
 
+Hess =(G.T @ inv(R) @ G  ) + inv(P)
+b_hat = inv( Hess) @ G.T @ inv(R) @ y[~nan_mask]
 
-%timeit G_T_R_inv       = G.T * (1/R_noise)
-%timeit Hess    = (G_T_R_inv @ G  ) + np.diag(1/P_1d)
-%timeit Hess_inv = inv(Hess)
-%timeit b_hat = Hess_inv @ G_T_R_inv @ y[~nan_mask]
+# %timeit G_T_R_inv       = G.T * (1/R_noise)
+# %timeit Hess    = (G_T_R_inv @ G  ) + np.diag(1/P_1d)
+# %timeit Hess_inv = inv(Hess)
+# %timeit b_hat = Hess_inv @ G_T_R_inv @ y[~nan_mask]
+
 
 # %%
 
@@ -240,7 +245,7 @@ model_var = (b_hat * G).sum(1).var()
 residual.var()
 
 print('normlized residual ', normalized_residual)
-print('data variance=', data_var, 'model variance', model_var, ' residual variance', residual.var())
+print('data variance=', data_var,'model variance', model_var, ' residual variance', residual.var())
 print('sum', data_var-model_var- residual.var())
 
 # %%
