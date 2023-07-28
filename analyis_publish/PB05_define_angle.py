@@ -375,6 +375,7 @@ class plot_polarspectra(object):
                 colorax = ax.contourf(self.thetas,self.k, self.data, self.clevs, cmap=cm, zorder=1)#, vmin=self.ctrs_min)
             #divider = make_axes_locatable(ax)
             #cax = divider.append_axes("right", size="5%", pad=0.05)
+            self.colorax = colorax
 
             if cbar_flag:
                 cbar = plt.colorbar(colorax, fraction=0.046, pad=0.1, orientation="horizontal")
@@ -393,7 +394,7 @@ class plot_polarspectra(object):
             if (self.lims[-1]- self.lims[0]) > 6000:
                 radial_ticks = np.arange(100, 1600, 300)
             else:
-                radial_ticks = np.arange(100, 1000, 50)
+                radial_ticks = np.arange(60, 1000, 20)
             print(radial_ticks)
             xx_tick_names, xx_ticks = MT.tick_formatter( radial_ticks , expt_flag= False, shift= 1, rounder=0, interval=1)
             #xx_tick_names, xx_ticks = MT.tick_formatter( np.arange( np.floor(self.k.min()),self.k.max(), 20) , expt_flag= False, shift= 1, rounder=0, interval=1)
@@ -443,17 +444,30 @@ ax1.tick_params(labelbottom=True)
 
 weighted_spec   = (Gk.gFT_PSD_data * Gk.N_per_stancil).sum('beam') /Gk.N_per_stancil.sum('beam')
 x_spec          = weighted_spec.x/1e3
-lam_p = 2 *np.pi/weighted_spec.k
+
+k_low_limits =weighted_spec.k[::10]
+weighted_spec_sub = weighted_spec.groupby_bins('k' , k_low_limits).mean()
+k_low = (k_low_limits + k_low_limits.diff('k')[0]/2).data
+weighted_spec_sub['k_bins'] = k_low[0:-1]
+weighted_spec_sub = weighted_spec_sub.rename({'k_bins': 'k'})
+#weighted_spec_sub = weighted_spec
+
+lam_p = 2 *np.pi/k_low_limits
 lam = lam_p * np.cos(best_guess_angle)
 k               = 2 * np.pi/lam
+
 #weighted_spec.k/np.cos(best_guess_angle)
 
-xlims = x_spec[0]-12.5/2, x_spec[-5]
+#xlims = x_spec[0]-12.5/2, x_spec[-5]
+xlims = x_spec[0], x_spec[-5]
+
 #weighted_spec.plot()
 #clev_spec = np.linspace(-8, -1, 21) *10
 clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
 
-dd = 10* np.log(weighted_spec.rolling(k=10, min_periods= 1, center=True).mean())
+
+
+dd = 10* np.log(weighted_spec_sub)
 clev_log = M.clevels( [dd.quantile(0.01).data * 0.3, dd.quantile(0.98).data * 2.5], 31)* 1
 #plt.pcolor(x_spec, k, dd ,vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
 plt.pcolormesh(x_spec, lam, dd, cmap=cmap_spec , vmin = clev_log[0], vmax = clev_log[-1])
@@ -485,8 +499,16 @@ ax2.tick_params(labelleft=True)
 dir_data = Gpdf.interp(x= weighted_spec.x).weighted_angle_PDF_smth.T#.rolling(angle=5, min_periods= 1, center=True).mean()
 
 x = Gpdf.x/1e3
-angle = Gpdf.angle
-plt.pcolormesh(x_spec, angle, dir_data.rolling(angle =10).median() , vmin= clev_angle[0], vmax= clev_angle[-1], cmap = cmap_spec)
+angle = Gpdf.angle[::10]
+
+dir_data_sub            = dir_data.groupby_bins('angle' , angle).mean()
+angle_low                   = (angle + angle.diff('angle')[0]/2).data
+dir_data_sub['angle_bins']  = angle_low[0:-1]
+dir_data_sub            = dir_data_sub.rename({'angle_bins': 'angle'})
+plt.pcolormesh(dir_data_sub.x/1e3, dir_data_sub.angle, dir_data_sub , vmin= clev_angle[0], vmax= clev_angle[-1], cmap = cmap_spec)
+
+#plt.pcolormesh(dir_data.x/1e3, dir_data.angle, dir_data , vmin= clev_angle[0], vmax= clev_angle[-1], cmap = cmap_spec)
+
 
 cbar = plt.colorbar( fraction=0.02, pad=0.01, orientation="vertical", label ='Density')
 cbar.outline.set_visible(False)
@@ -511,7 +533,7 @@ ax1.set_xticklabels(x_tick_labels)
 ax2.set_xticklabels(x_tick_labels)
 
 #ax1.set_yscale('log')
-lam_lim= lam[-1].data, 600
+lam_lim= lam[-1].data, 550
 ax1.set_ylim(lam_lim)
 
 ax1.set_xlim(xlims)
@@ -519,7 +541,8 @@ ax2.set_xlim(xlims)
 #ax2.set_yscale('log')
 ax2.axhline(best_guess_angle, color=col.orange, linewidth=0.8)
 
-# %%
+
+
 #xx_list = np.insert(weighted_spec.x.data, 0, 0)
 # x_pos_list = spec.create_chunk_boundaries( 1,  xx_list.size,  iter_flag= False )
 # #x_pos_list = spec.create_chunk_boundaries( int(xx_list.size/3),  xx_list.size,  iter_flag= False )
@@ -531,16 +554,17 @@ x_pos_list =  [0, 1, 2]#np.arange(0,9, 1)#np.vstack([np.arange(1,3), np.arange(0
 #x_pos_list
 lsrtrings = iter(['c)', 'd)', 'e)'])
 
+dir_ax_list =list()
 for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     #print( x_pos)
     #print( xx_list[x_pos])
-    x_range = weighted_spec.x.data[x_pos]#, x_pos[-1]]]
+    x_range = weighted_spec.x.data[x_pos] + 12.5e3/2 #, x_pos[-1]]]
     print(x_range)
     ax1.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
     ax2.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
 
     i_lstring = next(lsrtrings)
-    ax1.text(x_range/1e3, np.array(lam_lim).mean()*3/2, ' '+ i_lstring, fontsize= 8, color =col.green)
+    ax1.text(x_range/1e3, np.array(lam_lim).mean()* 3/2, ' '+ i_lstring, fontsize= 8, color =col.green)
     #ax2.text(x_range/1e3, weighted_spec.k.mean().data, ' a', fontsize= 8)
 
 
@@ -565,10 +589,19 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     dir_data2 =  dir_data#.where( dir_data.sum('angle') !=0, 1/N_angle/d_angle )
 
     plot_data  = dir_data2  * i_spec#.mean('x')
+    
+    # angle_low = dir_data2.angle[::5]
+    # k_low = dir_data2.k[::5]
+    # plot_data  = dir_data2.groupby_bins('angle' , angle_low).mean().groupby_bins('k', k_low).mean()
+    # plot_data = plot_data.rename({'k_bins':'k', 'angle_bins': 'angle'})
+    # plot_data['k'] = (k_low + k_low.diff('k')[0]/2).data[0:-1]
+    # plot_data['angle'] =(angle_low + angle_low.diff('angle')[0]/2).data[0:-1]
+    
     plot_data  = dir_data2.rolling(angle =2, k =15, min_periods= 1, center=True ).median()  * i_spec#.mean('x')
-
     plot_data = plot_data.sel(k=slice(lims[0],lims[-1] ) )
-    xx = 2 * np.pi/plot_data.k
+
+    lam_p = 2 *np.pi/plot_data.k.data
+    lam = lam_p * np.cos(best_guess_angle)
 
     #F = M.figure_axis_xy(5, 4)
     #ax = plt.subplot(1, 1, 1, polar=True)
@@ -576,16 +609,53 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     if np.nanmax(plot_data.data) != np.nanmin(plot_data.data):
 
         ax3 = F.fig.add_subplot(gs, polar=True)
-        FP= plot_polarspectra(xx, plot_data.angle, plot_data, lims=[xx[-1], 340 ] , verbose= False, data_type= 'fraction')
+        FP= plot_polarspectra(lam, plot_data.angle, plot_data, lims=[lam[-1], 138 ] , verbose= False, data_type= 'fraction')
         FP.clevs=np.linspace(np.nanpercentile(plot_data.data, 1), np.round(plot_data.max(), 4), 21)
         FP.linear(ax = ax3, cbar_flag=False)
-        #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
         #plt.show()
         plt.title('\n\n'+i_lstring,y=1.0, pad=-6, color=col.green)
 
-F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name)
-F.save_light(path = plot_path, name = 'B05_dir_ov_'+track_name)
+        dir_ax_list.append(ax3)
+
+
+cbar = plt.colorbar(FP.colorax ,  fraction=0.046, pad=0.01, orientation="vertical", ax = dir_ax_list)
+cbar.ax.get_yaxis().labelpad = 5
+cbar.outline.set_visible(False)
+
+clev_tick_names, clev_ticks =MT.tick_formatter(FP.clevs, expt_flag= False, shift= 0, rounder=6, interval=10)
+cbar.set_ticks(clev_ticks[::10])
+cbar.set_ticklabels( np.round(clev_ticks[::10]*1e3, 2) )
+cbar.set_label('Energy Density \n(10$^3$ (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=90)#, fontsize=10)
+
+
+# F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name)
+# F.save_light(path = plot_path, name = 'B05_dir_ov_'+track_name)
+
+
+# %% shift simple
+
+font_for_print()
+fn = copy.copy(lstrings)
+
+
+F = M.figure_axis_xy(fig_sizes['one_column'][0], fig_sizes['one_column'][1]*1.5, view_scale= 0.7, container = True)
+
+plt.title('Observed and Corrected Wave Spectrum in the MIZ\nestimated incident wave $\\theta=66^\circ$', loc ='left')
+shifted_spec = 10* np.log(weighted_spec.rolling(k=10, min_periods= 1, center=True).mean())
+shifted_spec = weighted_spec.rolling(k=10, min_periods= 1, center=True).mean()
+
+plt.plot(lam_p, shifted_spec.isel(x=0), c = col.cascade1, label ='observed along-track \nwave spectrum')
+plt.plot(lam, shifted_spec.isel(x=0), c = col.cascade2, linestyle = '--', label = 'corrected wave spectrum')
+
+plt.legend()
+
+plt.xlim(0, 900)
+plt.ylim(0, 0.16)
+
+plt.xlabel('Wavelength ($\lambda$)')
+plt.ylabel('$m^2/\lambda$')
+F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name+'_1d')
+
 # %%
 #F.save_pup(path = plot_path, name = 'B05_dir_ov_'+track_name)
 # MT.json_save('B05_success', plot_path + '../', {'time':time.asctime( time.localtime(time.time()) )})
-                                                                                                                                                                                                                                                                                                                                                        

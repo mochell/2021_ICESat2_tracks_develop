@@ -43,7 +43,7 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
 
-ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
+ID_name, batch_key, ID_flag =  'SH_20190224_08800210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True
 
@@ -481,7 +481,7 @@ for i in xpp:
     #F.save_light(path= plot_path, name='B03_decomposition_'+str(num_count).zfill(4))
     #F.save(path= plot_path, name='B06_decomposition_2_'+k+'_x'+str(i)+'_'+ID_name)
 
-    F.save_light(path= plot_path, name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
+    #F.save_light(path= plot_path, name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
     #F.save_pup(path= plot_path  , name='B06_decomposition_'+k+'_x'+str(i)+'_'+ID_name)
 
 # %%

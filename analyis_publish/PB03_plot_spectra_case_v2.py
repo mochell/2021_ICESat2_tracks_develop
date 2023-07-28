@@ -270,18 +270,25 @@ for pos, k, lflag in zip([ gs[7:10, 0:3],  gs[11:14, 0:3] ],  beam_group, [True,
     Gk_1 = Gk.isel(x= i).sel(beam = k)
     Gfft_1 = Gfft.isel(x= i).sel(beam = k)
 
-    klim= Gk_1.k[0], Gk_1.k[-1]
+
+
 
     dd = Gk_1.gFT_PSD_data#.rolling(k=10, min_periods= 1, center=True).mean()
     plt.plot(Gk_1.k,  dd, color=col_d[k], linewidth=.5 ,alpha= 0.5, zorder=5 )
 
-    dd = Gk_1.gFT_PSD_data.rolling(k=10, min_periods= 1, center=True).mean()
-    plt.plot(Gk_1.k,  dd, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
+
+    #dd = Gk_1.gFT_PSD_data.rolling(k=10, min_periods= 1, center=True).mean()
+    k_low_limits =Gk_1.gFT_PSD_data.k[::10]
+    k_low = ( k_low_limits+ k_low_limits.diff('k')[0]/2).data[0:-1]
+
+    dd = Gk_1.gFT_PSD_data.groupby_bins('k' , k_low_limits).mean()
+    plt.plot(k_low,  dd, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
     #plt.plot(Gk_1.k,  dd, color=col.gridcolor, linewidth=2.4, zorder=6 )
 
-    dd_fft = Gfft_1.power_spec.rolling(k=10, min_periods= 1, center=True).mean()
-    plt.plot(Gfft_1.k,  dd_fft, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
+    dd_fft = Gfft_1.power_spec.groupby_bins('k' , k_low_limits).mean()#.rolling(k=10, min_periods= 1, center=True).mean()
+    plt.plot(k_low,  dd_fft, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
 
+    klim= k_low[0], Gk_1.k[-1]
     dd_max.append(np.nanmax(dd.data))
     plt.xlim(klim)
     plt.title(next(fn) +'Beam ' + k  + ' Spectral Estimate', loc='left', y= 1.1)
@@ -308,12 +315,18 @@ for pos, k, lflag in zip([ gs[7:10, 0:3],  gs[11:14, 0:3] ],  beam_group, [True,
     ax11.set_xticklabels(x_ticks_labels)
     ax11.set_xlim(Gfft_1.k.min(), x_ticks[-1])
 
-    dd_err = Gk_1.gFT_PSD_model_err.rolling(k=10, min_periods= 1, center=True).mean()
-    ax1.fill_between(Gk_1.k,  dd_err, color=col_d[k], linewidth=1, zorder=8 , alpha = 0.5)
-    ax1.plot(Gk_1.k,  dd_err, color=col_d[k], linewidth=1, zorder=8 , label=k)
+    #dd_err = Gk_1.gFT_PSD_model_err.rolling(k=10, min_periods= 1, center=True).mean()
+    dd_err = Gk_1.gFT_PSD_model_err.groupby_bins('k' , k_low_limits).mean()
+    ax1.fill_between(k_low,  dd_err, color=col_d[k], linewidth=1, zorder=8 , alpha = 0.5)
+    ax1.plot(k_low,  dd_err, color=col_d[k], linewidth=1, zorder=8 , label=k)
     err_max = dd_err.max() if dd_err.max() > err_max else err_max
 
-    ax2.hist( (Gx_1.y_data - Gx_1.y_model)/ Gx_1.y_data.std(), bins= 40, color = col_d[k], alpha= 0.5, density=True, stacked=True)
+    ax2.hist( 2 *(Gx_1.y_data - Gx_1.y_model)/ Gx_1.y_data.std(), bins= 40, color = col_d[k], alpha= 0.5, density=True, stacked=True)
+
+# from scipy import stats
+# x2_data = np.arange(-5, 5, 0.001)
+# y2_data = stats.norm.pdf(x2_data, 0, 1)
+# ax2.plot(x2_data, y2_data)
 
 
 plt.legend()
@@ -334,7 +347,7 @@ ax1.tick_params(axis='both', colors=col.gray)
 ax1.legend()
 ax1.set_xticks(x_ticks)
 ax1.set_xticklabels(x_ticks_labels)
-ax1.set_xlim(Gfft_1.k.min(), x_ticks[-1])
+ax1.set_xlim(k_low.min(), x_ticks[-1])
 ax1.set_ylim(0, err_max*1.05)
 ax1.set_title(next(fn) +'Spectral Error', loc='left', y= 1.1)
 
@@ -343,14 +356,17 @@ ax2.spines['left'].set_color(col.gray)
 ax2.spines['bottom'].set_color(col.gray)
 ax2.tick_params(axis='both', colors=col.gray)
 
-hist_x_ticks_labels, hist_x_ticks = MT.tick_formatter(np.arange(-3, 3.5, 0.5), interval= 2, rounder=0, expt_flag= False, shift=1)
+hist_x_ticks_labels, hist_x_ticks = MT.tick_formatter(np.arange(-3, 3.5, 0.5)* 2, interval= 2, rounder=0, expt_flag= False, shift=1)
 ax2.set_xticks(hist_x_ticks)
 ax2.set_xticklabels(hist_x_ticks_labels)
-ax2.set_xlim(-2, 2)
+ax2.set_xlim(-4, 4)
 ax2.set_title(next(fn) +'PDF of Residual $\mathbf{r}$ ', loc='left', y= 1.1)
-ax2.set_xlabel('Normalized Error)')
+ax2.set_xlabel('Normalized Error')
 ax2.axvline(0, color=col.black, linewidth= 0.5, alpha = 0.5)
+
 
 
 F.save_light(path= plot_path, name='B03_gFT_exmpl_x_v2_'+str(i)+'_'+track_name)
 F.save_pup(path= plot_path, name='B03_gFT_exmpl_x_v2_'+str(i)+'_'+track_name)
+
+# %%

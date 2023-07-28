@@ -1,4 +1,5 @@
 
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -25,7 +26,6 @@ import datetime
 import generalized_FT as gFT
 from scipy.ndimage.measurements import label
 
-#import s3fs
 # %%
 track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard experiment
 #track_name, batch_key, test_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
@@ -39,8 +39,12 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190502021224_05160312_004_01', 'SH_batch02', False
-track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
+
+#track_name, batch_key, test_flag = 'SH_20190224_08800210', 'SH_publish', False
 #track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_publish', False
+track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', False
+#track_name, batch_key, test_flag = 'SH_20190502_05180312', 'SH_publish', False
+
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -144,7 +148,15 @@ def plot_wavenumber_spectrogram(ax, Gi, clev, plot_photon_density=True , cmap=No
 
 #Gplot = G.rolling(x=5, min_periods= 1, center=True).mean()
 #Gmean = G_gFT_wmean.rolling(x=2, min_periods= 1, center=True).mean()
-Gmean = G_gFT_wmean['gFT_PSD_data'].rolling(k=5, center=True).mean()
+
+#Gmean = G_gFT_wmean['gFT_PSD_data'].rolling(k=5, center=True).mean()
+
+k_low_limits =Gk_1.gFT_PSD_data.k[::10]
+Gmean = G_gFT_wmean['gFT_PSD_data'].groupby_bins('k' , k_low_limits).mean()
+k_low = (k_low_limits + k_low_limits.diff('k')[0]/2).data
+Gmean['k_bins'] = k_low[0:-1]
+Gmean = Gmean.rename({'k_bins': 'k'})
+
 #Gmean = Gmean.where(~np.isnan(Gmean), 0)
 
 # define mean first for colorbar
@@ -320,3 +332,5 @@ cb.outline.set_visible(False)
 
 F.save_light(path=plot_path, name = 'PB03_specs_ov_'+str(track_name))
 F.save_pup(path=plot_path, name = 'PB03_specs_ov_'+str(track_name))
+
+# %%

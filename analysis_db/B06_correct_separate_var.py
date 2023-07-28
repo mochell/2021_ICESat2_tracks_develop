@@ -474,7 +474,7 @@ for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True,
     #
     if pflag:
         ax0.tick_params(labelbottom=False, bottom=True)
-        plt.ylabel('Power (m$^2$/k)')
+        plt.ylabel('Power (m$^2$/k')')
         plt.legend()
     else:
         ax0.tick_params(labelbottom=False, bottom=True, labelleft=False)
@@ -494,12 +494,12 @@ for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, 
 
     plt.title(next(fn) + k, color= col_dict[k], loc= 'left')
     plt.xlim(xlims)
-    plt.xlabel('wavenumber k')
+    plt.xlabel('observed wavenumber k'')
 
     #
     if pflag:
         ax0.tick_params( bottom=True)
-        plt.ylabel('Power (m$^2$/k)')
+        plt.ylabel('Power (m$^2$/k')')
         plt.legend()
     else:
         ax0.tick_params(bottom=True, labelleft=False)

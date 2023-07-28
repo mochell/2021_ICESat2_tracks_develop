@@ -48,13 +48,14 @@ ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard expe
 
 
 #ID_name, batch_key, ID_flag =  'SH_20190213_07190212', 'SH_publish', True
-#ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
+
 
 # used in paper:
-ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
+#ID_name, batch_key, ID_flag =  'SH_20190219_08070210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190224_08800210', 'SH_publish', True
 #ID_name, batch_key, ID_flag = 'SH_20190502_05160312', 'SH_publish', True # no ATL07 data
 
+ID_name, batch_key, ID_flag = 'SH_20190502_05180312', 'SH_publish', True
 
 TND =mconfig['track_name_dict']
 
@@ -246,16 +247,21 @@ font_for_print()
 fn = copy.copy(lstrings)
 
 
-F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
+
+#F = M.figure_axis_xy(5.5, 6.5, container =True, view_scale= 0.8)
+#F = M.figure_axis_xy( fig_sizes['23rd_width'][0] ,  fig_sizes['23rd_width'][1]*2.3 , container =True, view_scale= 0.8)
+F = M.figure_axis_xy( fig_sizes['one_column_high'][0] ,  fig_sizes['one_column_high'][1] * 1.5 , container =True, view_scale= 0.8)
 
 #plt.suptitle('ALT03 Decomposition\n'+ io.ID_to_str(ID_name), y = 0.93, x = 0.13, horizontalalignment ='left')
-plt.suptitle('Explained Variance Decomposition\n'+ io.ID_to_str(ID_name), y = 0.93, x = 0.13, horizontalalignment ='left')
+#plt.suptitle('Explained Variance Decomposition\n'+ io.ID_to_str(ID_name), y = 0.93, x = 0.13, horizontalalignment ='left')
+plt.suptitle('Explained Variance \nDecomposition\n'+ TND[ID_name] , y = 0.955, x = 0.13, horizontalalignment ='left')
+
 
 #Photon height reconstruction | x='+str(Gk.x[i].data)+' \n' + ID_name, y = 0.95)
-gs = GridSpec(10, 4,  wspace=0,  hspace=0.8)#figure=fig,
+gs = GridSpec(10, 4,  wspace=0,  hspace=1)#figure=fig,
 
 ax0 = F.fig.add_subplot(gs[0:3, :])
-plt.title(' '+next(fn)+ 'ATL03 Expl. Variance', loc='left', y= 0.91)
+plt.title(' '+next(fn)+ 'ATL03 Expl. Variance', loc='left', y= 0.96)
 
 #edge_pos = np.insert(VAR_stats_sum.index, VAR_stats_sum.index.size, VAR_stats_sum.index[-1])
 plt.stairs(VAR_stats_sum['ATL03_photon'],  edge_pos, baseline=0, fill=True, color= col.gridcolor, alpha=1, label = 'Photon variance (<20 meter)')
@@ -269,7 +275,8 @@ plt.stairs(VAR_stats_sum['ATL03_wave_model'],  edge_pos, baseline=0, fill=True, 
 # plt.stairs(no_nan_sum * (V3_list/V0_list+ V2_list/V0_list) ,  edge_pos, baseline=no_nan_sum * V2_list/V0_list, fill=True, color= col.green, label = 'residual variance')
 
 #plt.legend(ncol= 4, bbox_to_anchor=(-0.02, 0), loc= 2)
-plt.legend(ncol= 2, bbox_to_anchor=(+0.52, 1.30), loc=2)
+#plt.legend(ncol= 2, bbox_to_anchor=(+0.52, 1.30), loc=2)
+plt.legend(ncol= 1, bbox_to_anchor=(+0.55, 1.45), loc=2)
 
 y_max  = np.median(VAR_stats_sum['ATL03_photon'])
 #y_max  = np.quantile(VAR_stats_sum['ATL03_photon'], 0.9) *1.2
