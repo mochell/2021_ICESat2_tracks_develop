@@ -3,6 +3,19 @@ import numpy as np
 
 import spectral_estimates as spec
 
+def rebin(data, dk, return_edges =False):
+    """
+    rebin data to a new k-grid with dk
+    """
+    k_low_limits =data.k[::10]
+    Gmean = data.groupby_bins('k' , k_low_limits).mean()
+    k_low = (k_low_limits + k_low_limits.diff('k')[0]/2).data
+    Gmean['k_bins'] = k_low[0:-1]
+    Gmean = Gmean.rename({'k_bins': 'k'})
+    if return_edges:
+        return Gmean, k_low_limits
+    else:
+        return Gmean
 
 # define  weight function
 def smooth_data_to_weight(dd, m=150):
@@ -232,7 +245,17 @@ class wavenumber_spectrogram_gFT(object):
             x = X[x_mask]
             if x.size/Lpoints < 0.1: # if there are not enough photos set results to nan
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
-                return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size, False, False
+                #return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size, False, False
+                return {    'stancil_center': stancil[1],
+                            'p_hat': np.concatenate([self.k*np.nan , self.k*np.nan]),
+                            'inverse_stats': np.nan,
+                            'y_model_grid': np.nan,
+                            'y_data_grid': np.nan,
+                            'x_size': x.size,
+                            'PSD': False,
+                            'weight': False,
+                            'spec_adjust': np.nan}
+
 
             y = DATA[x_mask]
 
@@ -352,7 +375,7 @@ class wavenumber_spectrogram_gFT(object):
                 prior = I_return['PSD'], I_return['weight'] # I_return[6], I_return[7]
 
             #print(I_return[6])
-            Spec_returns.append( dict((k, I_return[k]) for k in ('stancil_center', 'p_hat', 'inverse_stats', 'y_model_grid', 'y_data_grid', 'x_size', 'spec_adjust')))
+            Spec_returns.append( dict((k, I_return[k]) for k in ('stancil_center', 'p_hat', 'inverse_stats', 'y_model_grid', 'y_data_grid', 'x_size', 'spec_adjust', 'weight')))
             #Spec_returns.append( [I_return[0],I_return[1],I_return[2],I_return[3],I_return[4],I_return[5]] )
 
         # map_func = map if map_func is None else map_func
@@ -374,6 +397,8 @@ class wavenumber_spectrogram_gFT(object):
         N_per_stancil   = list()
         Spec_adjust_per_stancil = list()
 
+        weights        = dict()
+
         for I in Spec_returns:
 
             x_center                = I['stancil_center']
@@ -383,11 +408,14 @@ class wavenumber_spectrogram_gFT(object):
 
             PSD_data, PSD_model     = Z_to_power_gFT(Z, self.dk, I['x_size'], Lpoints )
             D_specs[x_center]       = PSD_data  * spec_adjust
-            D_specs_model[x_center] = PSD_model * spec_adjust
+            D_specs_model[x_center] = PSD_model * spec_adjust * 0  # set to zero because this data should not be used  anymore
 
             Pars[x_center]          = I['inverse_stats']
             y_model[x_center]       = I['y_model_grid'] 
             y_data[x_center]        = I['y_data_grid']
+            
+            weights[x_center]       = I['weight']
+
             N_per_stancil.append(I['x_size'])
             Spec_adjust_per_stancil.append(spec_adjust)
 
@@ -438,6 +466,10 @@ class wavenumber_spectrogram_gFT(object):
         GFT_model_coeff_A = xr.concat(GFT_model_coeff_A.values(), dim='x').T#.to_dataset()
         GFT_model_coeff_B = xr.concat(GFT_model_coeff_B.values(), dim='x').T#.to_dataset()
 
+        # add weights to the data
+        weights_k = make_xarray_from_dict(weights , 'weight' ,  ['k'], {'k': self.k} )
+        weights_k = xr.concat(weights_k.values() , dim='x').T#.to_dataset()
+
         # 4th: model in real space
         # y_model_eta =dict()
         # y_data_eta  =dict()
@@ -449,11 +481,13 @@ class wavenumber_spectrogram_gFT(object):
         eta   =  np.arange(0, self.Lmeters + self.dx, self.dx) - self.Lmeters/2
         y_model_eta = make_xarray_from_dict(y_model, 'y_model', ['eta'], {'eta': eta} )
         y_data_eta  = make_xarray_from_dict(y_data , 'y_data' , ['eta'], {'eta': eta} )
+
         y_model_eta = xr.concat(y_model_eta.values(), dim='x').T#.to_dataset()
         y_data_eta  = xr.concat(y_data_eta.values() , dim='x').T#.to_dataset()
 
+
         # merge wavenumber datasets
-        self.GG = xr.merge([G_power_data, G_power_model, G_model_Z, GFT_model_coeff_A, GFT_model_coeff_B])
+        self.GG = xr.merge([G_power_data, G_power_model, G_model_Z, GFT_model_coeff_A, GFT_model_coeff_B, weights_k])
         self.GG.attrs['ov']      = self.ov
         self.GG.attrs['L']       = self.Lmeters
         self.GG.attrs['Lpoints'] = self.Lpoints
@@ -475,7 +509,7 @@ class wavenumber_spectrogram_gFT(object):
         #print(Pars)
         #print(PP2)
         keys = Pars[next(iter(PP2))].keys()
-        keys_DF = set(keys) - set(['model_error_k', 'model_error_x'])
+        keys_DF = list(set(keys) - set(['model_error_k', 'model_error_x']))
         params_dataframe = pd.DataFrame(index =keys_DF)
         model_error_k_cos =dict()
         model_error_k_sin =dict()
@@ -576,8 +610,8 @@ class wavenumber_spectrogram_gFT(object):
         print('variance of the optimzed windowed LS Spectrum: ', self.calc_var())
 
         if add_attrs:
-            self.G.attrs['variance_unweighted_data']        = DATA.var()
-            self.G.attrs['mean_variance_stancils']  = np.nanmean(np.array(stancil_vars) )
+            self.G.attrs['variance_unweighted_data']           = DATA.var()
+            self.G.attrs['mean_variance_stancils']             = np.nanmean(np.array(stancil_vars) )
             self.G.attrs['mean_variance_LS_pwelch_spectrum']   = self.calc_var()
 
 

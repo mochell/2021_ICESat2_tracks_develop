@@ -1,4 +1,4 @@
-MM
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -23,9 +23,9 @@ import spicke_remover
 import datetime
 import concurrent.futures as futures
 
-from numba import jit
-
-from ICEsat2_SI_tools import angle_optimizer
+#from numba import jit
+%matplotlib widget
+#from ICEsat2_SI_tools import angle_optimizer
 import ICEsat2_SI_tools.wave_tools as waves
 import concurrent.futures as futures
 
@@ -62,9 +62,9 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = 'NH_20190301_09580203', 'NH_batch05', True
 
-track_name, batch_key, test_flag = 'SH_20190213_07190212', 'SH_publish', True
+#track_name, batch_key, test_flag = 'SH_20190213_07190212', 'SH_publish', True
 #track_name, batch_key, test_flag = 'SH_20190502_05180312', 'SH_publish', True
-#track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', True
+track_name, batch_key, test_flag = 'SH_20190502_05160312', 'SH_publish', True
 
 
 
@@ -417,7 +417,7 @@ corrected_marginals = MM.marginals.isel(angle=angle_mask ) + MM.marginals.isel(a
 
 
 #xi = MM.x[3]
-xi = MM.x[2]
+xi = MM.x[3]
 
 dd = corrected_marginals.mean('beam_group').sel(x=xi).rolling(k=20, min_periods= 1, center=True).mean()#.plot()
 
@@ -444,10 +444,10 @@ plt.plot(dir_interp * np.pi/180, Gk.k,  '-', color= 'k', linewidth = 1.5, zorder
 plt.fill_betweenx(Gk.k, (dir_interp_smth -spread_smth) , (dir_interp_smth +spread_smth) ,  zorder= 1, color=col.orange, alpha = 0.2 )
 plt.plot(dir_interp_smth  , Gk.k , '.', markersize = 1 , color=col.orange)
 
-plt.title( 'Example Marginal PDF' + '\n'  +
-io.ID_to_str(track_name)+
-'\nat $X_i$='+ x_str +' km '+
-'\n'+next(fn) +'mean marginal PDFs per wavenumber', loc='left')
+
+
+x_str= str(int(xi.data/1e3))
+plt.title( 'Example Marginal PDF' + '\n'  + io.ID_to_str(track_name)+ '\nat $X_i$='+ x_str +' km '+ '\n'+next(fn) +'mean marginal PDFs per wavenumber', loc='left')
 
 #plt.xlim(- 170, 170)
 #plt.xlim(- 90, 90)
@@ -462,7 +462,6 @@ ax_final = F.fig.add_subplot(gs[2: ,:])
 #ax_final.tick_params(labelleft=False)
 
 
-x_str= str(int(xi.data/1e3))
 ax_list= dict()
 
 Gweights = corrected_marginals.N_data
@@ -527,6 +526,7 @@ ax1.set_xticks(xticks_pi)
 k_l = M.cut_nparray(dd.k.data, klims[0], klims[1] )
 
 y_tickslabel, y_ticks = MT.tick_formatter(dd.k.data[k_l][::15]*10, interval= 3, rounder= 2, expt_flag= False)
+
 y_ticks = y_ticks/10
 ax1.set_yticks( y_ticks )
 ax1.set_yticklabels(y_tickslabel)
@@ -556,3 +556,5 @@ ax_final.set_yticks(density_ticks)
 ax_final.set_yticklabels(density_labels)
 plt.ylim(dlim)
 F.save_pup(path= plot_path, name = 'B04_'+track_name+'_prior_merged')
+
+# %%

@@ -43,7 +43,7 @@ def get_leaps():
 #-- PURPOSE: Test to see if any GPS seconds are leap seconds
 def is_leap(GPS_Time):
 	leaps = get_leaps()
-	Flag = np.zeros_like(GPS_Time, dtype=np.bool)
+	Flag = np.zeros_like(GPS_Time, dtype=np.bool_)
 	for leap in leaps:
 		count = np.count_nonzero(np.floor(GPS_Time) == leap)
 		if (count > 0):

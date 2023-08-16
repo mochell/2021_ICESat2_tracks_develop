@@ -1,5 +1,5 @@
 
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -134,6 +134,7 @@ try:
 except:
     B07_flag = False
 
+#B07_flag = False
 # print(Gk)
 # print(Gx)
 
@@ -311,13 +312,16 @@ plt.legend(ncol= 3, bbox_to_anchor=(0, -0.4), loc=2)
 #ax1.xaxis.set_label_position('top')
 ax0.set_ylabel('Variance (m$^2$)')
 ax0.set_ylim(0, y_max)
-ax0.set_xlim(edge_pos[0], edge_pos[-1])
 ax0.tick_params( bottom=True, labelbottom=False)
 
 
 ax1.set_ylabel('Variance (m$^2$)')
 ax1.set_ylim(0, y_max *1.8/3)
-ax1.set_xlim(edge_pos[0], edge_pos[-1])
+
+ax1.set_xlim(edge_pos[0], edge_pos[-4]-2)
+ax0.set_xlim(edge_pos[0], edge_pos[-4]-2)
+
+
 
 ax1.set_xlabel('Distance from Ice Edge (km)')
 
