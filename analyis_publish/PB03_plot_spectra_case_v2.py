@@ -1,4 +1,4 @@
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -194,7 +194,7 @@ for k, gss in zip(beam_group, [gs[0:3, :], gs[2:5, :]] ):
     # reconstruct in  gaps
     FT = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
     _ = FT.get_H()
-    FT.b_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
+    FT.p_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
     plt.plot(Gx_1.eta, FT.model() ,'-', c='orange', linewidth=0.3, alpha=1,zorder= 2)
 
     if 'l' in k:
@@ -282,11 +282,13 @@ for pos, k, lflag in zip([ gs[7:10, 0:3],  gs[11:14, 0:3] ],  beam_group, [True,
     k_low = ( k_low_limits+ k_low_limits.diff('k')[0]/2).data[0:-1]
 
     dd = Gk_1.gFT_PSD_data.groupby_bins('k' , k_low_limits).mean()
-    plt.plot(k_low,  dd, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
+    #plt.plot(k_low,  dd, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
+    plt.stairs(dd, k_low_limits, color=col_d[k], linewidth=1, zorder=8 , label='GFT Spec')
     #plt.plot(Gk_1.k,  dd, color=col.gridcolor, linewidth=2.4, zorder=6 )
 
     dd_fft = Gfft_1.power_spec.groupby_bins('k' , k_low_limits).mean()#.rolling(k=10, min_periods= 1, center=True).mean()
-    plt.plot(k_low,  dd_fft, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
+    #plt.plot(k_low,  dd_fft, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
+    plt.stairs(dd_fft, k_low_limits, color=col.gray, linewidth=0.5, zorder=5, label='FFT Spec' )
 
     klim= k_low[0], Gk_1.k[-1]
     dd_max.append(np.nanmax(dd.data))

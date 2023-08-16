@@ -1,3 +1,4 @@
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -97,7 +98,8 @@ B0_hdf5.close(), B2_hdf5.close(), B2_hdf5.close()
 
 
 load_file_ATL10 =  'processed_' + 'ATL07-02' + '_20190219063727_08070201_005_01.h5'
-#
+
+# %%
 
 B07, B07_c = dict(), dict()
 for k in all_beams:
@@ -222,8 +224,9 @@ chunk_list = np.arange( latlims[0], latlims[1], dl )[::1]
 font_for_print()
 xscale=1e3
 
-for chunk_list_i in np.arange(chunk_list.size)[0:40]:
 # %%
+for chunk_list_i in np.arange(chunk_list.size)[0:1]:
+
     chunk_list_i= 252
     # for chunk_list_i in np.arange(chunk_list_i-5, chunk_list_i+5, 1):
     fn = copy.copy(lstrings)
@@ -266,12 +269,12 @@ for chunk_list_i in np.arange(chunk_list.size)[0:40]:
         else:
             imask = T07_large['heights']['height_segment_type'] == htype
         pdata = T07_large[imask]
-        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=0.9, label='ALT07 height | ' +htype_str)
+        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height'] + AT07_cat_offset, '.', color =hcolor, markersize=0.8,alpha=0.9, label='ATL07 height | ' +htype_str)
 
     for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , ['sea ice', 'ssh'] , [1, 5]):
 
         pdata = T07_large[T07_large['heights']['height_segment_ssh_flag'] == htype]
-        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=0.8,alpha=0.9, label='ALT07 height | ' +htype_str)
+        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=0.8,alpha=0.9, label='ATL07 height | ' +htype_str)
 
     #plt.xlabel('Meters from the Sea Ice Edge')
     plt.ylabel('Photon height (m)')
@@ -286,7 +289,7 @@ for chunk_list_i in np.arange(chunk_list.size)[0:40]:
     T3_small =  T3[ (T3['dist'] > ll) & (T3['dist'] < tt) ]
     T07_small=  T07[ (T07['dist'] > ll) & (T07['dist'] < tt) ]
 
-    plt.plot( T2_small[x_key]/xscale, T2_small['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 , label='ALT03 photon heights' )
+    plt.plot( T2_small[x_key]/xscale, T2_small['heights_c'],   'k.',  markersize= 0.5, alpha =0.8 , label='ATL03 photon heights' )
     plt.plot( T3_small[x_key]/xscale, T3_small['heights_c_weighted_mean'] , '.-', color=lead_color, linewidth=0.5, markersize=2,alpha=0.9, label='Gaussian-weighted mean')
 
     for htype, hcolor, htype_str in zip( [0, 1, (2, 5), (6, 9), -1] , htype_cmap , htype_list ):
@@ -301,10 +304,10 @@ for chunk_list_i in np.arange(chunk_list.size)[0:40]:
 
     #plt.plot( T07_small[x_key]/xscale, T07_small['heights']['height_segment_height'] +AT07_cat_offset+0.1 , '.', color ='green', markersize=1.7,alpha=1, label= str(htype) +' '+ htype_str)
 
-    for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , ['sea ice', 'ssh'] , [1, 5]):
+    for htype, hcolor, htype_str, hsize in zip( [0, 1] , [col.gridcolor, col.red] , ['sea ice', 'ssh'] , [1.5, 5]):
 
         pdata = T07_small[T07_small['heights']['height_segment_ssh_flag'] == htype]
-        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize, alpha=1, label= 'ALT07 ' + htype_str )
+        plt.plot( pdata[x_key]/xscale, pdata['heights']['height_segment_height']*0+AT07_bool_offset, '.', color =hcolor, markersize=hsize, alpha=1, label= 'ATL07 ' + htype_str )
 
 
 

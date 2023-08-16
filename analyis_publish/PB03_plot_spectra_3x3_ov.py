@@ -151,11 +151,8 @@ def plot_wavenumber_spectrogram(ax, Gi, clev, plot_photon_density=True , cmap=No
 
 #Gmean = G_gFT_wmean['gFT_PSD_data'].rolling(k=5, center=True).mean()
 
-k_low_limits =Gk_1.gFT_PSD_data.k[::10]
-Gmean = G_gFT_wmean['gFT_PSD_data'].groupby_bins('k' , k_low_limits).mean()
-k_low = (k_low_limits + k_low_limits.diff('k')[0]/2).data
-Gmean['k_bins'] = k_low[0:-1]
-Gmean = Gmean.rename({'k_bins': 'k'})
+
+Gmean = gFT.rebin(G_gFT_wmean['gFT_PSD_data'], 10)
 
 #Gmean = Gmean.where(~np.isnan(Gmean), 0)
 

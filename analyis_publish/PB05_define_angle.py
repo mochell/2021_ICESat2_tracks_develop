@@ -1,4 +1,4 @@
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -316,6 +316,8 @@ Gpdf.mean('x').weighted_angle_PDF_smth.plot()
 #     MT.json_save('B05_fail', plot_path+'../',  {'time':time.asctime( time.localtime(time.time()) ) , 'reason': 'not enough x segments'})
 #     print('exit()')
 #     exit()
+
+
 
 
 # %%
