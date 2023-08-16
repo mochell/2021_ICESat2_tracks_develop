@@ -564,7 +564,7 @@ for x_pos, gs in zip( x_pos_list , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
     ax2.axvline(x_range/1e3, linestyle= '-', color= col.green, linewidth=0.9, alpha = 0.8)
 
     i_lstring = next(lsrtrings)
-    ax1.text(x_range/1e3, np.array(lam_lim).mean()* 3/2, ' '+ i_lstring, fontsize= 8, color =col.green)
+    ax1.text(x_range/1e3, np.array(lam_lim).mean()* 1.2 * 3/2, ' '+ i_lstring, fontsize= 8, color =col.green)
     #ax2.text(x_range/1e3, weighted_spec.k.mean().data, ' a', fontsize= 8)
 
 
