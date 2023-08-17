@@ -1,4 +1,4 @@
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -59,7 +59,10 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190502050734_05180310_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = '20190210143705_06740210_004_01', 'SH_batch02', False
 #track_name, batch_key, test_flag = 'NH_20190301_09580203', 'NH_batch05', True
-track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
+#track_name, batch_key, test_flag = 'SH_20190210_06740210', 'SH_publish', True
+#track_name, batch_key, test_flag = 'SH_20190219_08070212', 'SH_batchminimal', True 
+
+
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -662,7 +665,7 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
 
     print('done with ',  group, xi/1e3)
 
-    # % collect
+    # collect
     ikey        = str(xi) +'_' +  '_'.join(group)
 
     #marginal_stack.coords['cost']        = (('k'), np.expand_dims(np.expand_dims(list(cost_stack.values()), 1), 2) )
@@ -685,14 +688,18 @@ for gi in zip(ggg.flatten(), xxx.flatten()):
     L_collect[group_name, str(int(xi))] = L_sample#pd.concat(L_collect_per_xi)
 
 
+
 # %%
 #list(Marginals.values())[0]
 MM = xr.merge( Marginals.values())
 MM =xr.merge([ MM, Prior_smth])
 MM.to_netcdf(save_path + save_name + '_marginals.nc')
 
-LL = pd.concat(L_collect)
-MT.save_pandas_table({'L_sample':LL} ,save_name+ '_res_table', save_path)
+try:
+    LL = pd.concat(L_collect)
+    MT.save_pandas_table({'L_sample':LL} ,save_name+ '_res_table', save_path)
+except:
+    pass
 
 # %% plot
 font_for_print()

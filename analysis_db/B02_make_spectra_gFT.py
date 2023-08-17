@@ -1,4 +1,4 @@
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -70,6 +70,7 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 
 #track_name, batch_key, test_flag = 'NH_20190302_09830203',  'NH_batch06', True
 
+#track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_batchminimal', True 
 
 #print(track_name, batch_key, test_flag)
 hemis, batch = batch_key.split('_')
@@ -232,8 +233,6 @@ G_rar_fft= dict()
 Pars_optm = dict()
 #imp.reload(spec)
 
-
-
 k=all_beams[0]
 for k in all_beams:
 
@@ -295,7 +294,7 @@ for k in all_beams:
 
     plot_data_model=False
     if plot_data_model:
-        for i in np.arange(0,29,2):
+        for i in np.arange(0,16,2):
             c1= 'blue'
             c2= 'red'
 
@@ -315,12 +314,12 @@ for k in all_beams:
 
             FT = gFT.generalized_Fourier(eta +xi_1, None,GG.k )
             _ = FT.get_H()
-            FT.b_hat=np.concatenate([ GGi.gFT_cos_coeff, GGi.gFT_sin_coeff ])
+            FT.p_hat=np.concatenate([ GGi.gFT_cos_coeff, GGi.gFT_sin_coeff ])
             plt.plot(eta +xi_1, FT.model() ,'-', c='orange', linewidth=0.8, alpha=1,zorder= 2)
 
             FT = gFT.generalized_Fourier(eta +xi_2, None,GG.k )
             _ = FT.get_H()
-            FT.b_hat=np.concatenate([ GGi.gFT_cos_coeff, GGi.gFT_sin_coeff ])
+            FT.p_hat=np.concatenate([ GGi.gFT_cos_coeff, GGi.gFT_sin_coeff ])
             plt.plot(eta +xi_2, FT.model() ,'-', c='orange', linewidth=0.8, alpha=1,zorder= 2)
 
 
@@ -353,6 +352,7 @@ for k in all_beams:
     GG, GG_x                                = GG.expand_dims(dim = 'beam', axis = 1), GG_x.expand_dims(dim = 'beam', axis = 1)
     # repack such that all coords are associated with beam
     GG.coords['N_per_stancil']              = (('x', 'beam' ), np.expand_dims(GG['N_per_stancil'], 1))
+    GG.coords['spec_adjust']                = (('x', 'beam' ), np.expand_dims(GG['spec_adjust'], 1))
 
     # add more coodindates to the Dataset
     x_coord_no_gaps = linear_gap_fill( Gd_cut, 'dist', 'x' )
@@ -471,7 +471,7 @@ def repack_attributes(DD):
 
 
 beams_missing = set(all_beams) - set(G_gFT.keys())
-beams_missing
+
 
 def make_dummy_beam(GG, beam):
 
@@ -506,20 +506,22 @@ G_rar_fft    = repack_attributes(G_rar_fft)
 
 
 # %% save results
-G_gFT_DS         = xr.merge(G_gFT.values())
+G_gFT_DS         = xr.merge(G_gFT.values())#, compat='override')
 G_gFT_DS['Z_hat_imag'] = G_gFT_DS.Z_hat.imag
 G_gFT_DS['Z_hat_real'] = G_gFT_DS.Z_hat.real
 G_gFT_DS                     = G_gFT_DS.drop('Z_hat')
 G_gFT_DS.attrs['name'] = 'gFT_estimates'
 G_gFT_DS.to_netcdf(save_path+save_name+'_gFT_k.nc')
 
-G_gFT_x_DS         = xr.merge(G_gFT_x.values())
+G_gFT_x_DS         = xr.merge(G_gFT_x.values())#, compat='override')
 G_gFT_x_DS.attrs['name'] = 'gFT_estimates_real_space'
 G_gFT_x_DS.to_netcdf(save_path+save_name+'_gFT_x.nc')
 
 
-G_fft_DS        = xr.merge(G_rar_fft.values())
+G_fft_DS        = xr.merge(G_rar_fft.values())#, compat='override')
 G_fft_DS.attrs['name']= 'FFT_power_spectra'
 G_fft_DS.to_netcdf(save_path+save_name+'_FFT.nc')
 
 print('saved and done')
+
+# %%

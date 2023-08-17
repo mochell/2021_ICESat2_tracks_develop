@@ -1,4 +1,4 @@
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -37,6 +37,8 @@ track_name, batch_key, test_flag = io.init_from_input(sys.argv) # loads standard
 #track_name, batch_key, test_flag = '20190206022433_06050212_004_01', 'SH_batch02', False
 
 #track_name, batch_key, test_flag = 'SH_20190101_00570212', 'SH_batch04', True
+#track_name, batch_key, test_flag = 'SH_20190219_08070210', 'SH_batchminimal', True 
+
 
 
 #track_name, batch_key, test_flag = '20190219073735_08070210_004_01', 'SH_batch02', False
@@ -54,7 +56,12 @@ Gx = xr.open_dataset(load_file+'_gFT_x.nc')
 Gfft = xr.open_dataset(load_file+'_FFT.nc')
 # print(Gk)
 # print(Gx)
-time.sleep(5)
+time.sleep(2)
+
+
+# %%
+# for ibeam in Gk.beam:
+#     print(Gk.sel(beam=ibeam).gFT_PSD_data.data)
 
 # %%
 all_beams   = mconfig['beams']['all_beams']
@@ -147,7 +154,7 @@ def dict_weighted_mean(Gdict, weight_key):
     return GSUM
 
 
-G_gFT_wmean = (Gk['gFT_PSD_model'].where( ~np.isnan(Gk['gFT_PSD_model']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
+G_gFT_wmean = (Gk['gFT_PSD_data'].where( ~np.isnan(Gk['gFT_PSD_data']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
 G_gFT_wmean['N_per_stancil'] = Gk['N_per_stancil'].sum('beam')
 
 G_fft_wmean = (Gfft.where( ~np.isnan(Gfft), 0) * Gfft['N_per_stancil']).sum('beam')/ Gfft['N_per_stancil'].sum('beam')
@@ -185,7 +192,7 @@ except:
     k_max_range = Gmean.k[Gmean.isel(x= slice(0, 20)).mean('x').argmax().data].data* 0.75, Gmean.k[Gmean.isel(x= slice(0, 20)).mean('x').argmax().data].data* 1, Gmean.k[Gmean.isel(x= slice(0, 20)).mean('x').argmax().data].data* 1.25
 
 
-# %
+# %%
 font_for_print()
 F = M.figure_axis_xy(6.5, 5.6, container= True, view_scale =1)
 Lmeters = Gk.L.data[0]
@@ -209,7 +216,7 @@ xlims= Gmean.x[0]/1e3, Gmean.x[-1]/1e3
 k =high_beams[0]
 for pos, k, pflag in zip([gs[0, 0],gs[0, 1],gs[0, 2] ], high_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
-    Gplot = Gk.sel(beam = k).gFT_PSD_model.squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
+    Gplot = Gk.sel(beam = k).gFT_PSD_data.squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
     dd2 = 10 * np.log10(Gplot)
     dd2= dd2.where(~np.isinf(dd2), np.nan )
@@ -222,7 +229,7 @@ for pos, k, pflag in zip([gs[0, 0],gs[0, 1],gs[0, 2] ], high_beams, [True, False
 
 for pos, k, pflag in zip([gs[1, 0],gs[1, 1],gs[1, 2] ], low_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
-    Gplot = Gk.sel(beam = k).gFT_PSD_model.squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
+    Gplot = Gk.sel(beam = k).gFT_PSD_data.squeeze()#.rolling(k=10, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
     dd2 = 10 * np.log10(Gplot)
     dd2= dd2.where(~np.isinf(dd2), np.nan )
@@ -254,7 +261,7 @@ ax0 = F.fig.add_subplot(pos)
 plt.title('Photons density ($m^{-1}$)', loc='left')
 
 for k in all_beams:
-    I = Gk.sel(beam = k)['gFT_PSD_model']
+    I = Gk.sel(beam = k)['gFT_PSD_data']
     plt.plot(Gplot.x/1e3, I.N_photons/I.L.data, label=k, linewidth=0.8)
 plt.plot(Gplot.x/1e3, G_gFT_wmean.N_per_stancil/3/I.L.data , c='black', label='ave Photons' , linewidth=0.8)
 plt.xlim(xlims)
@@ -269,7 +276,7 @@ plt.title('Peak Spectal Power', loc='left')
 
 x0 = Gk.x[0].data
 for k in all_beams:
-    I = Gk.sel(beam = k)['gFT_PSD_model']
+    I = Gk.sel(beam = k)['gFT_PSD_data']
     plt.scatter(I.x.data/1e3, I.sel(k=slice(k_max_range[0], k_max_range[2])).integrate('k').data ,  s=0.5, marker='.', color='red', alpha= 0.3)
 
     I= Gfft.sel(beam = k)#.to_array()
@@ -291,6 +298,8 @@ plt.legend()
 
 F.save_light(path=plot_path, name = 'B03_specs_L'+str(Lmeters))
 
+# %%
+Gk.sel(beam = k).gFT_PSD_data.plot()
 
 # %%  define simple routines
 def plot_model_eta(D, ax,  offset = 0, xscale= 1e3 , **kargs ):
@@ -427,7 +436,7 @@ for i in xpp:
         # reconstruct in  gaps
         FT = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
         _ = FT.get_H()
-        FT.b_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
+        FT.p_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
         plt.plot(Gx_1.eta, FT.model()+offs ,'-', c='orange', linewidth=0.3, alpha=1,zorder= 2)
 
         if neven:
@@ -512,11 +521,11 @@ for i in xpp:
         # reconstruct in  gaps
         FT = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
         _ = FT.get_H()
-        FT.b_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
+        FT.p_hat=np.concatenate([ Gk_1.gFT_cos_coeff, Gk_1.gFT_sin_coeff ])
 
-        b_hat_k = np.concatenate([ Gk_1.k, Gk_1.k ])
-        k_mask = b_hat_k < k_thresh
-        FT.b_hat[~k_mask] = 0
+        p_hat_k = np.concatenate([ Gk_1.k, Gk_1.k ])
+        k_mask = p_hat_k < k_thresh
+        FT.p_hat[~k_mask] = 0
 
         plt.plot(Gx_1.eta, FT.model()+offs ,'-', c=col_d[k], linewidth=0.8, alpha=1,zorder= 12)
 

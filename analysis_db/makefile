@@ -1,4 +1,4 @@
-#MAKEFLAGS += -j5
+MAKEFLAGS += -j4
 
 ### ----------------------------------
 # This file create directional waves spectra from ICEsat2 tracks.
@@ -77,6 +77,10 @@
 .PHONY : example
 example :
 					@echo "examples:"
+					@echo " "
+					@echo "initialize batch "
+					@echo "make batch=batch02 track_list=batch02_tracks_test.json make_folder -n"
+					@echo "make batch=batch02 track_list=batch02_tracks_test.json A01a -n"
 					@echo " "
 					@echo "simple target excecution: "
 					@echo "make batch=batch02 track_list=batch02_tracks_test.json A01a -n"
@@ -162,8 +166,8 @@ A01a_targets=  $(foreach i, $(A01a_track_names) , $(addprefix $(scratch_folder)/
 
 # downloads each file from from NISDC
 $(A01a_targets) : $(scratch_folder)/$(batch_key)/ATL07-$(hemis_num)_%.h5 :
-					#python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory
-					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key)/ -F ATL07-$(hemis_num)_$*.h5
+					python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL07 --directory $(scratch_folder)/$(batch_key)/ -F ATL07-$(hemis_num)_$*.h5
+					#python $(track_downloader)/nsidc_icesat2_associated2.py --user mhell@ucsd.edu --netrc ~/.netrc --product ATL10 --directory $(scratch_folder)/$(batch_key)/ -F ATL07-$(hemis_num)_$*.h5
 
 endif
 
