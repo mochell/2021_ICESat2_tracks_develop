@@ -131,9 +131,9 @@ def dict_weighted_mean(Gdict, weight_key):
     return GSUM
 
 
-#G_gFT_wmean = (Gk['gFT_PSD_model'].where( ~np.isnan(Gk['gFT_PSD_model']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
+#G_gFT_wmean = (Gk['gFT_PSD_data'].where( ~np.isnan(Gk['gFT_PSD_data']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
 
-G_gFT_wmean = (Gk.where( ~np.isnan(Gk['gFT_PSD_model']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
+G_gFT_wmean = (Gk.where( ~np.isnan(Gk['gFT_PSD_data']), 0) * Gk['N_per_stancil']).sum('beam')/ Gk['N_per_stancil'].sum('beam')
 G_gFT_wmean['N_photons'] = Gk['N_photons'].sum('beam')
 
 G_fft_wmean = (Gfft.where( ~np.isnan(Gfft), 0) * Gfft['N_per_stancil']).sum('beam')/ Gfft['N_per_stancil'].sum('beam')
@@ -156,19 +156,19 @@ for bb in Gk.beam.data:
     PSD_error_data, PSD_error_model = gFT.Z_to_power_gFT(Z_error, np.diff(Gk.k)[0],N_per_stancil  , Lpoints )
 
     #np.expand_dims(PSD_error_model, axis =)
-    G_error_model[bb] =  xr.DataArray(data = PSD_error_model, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_model_error' ).expand_dims('beam')
+    G_error_model[bb] =  xr.DataArray(data = PSD_error_model, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_data_error' ).expand_dims('beam')
     G_error_data[bb] =  xr.DataArray(data = PSD_error_data, coords = I.drop('N_per_stancil').coords, name='gFT_PSD_data_error' ).expand_dims('beam')
 
-gFT_PSD_model_error_mean = xr.concat(G_error_model.values(), dim='beam')
+gFT_PSD_data_error_mean = xr.concat(G_error_model.values(), dim='beam')
 gFT_PSD_data_error_mean = xr.concat(G_error_data.values(), dim='beam')
 
-gFT_PSD_model_error_mean = ( gFT_PSD_model_error_mean.where( ~np.isnan(gFT_PSD_model_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
+gFT_PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_data_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
 gFT_PSD_data_error_mean = ( gFT_PSD_data_error_mean.where( ~np.isnan(gFT_PSD_data_error_mean), 0) * Gk['N_per_stancil']).sum('beam')/Gk['N_per_stancil'].sum('beam')
 
-G_gFT_wmean['gFT_PSD_model_err'] = gFT_PSD_model_error_mean
+G_gFT_wmean['gFT_PSD_data_err'] = gFT_PSD_data_error_mean
 G_gFT_wmean['gFT_PSD_data_err'] = gFT_PSD_data_error_mean
 
-Gk['gFT_PSD_model_err'] = xr.concat(G_error_model.values(), dim='beam')
+Gk['gFT_PSD_data_err'] = xr.concat(G_error_model.values(), dim='beam')
 Gk['gFT_PSD_data_err']  = xr.concat(G_error_data.values(), dim='beam')
 
 
@@ -456,7 +456,7 @@ xlims= G_gFT_wmean.k[0], G_gFT_wmean.k[-1]
 k =high_beams[0]
 for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
-    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
+    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_data.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
     #Gplot.plot()
 
     Gplot= Gplot.where(Gplot["N_per_stancil"] / Gplot["Lpoints"] >= 0.1)#.plot()
@@ -481,7 +481,7 @@ for pos, k, pflag in zip([gs[0:2, 0],gs[0:2, 1],gs[0:2, 2] ], high_beams, [True,
 
 for pos, k, pflag in zip([gs[2:4, 0],gs[2:4, 1],gs[2:4, 2] ], low_beams, [True, False, False] ):
     ax0 = F.fig.add_subplot(pos)
-    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_model.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
+    Gplot = Gk.sel(beam = k).isel(x = slice(0, -1)).gFT_PSD_data.squeeze().rolling(k=20, x=2, min_periods= 1, center=True).mean()
     #Gplot.mean('x').plot()
 
     Gplot= Gplot.where(Gplot["N_per_stancil"] / Gplot["Lpoints"] >= 0.1)#.plot()
@@ -600,7 +600,7 @@ def reconstruct_displacement(Gx_1, Gk_1, T3, k_thresh):
 
     FT_int = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
     _ = FT_int.get_H()
-    FT_int.b_hat = np.concatenate([ -gFT_sin_coeff_sel /Gk_1.k, gFT_cos_coeff_sel/Gk_1.k ])
+    FT_int.p_hat = np.concatenate([ -gFT_sin_coeff_sel /Gk_1.k, gFT_cos_coeff_sel/Gk_1.k ])
 
     dx = Gx.eta.diff('eta').mean().data
     height_model = FT_int.model() /dx# + T3_sel['heights_c_weighted_mean'].iloc[0]
