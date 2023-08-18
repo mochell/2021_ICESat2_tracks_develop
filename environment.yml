@@ -412,5 +412,5 @@ dependencies:
   - zlib=1.2.11=h36c2ea0_1013
   - zstd=1.5.0=ha95c52a_0
   - pip:
-    - icesat2-toolkit=1.0.0.22
-    - swatch=0.4.0
+    - icesat2-toolkit==1.0.0.22
+    - swatch==0.4.0
