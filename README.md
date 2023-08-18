@@ -1,6 +1,6 @@
 # ICESAT2 Track Analysis
 
-## Installing on OSCAR
+## Installing on Oscar
 
 You can install the conda dependencies on Oscar using the environment.yml file:
 ```shell
