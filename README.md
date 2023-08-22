@@ -40,6 +40,13 @@ conda env create --file environment.yml
 
 Conda draws its configuration from multiple places, and will behave differently when the configuration is different, even when using the same `environment.yml` file.
 
+#### `.condarc`
+
+The `.condarc` file in your home directory sets your conda configuration. If the file doesn't exist, you can create it with:
+```shell
+touch ~/.condarc
+```
+
 #### `pkgs_dirs`
 
 `pkgs_dirs` is the location where conda downloads package files from registries like `anaconda.org`. 
