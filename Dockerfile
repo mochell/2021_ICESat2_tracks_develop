@@ -41,7 +41,7 @@ RUN apt-get update > /dev/null && \
     echo ". ${CONDA_DIR}/etc/profile.d/conda.sh && conda activate base" >> ~/.bashrc
 
 # Install conda environment
-COPY environment_py37_small.yml /tmp/environment.yml
+COPY environment_small.yml /tmp/environment.yml
 RUN mamba env create -f /tmp/environment.yml
 
 ENTRYPOINT ["tini", "--"]
