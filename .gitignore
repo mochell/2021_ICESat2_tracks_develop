@@ -5,7 +5,6 @@ modules/ICEsat2_SI_tools/__pycache__/*
 modules/ICEsat2_SI_tools/__pycache__/*.pyc
 plots/
 analysis_db/log
-modules/read-ICESat-2
 ICEsat2
 .DS_Store
 data/
