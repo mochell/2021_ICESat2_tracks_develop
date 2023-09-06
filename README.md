@@ -32,7 +32,7 @@ conda env update --file environment.yml
 
 (You can create and install dependencies in the environment in a single command using:
 ```shell
-conda env create --file environment.yml
+conda env create --name "2021-icesat2-tracks" --file environment.yml
 ```
 ... but this has more steps and is thus more likely to fail. Since the installation step takes a long period of time, it is recommended to use the separate commands instead.)
 
