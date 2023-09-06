@@ -11,8 +11,6 @@ data/
 data_figures/
 documentation/
 nsidc-download_ATL03.004_2021-08-31.py
-config/2021_IceSAT2_startup.py
-config/config.json
 write_ups/
 .gitignore
 modules/ICEsat2_SI_tools/__pycache__/
@@ -34,7 +32,6 @@ release/
 analyis_publish/
 analysis/
 analysis_db/makefile
-config/
 data_prehandling/
 track_lists/
 explorations/
