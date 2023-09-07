@@ -28,8 +28,8 @@ sliderule.__version__
 
 import matplotlib
 #matplotlib.use('agg')
-%matplotlib inline
-%matplotlib widget
+# %matplotlib inline
+# %matplotlib widget
 
 
 # %%
@@ -279,7 +279,7 @@ dist = np.sqrt( (gdf2s.geometry.x- x0)**2  + (gdf2s.geometry.y- y0)**2 )
 dist.sort_values()[0:1000].diff().plot(marker= '.')
 #dist.diff()[0:100].plot(marker= '.')
 
-[0:100].plot(marker= '.')
+
 # %%
 gdf2 = gdf_sea_ice#.to_crs(3857)     
 gdf2s = gdf2[gdf2.spot == 1]#.sample(1000)
