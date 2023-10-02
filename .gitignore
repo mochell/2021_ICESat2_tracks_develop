@@ -36,3 +36,6 @@ data_prehandling/
 track_lists/
 explorations/
 analysis_db/support_files/
+*.egg-info/
+.installed.cfg
+*.egg
