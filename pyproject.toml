@@ -80,7 +80,7 @@ classifiers = [  # Optional
   "Development Status :: 3 - Alpha",
 
   # Indicate who your project is intended for
-  "Intended Audience :: Earth, Environmental and Planetary Scientists",
+  "Intended Audience :: Science/Research",
   "Topic :: Scientific/Engineering :: GIS",
 
 
