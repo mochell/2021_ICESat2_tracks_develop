@@ -30,9 +30,20 @@ analysis/.DS_Store
 release/
 ._.DS_Store
 analyis_publish/
-analysis/
 analysis_db/makefile
 data_prehandling/
 track_lists/
 explorations/
 analysis_db/support_files/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/

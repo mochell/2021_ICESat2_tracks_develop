@@ -22,6 +22,8 @@ from random import sample
 import imp
 import ICEsat2_SI_tools.convert_GPS_time as cGPS
 import ICEsat2_SI_tools.io as io
+
+# Icesat2 Modules
 from spectral_estimates import create_chunk_boundaries_unit_lengths, create_chunk_boundaries
 import spectral_estimates as spec
 import m_tools_ph3 as MT
