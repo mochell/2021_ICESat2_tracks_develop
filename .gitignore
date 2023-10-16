@@ -101,6 +101,48 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
+#my own verison
+*/*.pyc
+*/*/__pycache__
+modules/__pycache__/*.pyc
+modules/ICEsat2_SI_tools/__pycache__/*
+modules/ICEsat2_SI_tools/__pycache__/*.pyc
+plots/
+analysis_db/log
+ICEsat2
+.DS_Store
+data/
+data_figures/
+documentation/
+nsidc-download_ATL03.004_2021-08-31.py
+write_ups/
+.gitignore
+modules/ICEsat2_SI_tools/__pycache__/
+modules/__pycache__/
+modules/__pycache__/*
+work/
+analysis/__pycache__/
+sentinel_1/
+tmp/
+tmp_path/
+GLOB_ww3/
+modules/ICEsat2_SI_tools/._lanczos.py
+presentations/
+schematics/
+track_lists/._*
+analysis/.DS_Store
+release/
+._.DS_Store
+analyis_publish/
+analysis_db/makefile
+data_prehandling/
+track_lists/
+explorations/
+analysis_db/support_files/
+*.egg-info/
+.installed.cfg
+*.egg
+
 # Environments
 .env
 .venv
@@ -127,3 +169,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+venv.bak/
