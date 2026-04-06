@@ -1,18 +1,18 @@
 {
     "paths":{
-            "work": "/Users/Shared/Projects/2021_IceSAT2_tracks/data/work/",
+            "work": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/data/work/",
             "downloads": "/project/downloads/",
-            "scratch": "/Users/Shared/Projects/2021_IceSAT2_tracks/data/scratch/",
+            "scratch": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/data/scratch/",
             "outputs": "/project/output/",
-            "plot": "/Users/Shared/Projects/2021_IceSAT2_tracks/plots/",
-            "processed": "/Users/Shared/Projects/2021_IceSAT2_tracks/data/processed/",
-            "analysis": "/Users/Shared/Projects/2021_IceSAT2_tracks/analysis/",
-            "local_script": "/Users/Shared/Projects/2021_IceSAT2_tracks/modules/",
-            "config": "/Users/Shared/Projects/2021_IceSAT2_tracks/config/",
-            "add_data": "/Users/Shared/Projects/2021_IceSAT2_tracks/other_data",
-            "code": "/Users/Shared/Projects/2021_IceSAT2_tracks/code/",
-            "code_1L": "/Users/Shared/Projects/2021_IceSAT2_tracks/code_barotropic/",
-            "targets": "/Users/Shared/Projects/2021_IceSAT2_tracks/targets/"
+            "plot": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/plots/",
+            "processed": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/data/processed/",
+            "analysis": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/analysis/",
+            "local_script": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/modules/",
+            "config": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/config/",
+            "add_data": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/other_data",
+            "code": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/code/",
+            "code_1L": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/code_barotropic/",
+            "targets": "/Users/mhell/Projects/2021_ICESat2_tracks_develop/targets/"
           },
 
     "server":"lime",

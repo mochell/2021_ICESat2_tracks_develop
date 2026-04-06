@@ -1,4 +1,6 @@
+# %%
 import os
+
 #os.environ["DISPLAY"] = "localhost:10.0"
 # 14, 16,  work
 #standart libraries:
@@ -20,6 +22,7 @@ import imp
 
 import string
 
+# %%
 # my own libraries:
 #import m_general as M
 
@@ -34,7 +37,7 @@ def json_load(name, path, verbose=False):
         print('loaded from: ',full_name)
     return data
 
-mconfig=json_load('config_local','/Users/Shared/Projects/2021_IceSAT2_tracks/config/')
+mconfig=json_load('config_local','/Users/mhell/Projects/2021_ICESat2_tracks_develop/config/')
 
 # add project depenent libraries
 sys.path.append(mconfig['paths']['local_script'])

@@ -1,5 +1,5 @@
 
-
+# %%
 import os, sys
 #execfile(os.environ['PYTHONSTARTUP'])
 
@@ -9,7 +9,7 @@ This is python 3
 """
 
 exec(open(os.environ['PYTHONSTARTUP']).read())
-exec(open(STARTUP_2021_IceSAT2).read())
+exec(open(STARTUP_2021_IceSAT2_old).read())
 
 #%matplotlib inline
 
@@ -29,7 +29,7 @@ from scipy.ndimage.measurements import label
 #xr.set_options(display_style='text')()
 #import s3fs
 # %%
-ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
+#ID_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
 #ID_name, batch_key, ID_flag = '20190605061807_10380310_004_01', 'SH_batch01', False
 #ID_name, batch_key, ID_flag = '20190601094826_09790312_004_01', 'SH_batch01', False
 #ID_name, batch_key, ID_flag = '20190207111114_06260210_004_01', 'SH_batch02', False
@@ -229,7 +229,7 @@ for i in xpp:
 
     FT = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
     _ = FT.get_H()
-    FT.b_hat=np.concatenate([ gFT_cos_coeff_sel, gFT_sin_coeff_sel ])
+    FT.p_hat=np.concatenate([ gFT_cos_coeff_sel, gFT_sin_coeff_sel ])
     plt.plot(Gx_1.eta + Gx_1.x, FT.model()+offs ,'-', c=lead_color, linewidth=0.5, alpha=1,zorder= 12, label = 'GFT slope model')
 
 
@@ -339,7 +339,7 @@ for i in xpp:
 
     # FT_int = gFT.generalized_Fourier(Gx_1.eta + Gx_1.x, None,Gk_1.k )
     # _ = FT_int.get_H()
-    # FT_int.b_hat = np.concatenate([ -gFT_sin_coeff_sel /Gk_1.k, gFT_cos_coeff_sel/Gk_1.k ])
+    # FT_int.p_hat = np.concatenate([ -gFT_sin_coeff_sel /Gk_1.k, gFT_cos_coeff_sel/Gk_1.k ])
     #
     # height_model2 = FT_int.model() /dx# + T3_sel['heights_c_weighted_mean'].iloc[0]
 
