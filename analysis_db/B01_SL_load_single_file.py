@@ -33,11 +33,11 @@ xr.set_options(display_style='text')
 
 # Select region and retrive batch of tracks
 
-#track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
+track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
 # define file with ID:
 #track_name, batch_key , ID_flag = '20190219073735_08070210_005_01', 'SH_testSLsinglefile2' , False
 #track_name, batch_key , ID_flag = '20190219075059_08070212_005_01', 'SH_testSLsinglefile2' , False
-track_name, batch_key , ID_flag = '20190502052058_05180312_005_01', 'SH_testSLsinglefile2' , False
+# track_name, batch_key , ID_flag = '20190502052058_05180312_005_01', 'SH_testSLsinglefile2' , False
 
 #track_name, batch_key , ID_flag = '20190504201233_05580312_005_01', 'SH_testSLsinglefile2' , False
 
