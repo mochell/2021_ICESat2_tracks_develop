@@ -35,6 +35,7 @@ def json_load(name, path, verbose=False):
         print('loaded from: ',full_name)
     return data
 
+
 mconfig=json_load('config_local','/Users/mhell/Projects/2023_ICESat2_waves/config/')
 
 # add project depenent libraries
