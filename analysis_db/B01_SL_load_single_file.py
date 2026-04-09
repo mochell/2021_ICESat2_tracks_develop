@@ -57,10 +57,17 @@ MT.mkdirs_r(save_path_json)
 ATL03_track_name = 'ATL03_'+track_name+'.h5'
 #track_name = ID['tracks']['ATL03'][0] +'.h5'
 
-# %% Configure SL Session #
-sliderule.authenticate("brown", ps_username="mhell", ps_password="Oijaeth9quuh")
-icesat2.init("slideruleearth.io", organization="brown", desired_nodes=1, time_to_live=90) #minutes
 
+# %% Configure SL Session #
+
+#########################################################################
+### AUSTIN EDIT: Using sliderule 5.3.1 as recommended by JP, init and ###
+### authorization can be done via single init call:  slidreule.init() ###
+#########################################################################
+
+#sliderule.authenticate("brown", ps_username="mhell", ps_password="Oijaeth9quuh")
+#icesat2.init("slideruleearth.io", organization="brown", desired_nodes=1, time_to_live=90) #minutes
+sliderule.init(desired_nodes=1, time_to_live=90, verbose=True, user_service=True)
 
 # %% plot the ground tracks in geographic location
 # Generate ATL06-type segments using the ATL03-native photon classification
@@ -80,7 +87,7 @@ params={'srt': 1,  # Ocean classification
  }
 
 
-# YAPC alternatibe
+# YAPC alternative
 params_yapc={'srt': 1,
  'len': 20,
  'ats':3,
@@ -90,12 +97,13 @@ params_yapc={'srt': 1,
  'pass_invalid': False,
  'cnf': 2,
  'cnt': 20,
- 'sigma_r_max': 4,  # maximum standard deviation of photon in extend
- 'maxi':10,
+ 'sigma_r_max': 4, # maximum standard deviation of photon in extend
+             'maxi':10, 
  'yapc': dict(knn=0, win_h=6, win_x=11, min_ph=4, score=100), # use the YAPC photon classifier; these are the recommended parameters, but the results might be more specific with a smaller win_h value, or a higher score cutoff
 #   "yapc": dict(knn=0, win_h=3, win_x=11, min_ph=4, score=50),  # use the YAPC photon classifier; these are the recommended parameters, but the results might be more specific with a smaller win_h value, or a higher score cutoff
-'atl03_geo_fields' : ['dem_h']
+             'atl03_geo_fields' : ['dem_h']
 } 
+
 
 maximum_height = 30 # (meters) maximum height past dem_h correction 
 
@@ -207,7 +215,7 @@ D  = beam_stats.derive_beam_statistics(Ti, all_beams, Lmeter=12.5e3, dx =10)
 # save figure from above:
 plot_path   = mconfig['paths']['plot'] + '/'+hemis+'/'+batch_key+'/' + ID_name +'/'
 MT.mkdirs_r(plot_path)
-F_atl06.save_light(path = plot_path , name = 'B01b_ATL06_corrected.png')
+F_atl06.save_light(path = plot_path , name = 'B01b_ATL06_corrected')
 plt.close()
 
 imp.reload(beam_stats)
@@ -217,14 +225,14 @@ if plot_flag:
     F = M.figure_axis_xy(8, 4.3, view_scale= 0.6  )
     beam_stats.plot_beam_statistics(D, high_beams, low_beams, col.rels, track_name = track_name + '|  ascending =' + str(sct.ascending_test_distance(gdf)) )
 
-    F.save_light(path = plot_path , name = 'B01b_beam_statistics.png')
+    F.save_light(path = plot_path , name = 'B01b_beam_statistics')
     plt.close()
 
     # plot the ground tracks in geographic location
     gdf[::100].plot(markersize=0.1, figsize=(4,6))
     plt.title(track_name +  '\nascending =' + str(sct.ascending_test_distance(gdf)) , loc ='left')
     # gdf_atl03 = icesat2.atl03s(params, [ATL03_track_name])
-    M.save_anyfig(plt.gcf(), path = plot_path  ,name = 'B01_track.png')
+    M.save_anyfig(plt.gcf(), path = plot_path  ,name = 'B01_track')
     # gdf_atl03.plot()
     plt.close()
 
