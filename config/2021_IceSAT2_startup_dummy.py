@@ -36,7 +36,8 @@ def json_load(name, path, verbose=False):
     return data
 
 
-mconfig=json_load('config_local','/Users/mhell/Projects/2023_ICESat2_waves/config/')
+mconfig=json_load('config_local','/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/config/')
+#mconfig=json_load('config_local','/Users/mhell/Projects/2023_ICESat2_waves/config/')
 
 # add project depenent libraries
 sys.path.append(mconfig['paths']['local_script'])

@@ -45,13 +45,16 @@ def spicke_remover(data, nstd=20.0, spreed=500.0, max_loops=10.0 , verbose=False
 
 def spickes_to_mean(ts, nloop=None, spreed=1, gaussian=True):
 
-    from scipy import signal
+    from scipy.signal.windows import gaussian
+    ### AL edit: import from dedicated windows scipy submodule ###
 
     nloop=0 if nloop is None else nloop
     i=0
     tsmean=ts.mean()
     b=2*spreed
-    gaus=signal.gaussian(b, std=b/10)
+    #gaus=signal.gaussian(b, std=b/10)
+    gaus=gaussian(b, std=b/10)
+    
     while i <= nloop:
         #print(i)
         #ts.max()

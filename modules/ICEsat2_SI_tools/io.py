@@ -52,7 +52,8 @@ def init_data(ID_name, batch_key, ID_flag, ID_root, prefix ='A01b_ID'):
     hemis, batch = batch_key.split('_')
 
     if ID_flag:
-        ID_path = ID_root +'/'+batch_key+'/'+prefix+'/'
+        #ID_path = ID_root + '/' + batch_key + '/' +prefix+'/'
+        ID_path = ID_root + batch_key + '/' +prefix+'/'
         ID      = json_load( prefix +'_'+ID_name, ID_path )
         track_names = ID['tracks']['ATL03']
 
