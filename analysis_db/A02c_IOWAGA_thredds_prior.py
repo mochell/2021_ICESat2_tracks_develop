@@ -175,11 +175,23 @@ def sel_data(I, lon_range, lat_range, timestamp = None):
     """
     lon_flag = (lon_range[0] < I.longitude.data) & (I.longitude.data < lon_range[1])
     lat_flag = (lat_range[0] < I.latitude.data) & (I.latitude.data < lat_range[1])
-    time_flag = (time_range[0] < I.time.data) & (I.time.data < time_range[1])
+    #time_flag = (time_range[0] < I.time.data) & (I.time.data < time_range[1])
+    #breakpoint()
+    
     if timestamp is None:
         I = I.isel(latitude = lat_flag, longitude = lon_flag)
     else:
-        I = I.isel(latitude = lat_flag, longitude = lon_flag, time=time_flag).sortby('time').interp(time=np.datetime64(timestamp))
+        #I = I.isel(latitude = lat_flag, longitude = lon_flag, time=time_flag).sortby('time').interp(time=np.datetime64(timestamp))
+
+        target_time = np.datetime64(timestamp, 'ns')
+        time_flag = (time_range[0] < I.time.data) & (I.time.data < time_range[1])
+
+        I = I.isel(latitude = lat_flag, longitude = lon_flag, time=time_flag).sortby('time')
+        
+        # Force time coordinate to same precision as target_time
+        I = I.assign_coords(time=I.time.values.astype('datetime64[ns]'))
+        I = I.interp(time=target_time)
+
     return I
 
     #I = I.isel(latitude = lat_flag, longitude = lon_flag)
