@@ -38,8 +38,9 @@ save_path_json = mconfig['paths']['work'] +'/'+ batch_key +'/A01b_ID/'
 
 # %% Configure SL Session #
 
-sliderule.authenticate("brown", ps_username="mhell", ps_password="Oijaeth9quuh")
-icesat2.init("slideruleearth.io", organization="brown", desired_nodes=3, time_to_live=90) #minutes
+#sliderule.authenticate("brown", ps_username="mhell", ps_password="Oijaeth9quuh")
+#icesat2.init("slideruleearth.io", organization="brown", desired_nodes=3, time_to_live=90) #minutes
+sliderule.init(desired_nodes=3, time_to_live=90, verbose=True, user_service=True)
 
 # %% Select region and retrive batch of tracks
 
