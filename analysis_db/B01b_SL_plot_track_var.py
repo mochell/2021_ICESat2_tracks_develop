@@ -21,7 +21,7 @@ import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
 
 import time
-import imp
+import importlib
 import copy
 import spicke_remover
 import datetime
@@ -107,7 +107,7 @@ Gd = h5py.File(load_path +'/'+track_name + '_B01_binned.h5', 'r')
 #Gd.close()
 
 # %%
-imp.reload(beam_stats)
+importlib.reload(beam_stats)
 
 import ICEsat2_SI_tools.beam_stats as beam_stats
 

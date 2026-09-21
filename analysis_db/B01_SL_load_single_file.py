@@ -33,13 +33,13 @@ xr.set_options(display_style='text')
 
 # Select region and retrive batch of tracks
 
-# track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
+track_name, batch_key, ID_flag = io.init_from_input(sys.argv) # loads standard experiment
 # define file with ID:
 #track_name, batch_key , ID_flag = '20190219073735_08070210_005_01', 'SH_testSLsinglefile2' , False
 #track_name, batch_key , ID_flag = '20190219075059_08070212_005_01', 'SH_testSLsinglefile2' , False
 # track_name, batch_key , ID_flag = '20190502052058_05180312_005_01', 'SH_testSLsinglefile2' , False
 
-track_name, batch_key , ID_flag = '20190504201233_05580312_005_01', 'SH_testSLsinglefile2' , False
+#track_name, batch_key , ID_flag = '20190504201233_05580312_005_01', 'SH_testSLsinglefile2' , False
 
 
 #20190502052058_05180312_005_01
@@ -65,7 +65,7 @@ ATL03_track_name = 'ATL03_'+track_name+'.h5'
 ### authorization can be done via single init call:  slidreule.init() ###
 #########################################################################
 
-#sliderule.authenticate("brown", ps_username="mhell", ps_password="Oijaeth9quuh")
+#sliderule.authenticate("brown", ps_username="<user>", ps_password="<removed>")
 #icesat2.init("slideruleearth.io", organization="brown", desired_nodes=1, time_to_live=90) #minutes
 sliderule.init(desired_nodes=1, time_to_live=90, verbose=True, user_service=True)
 
@@ -172,7 +172,7 @@ def make_B01_dict(table_data, split_by_beam=True, to_hdf5=False):
 # %%
 # define reference point and then define 'x'
 table_data = copy.copy(gdf)
-imp.reload(sct)
+importlib.reload(sct)
 # the reference point is defined as the most equatorward point of the polygon. 
 # It's distance from the equator is  subtracted from the distance of each photon.
 table_data = sct.define_x_coordinate_from_data(table_data)
@@ -218,7 +218,7 @@ MT.mkdirs_r(plot_path)
 F_atl06.save_light(path = plot_path , name = 'B01b_ATL06_corrected')
 plt.close()
 
-imp.reload(beam_stats)
+importlib.reload(beam_stats)
 if plot_flag:
 
     font_for_pres()

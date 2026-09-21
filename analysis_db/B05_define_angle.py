@@ -17,7 +17,7 @@ import h5py
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
 
-import imp
+import importlib
 import copy
 import spicke_remover
 import datetime

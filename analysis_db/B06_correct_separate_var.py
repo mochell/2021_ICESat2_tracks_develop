@@ -18,7 +18,7 @@ import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
 import ICEsat2_SI_tools.lanczos as lanczos
 import time
-import imp
+import importlib
 import copy
 import spicke_remover
 import datetime

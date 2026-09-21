@@ -20,7 +20,7 @@ import ICEsat2_SI_tools.io as io
 
 #import spicke_remover
 
-import h5py, imp, copy
+import h5py, importlib, copy
 
 xr.set_options(display_style='text')
 
@@ -107,7 +107,7 @@ granules_list = earthdata.cmr(short_name='ATL03', polygon=params['poly'], time_s
 gdf = icesat2.atl06p(params, resources=granules_list)
 
 # %%
-imp.reload(sct)
+importlib.reload(sct)
 RGT_common = sct.check_RGT_in_domain(Gtrack_lowest, gdf)
 
 if plot_flag:
@@ -207,7 +207,7 @@ beam_list = ['gt1l', 'gt1r', 'gt2l', 'gt2r', 'gt3l', 'gt3r']
 # b_Nmedian = [Ti[k].N_photos.median() for k in beam_list]
 
 
-imp.reload(sct)
+importlib.reload(sct)
 
 T= dict()
 

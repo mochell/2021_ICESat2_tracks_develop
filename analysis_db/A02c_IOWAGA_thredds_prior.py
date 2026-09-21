@@ -21,7 +21,7 @@ import ICEsat2_SI_tools.wave_tools as waves
 from siphon.catalog import TDSCatalog
 
 
-import imp
+import importlib
 import copy
 import spicke_remover
 import datetime

@@ -21,7 +21,7 @@ import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
 
 import time
-import imp
+import importlib
 import copy
 import spicke_remover
 import datetime
@@ -136,7 +136,7 @@ if (np.array(nan_fraction).mean() > 0.95) | bad_ratio_flag:
     exit()
 
 # %% test LS with an even grid where missing values are set to 0
-imp.reload(spec)
+importlib.reload(spec)
 print(Gd.keys())
 Gi =Gd[ list(Gd.keys())[0] ] # to select a test  beam
 dist = io.get_beam_var_hdf_store(Gd[list(Gd.keys())[0]] , 'x')
