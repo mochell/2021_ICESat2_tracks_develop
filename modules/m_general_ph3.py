@@ -61,6 +61,23 @@ class color(object):
 
 # funny massage
 
+
+def remove_empty_axes(fig):
+    """
+    Remove axes that were never drawn into. figure_axis_xy() always creates a default
+    axis; scripts that then build their own layout with plt.subplot()/GridSpec used to
+    rely on matplotlib deleting the overlapped default axis, which matplotlib >= 3.6 no
+    longer does, leaving a ghost axis with 0..1 ticks behind every figure.
+    """
+    for ax in list(fig.axes):
+        empty = (not ax.has_data()) and not ax.lines and not ax.collections \
+                and not ax.images and not ax.patches and not ax.texts \
+                and not ax.tables and not ax.get_title() \
+                and not ax.get_xlabel() and not ax.get_ylabel() \
+                and ax.get_legend() is None
+        if empty and len(fig.axes) > 1:
+            ax.remove()
+
 class figure_axis_xy(object):
         """define standart  XY Plot with reduced grafics"""
 
@@ -127,6 +144,7 @@ class figure_axis_xy(object):
                 extension='.pdf'
                 full_name= (os.path.join(savepath,name)) + extension
                 #print(full_name)
+                remove_empty_axes(self.fig)
                 self.fig.savefig(full_name, bbox_inches='tight', format='pdf', dpi=180)
                 if verbose:
                     print('save at: '+name)
@@ -146,6 +164,7 @@ class figure_axis_xy(object):
                 extension='.pdf'
                 full_name= (os.path.join(savepath,name)) + extension
                 #print(full_name)
+                remove_empty_axes(self.fig)
                 self.fig.savefig(full_name, bbox_inches='tight', format='pdf', dpi=300)
                 if verbose:
                     print('save at: ',full_name)
@@ -163,6 +182,7 @@ class figure_axis_xy(object):
                 extension='.png'
                 full_name= (os.path.join(savepath,name)) + extension
                 #print(full_name)
+                remove_empty_axes(self.fig)
                 self.fig.savefig(full_name, bbox_inches='tight', format='png', dpi=180)
                 if verbose:
                     print('save with: ',name)
@@ -885,6 +905,7 @@ def save_anyfig(fig,name=None,path=None):
                 extension='.png'
                 full_name= (os.path.join(savepath,name)) + extension
                 #print(full_name)
+                remove_empty_axes(fig)
                 fig.savefig(full_name, bbox_inches='tight', format='png', dpi=180)
                 print('save at: ',full_name)
 #def downscale_2d(data,x,dx):
