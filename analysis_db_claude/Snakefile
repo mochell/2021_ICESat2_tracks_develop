@@ -56,6 +56,7 @@ rule all:
     input:
         expand(ok('C01'), ID=TRACKS),
         expand(ok('B03'), ID=TRACKS),      # figures only, nothing depends on it
+        P.batch_work + 'C01_database/index.csv' if TRACKS else [],
 
 for _s in TRACK_STAGES:
     rule:
