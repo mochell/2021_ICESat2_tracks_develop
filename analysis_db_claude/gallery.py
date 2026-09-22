@@ -173,9 +173,9 @@ def track_page(P, batch_key, ID, recs, row):
             parts.append(f'<div class="small">{esc(r.get("t_start"))} &rarr; {esc(r.get("t_end"))}  '
                          f'{esc(r.get("runtime_s"))} s  host {esc(r.get("host"))}  params {esc(r.get("params_hash"))}  '
                          f'git {esc(r.get("git_hash"))}</div>')
-            if r.get('reason'):
+            if not _isnan(r.get('reason')) and r.get('reason'):
                 parts.append(f'<p><b>reason:</b> {esc(r["reason"])}</p>')
-            if r.get('error_type'):
+            if isinstance(r.get('error_type'), str):
                 parts.append(f'<p><b>{esc(r["error_type"])}:</b> {esc(r.get("error_msg"))}</p>')
             if r.get('info'):
                 parts.append('<pre>' + esc(json.dumps(r['info'], indent=1, default=str)) + '</pre>')
@@ -275,7 +275,7 @@ def index_page(P, batch_key, rows, recs, batch_jobs, counts):
         for s in GRID_STAGES:
             title = esc(row.get(s + '_reason', ''))
             r = recs.get((s, row['ID']))
-            rt = f' {r["runtime_s"]:.0f}s' if r and r.get('runtime_s') else ''
+            rt = f' {r["runtime_s"]:.0f}s' if r and not _isnan(r.get('runtime_s')) else ''
             parts.append(f'<td><span class="cell" style="background:{STATUS_COLOR[row[s]]}" title="{title}">'
                          f'<a href="_gallery/track/{row["ID"]}.html#{s}">{row[s]}{rt}</a></span></td>')
         parts.append('</tr>')

@@ -164,9 +164,11 @@ def run_stage(ID, batch_key, prm, run):
     Pdir = Prior.loc[['pdp0', 'pdp1', 'pdp2', 'pdp3', 'pdp4', 'pdp5']]['mean'].astype('float').to_numpy()
     Pspread = Prior.loc[['pspr0', 'pspr1', 'pspr2', 'pspr3', 'pspr4', 'pspr5']]['mean'].astype('float').to_numpy()
 
-    Pperiod = Pperiod[~np.isnan(Pspread)]
-    Pdir = Pdir[~np.isnan(Pspread)]
-    Pspread = Pspread[~np.isnan(Pspread)]
+    # partitions that are absent in WW3 have nan period/direction but spread 0.0 (not nan); the old
+    # code masked on the spread only and the nan then propagated through np.interp into the prior
+    valid = ~(np.isnan(Pperiod) | np.isnan(Pdir) | np.isnan(Pspread))
+    Pperiod, Pdir, Pspread = Pperiod[valid], Pdir[valid], Pspread[valid]
+    run.info(n_prior_partitions=int(valid.sum()))
 
     # this is a hack since the current data does not have a spread
     Pspread[Pspread == 0] = prm['prior_spread_fill_deg']
@@ -367,16 +369,19 @@ def run_stage(ID, batch_key, prm, run):
         y_concat = nu_2d.data.T.flatten()
         z_concat = amp_Z.data.flatten()
 
-        x_concat = x_concat[~np.isnan(z_concat)]
-        y_concat = y_concat[~np.isnan(z_concat)]
-        z_concat = z_concat[~np.isnan(z_concat)]
+        # x_coord/y_coord can be nan for a beam without data at this stancil (B02 sets them nan);
+        # the old code only masked on z and then fed nan positions to the likelihood
+        finite = ~np.isnan(z_concat) & ~np.isnan(x_concat) & ~np.isnan(y_concat)
+        x_concat, y_concat, z_concat = x_concat[finite], y_concat[finite], z_concat[finite]
         N_data = x_concat.size
-
-        if np.isnan(z_concat).sum() != 0:
-            raise ValueError('There are still nans')
 
         mean_dist = (nu_2d.isel(beam=0) - nu_2d.isel(beam=1)).mean().data
         k_upper_lim = 2 * np.pi / (mean_dist * 1)
+        if N_data == 0 or not np.isfinite(k_upper_lim):
+            print('no finite data/positions in this beam pair, fill with dummy')
+            Marginals[ikey] = make_fake_data(xi, group)
+            n_dummy += 1
+            continue
 
         print('k_upper_lim ', k_upper_lim)
 
@@ -495,6 +500,20 @@ def run_stage(ID, batch_key, prm, run):
             print('cut wavenumber list to', max_wavenumbers)
             k_list = k_list[0:max_wavenumbers]
             weight_list = weight_list[0:max_wavenumbers]
+
+        # drop wavenumbers without a finite prior (the likelihood cannot handle nan); keep k and
+        # weight lists consistent because 'weight' is stored per k below
+        prior_ok = np.array([bool(np.isfinite(Prior_smth.sel(k=kk_, method='nearest').Prior_direction.data)
+                                  and np.isfinite(Prior_smth.sel(k=kk_, method='nearest').Prior_spread.data))
+                             for kk_ in k_list])
+        if (~prior_ok).sum():
+            print(f'{int((~prior_ok).sum())} wavenumbers skipped: prior is nan')
+        k_list, weight_list = k_list[prior_ok], weight_list[prior_ok]
+        if len(k_list) == 0:
+            print('no wavenumber with a finite prior, fill with dummy')
+            Marginals[ikey] = make_fake_data(xi, group)
+            n_dummy += 1
+            continue
 
         A = dict()
         for k_pair in zip(k_list, weight_list):
