@@ -204,7 +204,7 @@ def calc_freq_LS(x, N, method='fftX2', dx=None, minimum_frequency=None, maximum_
         minimum_frequency, maximum_frequency only used for LS_auto
     """
 
-    if method is 'fftX2':
+    if method == 'fftX2':
         neven = True if (N%2) else False
         dx = np.diff(x).mean() if dx is None else dx
         df = 1./((N-1)*dx) /2
@@ -213,7 +213,7 @@ def calc_freq_LS(x, N, method='fftX2', dx=None, minimum_frequency=None, maximum_
         else:
             f = df* np.arange(df, (N-1)  + 1 )
 
-    elif method is 'fft':
+    elif method == 'fft':
         neven = True if (N%2) else False
         dx = np.diff(x).mean() if dx is None else dx
         df = 1./((N-1)*dx)
@@ -222,14 +222,14 @@ def calc_freq_LS(x, N, method='fftX2', dx=None, minimum_frequency=None, maximum_
         else:
             f = df*np.arange( (N-1)/2.  + 1 )
 
-    elif method is 'LS_auto':
+    elif method == 'LS_auto':
         from astropy.timeseries import LombScargle
         f = LombScargle(x , np.random.randn(len(x)), fit_mean=True).autofrequency(minimum_frequency=minimum_frequency, maximum_frequency=maximum_frequency, samples_per_peak=samples_per_peak)##0.1)
 
         df = np.diff(f).mean()
         df = np.round(df, 5)
 
-    elif method is 'fixed_ratio':
+    elif method == 'fixed_ratio':
 
         neven = True if (N%2) else False
         dx = np.diff(x).mean() if dx is None else dx

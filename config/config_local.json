@@ -1,18 +1,18 @@
 {
     "paths":{
-            "work": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/data/work/",
-            "downloads": "//mnt/c/Users/austin.liou/Project_Files/Momme_Projects/downloads/",
-            "scratch": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/data/scratch/",
-            "outputs": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/output/",
-            "plot": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/plots/",
-            "processed": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/data/processed/",
-            "analysis": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/analysis/",
-            "local_script": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/modules/",
-            "config": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/config/",
-            "add_data": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/other_data",
-            "code": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/code/",
-            "code_1L": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/code_barotropic/",
-            "targets": "/mnt/c/Users/austin.liou/Project_Files/Momme_Projects/2021_ICESat2_tracks_develop/targets/"
+            "work": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/data/work/",
+            "downloads": "/project/downloads/",
+            "scratch": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/data/scratch/",
+            "outputs": "/project/output/",
+            "plot": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/plots/",
+            "processed": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/data/processed/",
+            "analysis": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/analysis_db/",
+            "local_script": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/modules/",
+            "config": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/config/",
+            "add_data": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/other_data",
+            "code": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/code/",
+            "code_1L": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/code_barotropic/",
+            "targets": "/Users/mommehell/Projects/2021_ICESat2_tracks_develop/targets/"
           },
 
     "server":"lime",

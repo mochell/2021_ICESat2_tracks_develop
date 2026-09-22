@@ -1645,7 +1645,7 @@ def find_max_along_line(time_lin, f, data, f1, f2, f_delta=.05, spreed=10,  plot
 
     if mode is None:
         mode='free_limits'
-    if mode is 'free_limits' or mode is 'upper_limit':
+    if mode == 'free_limits' or mode == 'upper_limit':
         if line_left[0] > time_lin[0]:
             f_start=0
             print(' left line > time0')

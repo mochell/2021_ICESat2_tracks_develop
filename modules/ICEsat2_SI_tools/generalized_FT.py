@@ -74,7 +74,7 @@ def get_weights_from_data(x, y, dx, stancil, k, max_nfev, plot_flag=False, metho
     #print('k_max ', k_max)
 
 
-    if method is 'gaussian':
+    if method == 'gaussian':
         # simple gaussian weight
         def gaus(x, x_0, amp, sigma_g ):
             return amp* np.exp(-0.5 * (  (x-x_0)/sigma_g)**2)
@@ -83,7 +83,7 @@ def get_weights_from_data(x, y, dx, stancil, k, max_nfev, plot_flag=False, metho
         #weight = weight *1+ weight.max()* 0.1 # add pemnalty floor
         params = None
 
-    elif method is 'parametric':
+    elif method == 'parametric':
 
         # JONSWAP weight
         f= np.sqrt(9.81 * k) / (2 *np.pi)
@@ -848,8 +848,8 @@ class generalized_Fourier(object):
  
         Z = complex_represenation(p_hat, M, Nx_full )
         spec_incomplete, spec_complete = Z_to_power_gFT(Z, dk, Nx,  Nx_full) # use spec_incomplete
-        var_spec_incomplete = np.trapz(spec_incomplete, x=self.k)
-        var_spec_complete = np.trapz(spec_complete, x=self.k)
+        var_spec_incomplete = np.trapezoid(spec_incomplete, x=self.k)
+        var_spec_complete = np.trapezoid(spec_complete, x=self.k)
 
         # calculate adjustment factor forspectral density
         model_var =self.model().var()

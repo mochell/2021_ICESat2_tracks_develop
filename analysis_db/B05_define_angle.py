@@ -203,7 +203,7 @@ for xi in range(x_list.size):
             data_wmean = weighted_means(data, weights, x_angle, color= col_dict[group] )
             plt.stairs(data_wmean , x_angle, color =col_dict[group], alpha =1)
         # test if density is correct
-        # if np.round(np.trapz(data_wmean) * d_angle, 2) < 0.90:
+        # if np.round(np.trapezoid(data_wmean) * d_angle, 2) < 0.90:
         #     raise ValueError('weighted mean is not a density anymore')
 
         plt.title('Marginal PDF '+ group, loc ='left')
@@ -405,7 +405,7 @@ k               = weighted_spec.k
 xlims = x_spec[0], x_spec[-1]
 #weighted_spec.plot()
 #clev_spec = np.linspace(-8, -1, 21) *10
-clev_spec = np.linspace(-80, (10* np.log(weighted_spec)).max() * 0.9, 21)
+clev_spec = np.linspace(-80, float((10* np.log(weighted_spec)).max()) * 0.9, 21)
 
 plt.pcolor(x_spec, k, 10* np.log(weighted_spec),vmin= clev_spec[0], vmax= clev_spec[-1],  cmap =cmap_spec )
 
@@ -493,7 +493,7 @@ for x_pos, gs in zip( x_chunks.T , [ gs[-3:, 0:2], gs[-3:, 2:4], gs[-3:, 4:]] ):
 
         ax3 = F.fig.add_subplot(gs, polar=True)
         FP= plot_polarspectra(xx, plot_data.angle, plot_data, lims=None , verbose= False, data_type= 'fraction')
-        FP.clevs=np.linspace(np.nanpercentile(plot_data.data, 1), np.round(plot_data.max(), 4), 21)
+        FP.clevs=np.linspace(np.nanpercentile(plot_data.data, 1), np.round(float(plot_data.max()), 4), 21)
         FP.linear(ax = ax3, cbar_flag=False)
         #FP.cbar.set_label('Energy Density ( (m/m)$^2$ k$^{-1}$ deg$^{-1}$ )', rotation=0, fontsize=10)
         #plt.show()

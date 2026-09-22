@@ -364,10 +364,11 @@ def define_noise_wavenumber_piecewise(data_xr, plot_flag = False):
 
     pw_fit, breakpoint_log   = get_breakingpoints(k_log, data_log.data)
 
-    if breakpoint_log is 'start':
+    # 'is' identity checks on strings are unreliable (the value comes back from a pandas Series)
+    if isinstance(breakpoint_log, str) and breakpoint_log == 'start':
         print('no decay, set to lowerst wavenumber')
         breakpoint_log =  k_log[0]
-    if (breakpoint_log is 'end') | (breakpoint_log is False) :
+    if (isinstance(breakpoint_log, str) and breakpoint_log == 'end') or (breakpoint_log is False) :
         print('higest wavenumner')
         breakpoint_log =  k_log[-1]
 
@@ -778,7 +779,8 @@ try:
     font_for_pres()
 
     Ga_abs = (G_angle.weighted_angle_PDF_smth.isel(angle = G_angle.angle > 0).data + G_angle.weighted_angle_PDF_smth.isel(angle = G_angle.angle < 0).data[:,::-1])/2
-    Ga_abs = xr.DataArray(data=Ga_abs.T, dims = G_angle.dims, coords=G_angle.isel(angle = G_angle.angle > 0).coords)
+    # Ga_abs is (x, angle); use explicit dims, Dataset.dims ordering is not guaranteed in recent xarray
+    Ga_abs = xr.DataArray(data=Ga_abs, dims = ('x', 'angle'), coords=G_angle.isel(angle = G_angle.angle > 0).coords)
 
     Ga_abs_front = Ga_abs.isel(x= slice(0, 3))
     Ga_best = ((  Ga_abs_front * Ga_abs_front.N_data ).sum('x')/Ga_abs_front.N_data.sum('x'))

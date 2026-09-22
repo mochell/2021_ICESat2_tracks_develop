@@ -128,13 +128,15 @@ if np.isnan(Prior['mean']['dir']):
 
 Prior
 
-Pperiod     = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean']
-Pdir        = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float')
-Pspread     = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean']
+# cast to float numpy arrays: the 'mean' column is object dtype and pandas >= 3 no longer
+# falls back to positional indexing when a Series is indexed with argsort() positions
+Pperiod     = Prior.loc[['ptp0','ptp1','ptp2','ptp3','ptp4','ptp5']]['mean'].astype('float').to_numpy()
+Pdir        = Prior.loc[['pdp0','pdp1','pdp2','pdp3','pdp4','pdp5']]['mean'].astype('float').to_numpy()
+Pspread     = Prior.loc[['pspr0','pspr1','pspr2','pspr3','pspr4','pspr5']]['mean'].astype('float').to_numpy()
 
-Pperiod = Pperiod[~np.isnan(list(Pspread))]
-Pdir    = Pdir[~np.isnan(list(Pspread))]
-Pspread = Pspread[~np.isnan(list(Pspread))]
+Pperiod = Pperiod[~np.isnan(Pspread)]
+Pdir    = Pdir[~np.isnan(Pspread)]
+Pspread = Pspread[~np.isnan(Pspread)]
 
 
 # this is a hack since the current data does not have a spread

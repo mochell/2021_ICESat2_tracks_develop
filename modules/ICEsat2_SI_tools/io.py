@@ -116,9 +116,9 @@ class case_ID(object):
         block1 = (self.YY,self.MM,self.DD)
         block1b = (self.HH,self.MN,self.SS)
         block2 = (self.TRK,self.CYC,self.GRN)
-        if self.RL is '':
+        if self.RL == '':
             raise ValueError("RL not set")
-        if self.VRS is '':
+        if self.VRS == '':
             raise ValueError("VRS not set")
 
         block3 = (self.RL,self.VRS)
@@ -131,9 +131,9 @@ class case_ID(object):
         block1 = (self.YY,self.MM,self.DD)
         block1b = (self.HH,self.MN,self.SS)
         block2 = (self.TRK,self.CYC, '01') # granule is alwasy '01' for ATL10
-        if self.RL is '':
+        if self.RL == '':
             raise ValueError("RL not set")
-        if self.VRS is '':
+        if self.VRS == '':
             raise ValueError("VRS not set")
 
         block3 = (self.RL,self.VRS)
