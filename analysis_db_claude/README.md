@@ -24,7 +24,7 @@ tools/               run_batch.sh, discover.sh, serve_gallery.sh, tunnel.sh, syn
 ```bash
 cd analysis_db_claude
 tools/discover.sh SH_dev_small                 # B00: CMR query -> work/<batch>/tracks.csv + overview map
-tools/run_batch.sh SH_dev_small -n --reason    # dry run: what would run and why
+tools/run_batch.sh SH_dev_small -n    # dry run: what would run and why
 tools/run_batch.sh SH_dev_small                # everything (B01 per chunk, then per track up to C01, index)
 tools/run_batch.sh SH_dev_small --until B04    # stop after a stage
 tools/run_batch.sh SH_dev_small -R B04         # rerun a stage (+ downstream) after editing its script

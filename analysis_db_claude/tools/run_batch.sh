@@ -3,7 +3,7 @@
 # usage: tools/run_batch.sh <batch_key> [extra snakemake args...]
 #   tools/run_batch.sh SH_dev_small                    # everything up to C01 + index
 #   tools/run_batch.sh SH_dev_small --until B04
-#   tools/run_batch.sh SH_dev_small -n --reason        # dry run
+#   tools/run_batch.sh SH_dev_small -n        # dry run
 # Environment: JOBS (heavy jobs, default 4), CORES (default 16)
 set -u
 HERE="$(cd "$(dirname "$0")/.." && pwd)"

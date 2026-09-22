@@ -40,3 +40,5 @@ config/2021_IceSAT2_startup.py
 config/config.json
 analysis_proposal/*
 logs/
+analysis_db_claude/.snakemake/
+__pycache__/

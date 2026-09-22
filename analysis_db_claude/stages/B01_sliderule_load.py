@@ -78,6 +78,10 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     table_data.drop(columns=['time'], inplace=True)
 
     Ti = make_B01_dict(table_data, split_by_beam=True, to_hdf5=True)
+    n_beam = {b: int(Ti[b].shape[0]) for b in BEAMS}
+    thin = [b for b, n in n_beam.items() if n < prm['min_points_per_beam']]
+    if thin:
+        raise SkipTrack(f'beams with < {prm["min_points_per_beam"]} points: {thin}', n_points=n_beam)
     for kk in Ti.keys():
         Ti[kk]['dist'] = Ti[kk]['x'].copy()
         Ti[kk]['heights_c_weighted_mean'] = Ti[kk]['h_mean'].copy()
@@ -92,11 +96,17 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     beam_stats.plot_ATL06_track_data(gdf_track, cdict)
     save_fig(F_atl06, plot_path, 'B01b_ATL06_corrected', pdf=False)
 
-    D = beam_stats.derive_beam_statistics(Ti, BEAMS, Lmeter=prm['beam_stats_Lmeter'], dx=prm['beam_stats_dx'])
-    F = M.figure_axis_xy(8, 4.3, view_scale=0.6)
-    beam_stats.plot_beam_statistics(D, mconfig['beams']['high_beams'], mconfig['beams']['low_beams'], col.rels,
-                                    track_name=ID + ' |  ascending =' + str(ascending))
-    save_fig(F, plot_path, 'B01b_beam_statistics', pdf=False)
+    beam_stats_ok = True
+    try:
+        D = beam_stats.derive_beam_statistics(Ti, BEAMS, Lmeter=prm['beam_stats_Lmeter'], dx=prm['beam_stats_dx'])
+        F = M.figure_axis_xy(8, 4.3, view_scale=0.6)
+        beam_stats.plot_beam_statistics(D, mconfig['beams']['high_beams'], mconfig['beams']['low_beams'], col.rels,
+                                        track_name=ID + ' |  ascending =' + str(ascending))
+        save_fig(F, plot_path, 'B01b_beam_statistics', pdf=False)
+    except Exception as e:                  # diagnostics only; a short/sparse beam must not fail the track
+        print(f'  beam statistics figure failed for {ID}: {e!r}')
+        beam_stats_ok = False
+        plt.close('all')
 
     gdf_track[::100].plot(markersize=0.1, figsize=(4, 6))
     plt.title(ID + '\nascending =' + str(ascending), loc='left')
@@ -118,6 +128,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
 
     n_points = {b: int(Ti[b].shape[0]) for b in BEAMS}
     return {'n_points': n_points, 'n_points_total': int(sum(n_points.values())), 'ascending': bool(ascending),
+            'beam_stats_ok': beam_stats_ok,
             'x_reference_m': x_ref, 'x_min_km': float(table_data.x.min() / 1e3), 'x_max_km': float(table_data.x.max() / 1e3),
             'N_photos_median': {b: float(Ti[b].N_photos.median()) if len(Ti[b]) else np.nan for b in BEAMS}}
 

@@ -250,8 +250,11 @@ class StageRun:
                         self.outputs.append(str(p.relative_to(self.P.batch_work)))
         if self.P.plot_track and Path(self.P.plot_track).exists():
             for p in Path(self.P.plot_track).rglob('*'):
-                if p.is_file() and p.suffix in ('.png', '.pdf') and p.stat().st_mtime >= t0:
-                    self.figures.append(str(p.relative_to(self.P.plot_track)))
+                rel = str(p.relative_to(self.P.plot_track))
+                # only this stage's figures (name or sub-folder prefix), written during this run
+                mine = p.name.startswith(self.stage) or rel.split('/')[0].startswith(self.stage)
+                if mine and p.is_file() and p.suffix in ('.png', '.pdf') and p.stat().st_mtime >= t0:
+                    self.figures.append(rel)
         self.outputs = sorted(set(self.outputs))
         self.figures = sorted(set(self.figures))
 

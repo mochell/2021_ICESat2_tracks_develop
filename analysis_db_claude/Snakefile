@@ -7,7 +7,7 @@
 #   snakemake ... --until B04                                          # stop after a stage
 #   snakemake ... -R B04                                               # rerun a stage (+downstream) after editing it
 #   snakemake ... -f work/<batch>/status/B04/<ID>.ok                   # one track, one stage
-#   snakemake ... -n --reason                                          # dry run: what and why
+#   snakemake ... -n                                          # dry run: what and why
 #
 # Every per-track job writes work/<batch>/status/<stage>/<ID>.json and, for success/skip/blocked,
 # the sentinel <ID>.ok that the rules below use as their output. A failed job leaves the json
@@ -50,18 +50,11 @@ def launcher_log(stage, ID='{ID}'):
     return P.logs + f'{stage}/{ID}.launcher.log'
 
 
-def upstream_ok(stage):
-    return [ok(d) for d in DEPS[stage] if d != 'B01' or True]
-
-
 # ------------------------------------------------------------------ targets
 rule all:
     input:
-        expand(ok('C01'), ID=TRACKS)
-
-rule B06_all:
-    input:
-        expand(ok('B06'), ID=TRACKS)
+        expand(ok('C01'), ID=TRACKS),
+        expand(ok('B03'), ID=TRACKS),      # figures only, nothing depends on it
 
 for _s in TRACK_STAGES:
     rule:

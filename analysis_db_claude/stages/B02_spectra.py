@@ -202,7 +202,10 @@ def run_stage(ID, batch_key, prm, run):
         G = G.expand_dims(dim='beam', axis=2)
         G.coords['mean_El'] = (('k', 'beam'), np.expand_dims(G['mean_El'], 1))
         G.coords['mean_Eu'] = (('k', 'beam'), np.expand_dims(G['mean_Eu'], 1))
-        G.coords['x'] = G.coords['x'] * dx
+        # FFT x is index*dx from the first data point; shift to the absolute track coordinate so it
+        # can be cut to the gFT range below (the old script cut a relative x with absolute limits)
+        G.coords['x'] = G.coords['x'] * dx + float(np.asarray(x)[0])
+        G.attrs['x_absolute'] = 1
 
         stancil_iter = spec.create_chunk_boundaries(int(Lpoints), dd_nans.size)
 
@@ -246,6 +249,9 @@ def run_stage(ID, batch_key, prm, run):
     G_gFT_DS = G_gFT_DS.drop_vars('Z_hat')
     G_gFT_DS.attrs['name'] = 'gFT_estimates'
     G_gFT_DS.to_netcdf(save_path + save_name + '_gFT_k.nc')
+    # diagnostics: stancils whose PSD blew up (seen on the last stancil of the test track, ~1e19)
+    psd_max_x = G_gFT_DS.gFT_PSD_data.max(('k', 'beam'), skipna=True)
+    run.info(n_psd_blowup=int((psd_max_x > prm['psd_blowup']).sum()), psd_max=float(psd_max_x.max()))
 
     G_gFT_x_DS = xr.merge(G_gFT_x.values())
     G_gFT_x_DS.attrs['name'] = 'gFT_estimates_real_space'

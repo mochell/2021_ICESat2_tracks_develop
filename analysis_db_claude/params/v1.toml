@@ -10,6 +10,7 @@ maximum_height = 30          # m, |h_mean - dem_h| above this is removed (sct.co
 beam_stats_Lmeter = 12500    # m, window for beam_stats.derive_beam_statistics
 beam_stats_dx = 10           # m
 min_points_per_track = 1000  # fewer points in the box -> skip 'too few points'
+min_points_per_beam = 200    # any beam with fewer points -> skip the track
 
 [B01.sliderule]              # icesat2.atl06p request (params_yapc in B01_SL_load_single_file.py)
 srt = 1                      # ocean surface type
@@ -65,6 +66,7 @@ N_photos_min = 5             # points with N_photos <= this are treated as nan
 dd_error_fill = 100
 spike_spreed = 10            # spicke_remover
 n_threads = 4                # threadpool_limits for BLAS
+psd_blowup = 1e6             # diagnostics: stancils with max PSD above this are counted in info.n_psd_blowup
 
 # ------------------------------------------------------------------ B03 spectra overview plots
 [B03]
