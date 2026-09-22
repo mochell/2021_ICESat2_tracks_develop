@@ -56,6 +56,21 @@ def make_chunks(t0, t1, chunk_days):
     return out
 
 
+def cmr_granules(part, t0, t1, depth=0):
+    """ATL03 granules in one polygon part and time window; SlideRule's CMR proxy refuses more than
+    300 hits per query, so the window is halved recursively until every query fits"""
+    from sliderule import earthdata
+    fmt = '%Y-%m-%dT%H:%M:%S'
+    try:
+        return list(earthdata.cmr(short_name='ATL03', polygon=part, time_start=t0.strftime(fmt), time_end=t1.strftime(fmt)))
+    except Exception as e:
+        if 'exceeded maximum' in str(e) and depth < 12 and (t1 - t0) > dt.timedelta(hours=6):
+            tm = t0 + (t1 - t0) / 2
+            print(f'  CMR: > 300 hits in {t0:%Y-%m-%d}..{t1:%Y-%m-%d}, splitting')
+            return cmr_granules(part, t0, tm, depth + 1) + cmr_granules(part, tm, t1, depth + 1)
+        raise
+
+
 def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path):
     """polar map (r = 90 - |lat|) with the box, RGT points in the box and the estimates"""
     hemis = batch['batch']['hemis']
@@ -96,14 +111,15 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
         ax.plot(th_of(Gtrack_lowest.geometry.x), r_of(Gtrack_lowest.geometry.y), 'o', color='tab:blue',
                 markersize=3, label=f'RGT start points ({len(Gtrack_lowest)})')
 
-    # the box, densified along the edges
+    # the region, densified along the edges (the unwrapped ring; theta wraps naturally on the polar axes)
     lons = [p['lon'] for p in poly['list']]
     lats = [p['lat'] for p in poly['list']]
     bl, bb = [], []
     for i in range(len(lons) - 1):
         bl += list(np.linspace(lons[i], lons[i + 1], 50))
         bb += list(np.linspace(lats[i], lats[i + 1], 50))
-    ax.plot(th_of(bl), r_of(bb), '-', color='tab:green', linewidth=2, label='batch polygon')
+    ax.plot(th_of(bl), r_of(bb), '-', color='tab:green', linewidth=2,
+            label='batch polygon' + (' (crosses 180°, %d parts)' % len(poly['parts']) if poly['crosses_antimeridian'] else ''))
 
     ax.set_title(f"{batch['batch']['key']}  ({hemis}, polar view, r = 90-|lat|)\n"
                  f"{poly.get('kind', 'box')}: lat {poly['lats'][0]:.2f}..{poly['lats'][1]:.2f}  lon {poly['lons'][0]:.2f}..{poly['lons'][1]:.2f}",
@@ -125,8 +141,6 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
 
 def run_stage(batch_key, run):
     import geopandas as gpd
-    from sliderule import earthdata
-
     batch = load_batch(batch_key)
     P = paths_for(batch_key)
     MT.mkdirs_r(P.batch_work)
@@ -136,9 +150,12 @@ def run_stage(batch_key, run):
 
     # %% polygon and CMR granule list
     poly = region_polygon(batch)
-    print('polygon:', poly['list'])
-    granules = earthdata.cmr(short_name='ATL03', polygon=poly['list'],
-                             time_start=t0.strftime('%Y-%m-%dT%H:%M:%S'), time_end=t1.strftime('%Y-%m-%dT%H:%M:%S'))
+    print('polygon:', poly['list'], '| parts:', len(poly['parts']), '| crosses antimeridian:', poly['crosses_antimeridian'])
+    granules = []
+    for part in poly['parts']:                       # one CMR query per part (cut at +-180) ...
+        for _, ca, cb in make_chunks(t0, t1, batch['time'].get('chunk_days', 0)):   # ... and per time chunk
+            granules += cmr_granules(part, ca, cb)
+    granules = sorted(set(granules))
     print(f'CMR: {len(granules)} ATL03 granules in box and time window')
     if len(granules) == 0:
         raise SkipTrack('no ATL03 granules in box/time window')

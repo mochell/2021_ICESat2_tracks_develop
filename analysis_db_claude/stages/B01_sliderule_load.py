@@ -164,10 +164,18 @@ def run_stage(batch_key, chunk, prm, run):
     print(f"sliderule.init(desired_nodes={sl['desired_nodes']}, time_to_live={sl['time_to_live']}) ... nodes take ~2-3 min")
     sliderule.init(desired_nodes=sl['desired_nodes'], time_to_live=sl['time_to_live'], verbose=True, user_service=True)
     params = dict(prm['sliderule'])
-    params['poly'] = poly['list']
     params['t0'], params['t1'] = str(ch.t0), str(ch.t1)
     t_req = datetime.datetime.now()
-    gdf = icesat2.atl06p(params, resources=granules)
+    pieces = []
+    for ip, part in enumerate(poly['parts']):        # one request per part (regions cut at +-180)
+        params['poly'] = part
+        g = icesat2.atl06p(params, resources=granules)
+        print(f'  part {ip + 1}/{len(poly["parts"])}: atl06p returned {len(g)} rows')
+        if len(g):
+            pieces.append(g)
+    gdf = pd.concat(pieces) if pieces else pieces and pieces[0] or gpd.GeoDataFrame()
+    if len(pieces) > 1:
+        gdf = gdf.sort_index()                        # time index; rows of the two parts interleave
     print(f'atl06p returned {len(gdf)} rows in {(datetime.datetime.now() - t_req).seconds}s')
     run.info(n_rows_raw=int(len(gdf)), request_s=(datetime.datetime.now() - t_req).seconds)
     if len(gdf) == 0:
