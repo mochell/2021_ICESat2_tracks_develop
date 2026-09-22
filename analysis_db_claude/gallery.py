@@ -71,7 +71,7 @@ function applyFilter(){
   document.querySelectorAll('[data-row]').forEach(r=>{
     let show=true;
     if(tx && !r.dataset.id.toLowerCase().includes(tx)) show=false;
-    if(show && st && sv){ if((r.dataset['s_'+st]||'not_run')!==sv) show=false; }
+    if(show && st && sv){ if((r.dataset['s_'+st.toLowerCase()]||'not_run')!==sv) show=false; }  // data-* names are lowercased by HTML
     else if(show && sv){ let any=false; for(const k in r.dataset){ if(k.startsWith('s_') && r.dataset[k]===sv) any=true;} if(!any) show=false; }
     if(show && et){ if(!(r.dataset.err||'').split('|').includes(et)) show=false; }
     r.classList.toggle('hidden',!show); if(show) n++;
