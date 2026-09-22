@@ -38,7 +38,9 @@ th{background:#f5f5f5;text-align:left}
 .cell a{color:#fff;text-decoration:none}
 .badge{display:inline-block;padding:2px 6px;border-radius:3px;color:#fff;font-size:12px}
 .grid{display:flex;flex-wrap:wrap;gap:10px}
-.card{border:1px solid #ddd;padding:6px;width:380px;background:#fafafa}
+:root{--card-w:380px}
+.card{border:1px solid #ddd;padding:6px;width:var(--card-w);background:#fafafa}
+.sizebar{margin:6px 0;font-size:12px} .sizebar button{margin-left:4px}
 .card img{width:100%;display:block}
 .small{color:#666;font-size:11px}
 pre{background:#f7f7f7;border:1px solid #e5e5e5;padding:6px;font-size:11px;max-height:320px;overflow:auto}
@@ -47,6 +49,19 @@ pre{background:#f7f7f7;border:1px solid #e5e5e5;padding:6px;font-size:11px;max-h
 a{color:#1a5fb4}
 tr.hidden,div.hidden{display:none}
 """
+
+JS_SIZE = """
+function setCardSize(px){
+  document.documentElement.style.setProperty('--card-w', px+'px');
+  document.querySelectorAll('img[data-thumb]').forEach(im=>{ im.src = (px>420 && im.dataset.full) ? im.dataset.full : im.dataset.thumb; });
+  try{ localStorage.setItem('gallery_card_w', px); }catch(e){}
+  document.querySelectorAll('.sizebar button').forEach(b=>b.style.fontWeight = (+b.dataset.px===px)?'bold':'normal');
+}
+document.addEventListener('DOMContentLoaded',()=>{ let px=380; try{ px=+localStorage.getItem('gallery_card_w')||380; }catch(e){} setCardSize(px); });
+"""
+SIZEBAR = ('<div class="sizebar">image size: ' + ''.join(
+    f'<button data-px="{px}" onclick="setCardSize({px})">{lab}</button>'
+    for lab, px in (('S', 240), ('M', 380), ('L', 600), ('XL', 900), ('XXL', 1400))) + '</div>')
 
 JS_FILTER = """
 function applyFilter(){
@@ -161,8 +176,8 @@ def figures_of(P, ID):
 def track_page(P, batch_key, ID, recs, row):
     rel_track = '../../' + ID + '/'
     figs = figures_of(P, ID)
-    parts = [f'<html><head><meta charset="utf-8"><title>{ID}</title><style>{CSS}</style></head><body>',
-             f'<a href="../../index.html">&larr; {batch_key}</a>',
+    parts = [f'<html><head><meta charset="utf-8"><title>{ID}</title><style>{CSS}</style><script>{JS_SIZE}</script></head><body>',
+             f'<a href="../../index.html">&larr; {batch_key}</a>', SIZEBAR,
              f'<h1>{ID}</h1><div class="small">rgt {row.get("rgt")} cycle {row.get("cycle")} date {row.get("date")} '
              f'chunk {row.get("chunk")} granule {esc(row.get("granule"))}</div>',
              '<p>' + ' '.join(f'<a href="#{s}">{badge(row[s], s + ": " + row[s])}</a>' for s in GRID_STAGES) + '</p>']
@@ -185,7 +200,7 @@ def track_page(P, batch_key, ID, recs, row):
             pdf = f[:-4] + '.pdf'
             pdf_link = f' <a href="{rel_track + pdf}">pdf</a>' if os.path.exists(P.plot_batch + ID + '/' + pdf) else ''
             parts.append(f'<div class="card"><a href="{rel_track + f}">'
-                         + (f'<img src="{th}" loading="lazy">' if ok else esc(f)) +
+                         + (f'<img src="{th}" data-thumb="{th}" data-full="{rel_track + f}" loading="lazy">' if ok else esc(f)) +
                          f'</a><div class="small">{esc(f)}{pdf_link}</div></div>')
         if r:
             tail = log_tail(batch_key, s, ID if s != 'B01' else f'chunk{row.get("chunk", 0)}')
@@ -200,8 +215,8 @@ def track_page(P, batch_key, ID, recs, row):
 def stage_page(P, batch_key, stage, rows, recs):
     pattern = KEY_FIGURE.get(stage)
     parts = [f'<html><head><meta charset="utf-8"><title>{batch_key} {stage}</title><style>{CSS}</style>'
-             f'<script>{JS_FILTER}</script></head><body>',
-             f'<a href="../../index.html">&larr; {batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>',
+             f'<script>{JS_FILTER}</script><script>{JS_SIZE}</script></head><body>',
+             f'<a href="../../index.html">&larr; {batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>', SIZEBAR,
              '<div class="filters">status <select id="f_status"><option value="">all</option>'
              + ''.join(f'<option>{s}</option>' for s in STATUS_ORDER) + '</select>'
              '<input type="hidden" id="f_stage" value="' + stage + '"><input type="hidden" id="f_err" value="">'
@@ -217,7 +232,7 @@ def stage_page(P, batch_key, stage, rows, recs):
         if fig:
             th_rel = '../thumbs/' + ID + '/' + fig.replace('/', '__') + '.jpg'
             if thumb(P.plot_batch + ID + '/' + fig, P.plot_batch + '_gallery/thumbs/' + ID + '/' + fig.replace('/', '__') + '.jpg'):
-                img = f'<a href="../../{ID}/{fig}"><img src="{th_rel}" loading="lazy"></a>'
+                img = f'<a href="../../{ID}/{fig}"><img src="{th_rel}" data-thumb="{th_rel}" data-full="../../{ID}/{fig}" loading="lazy"></a>'
         note = esc(row.get(stage + '_reason', ''))[:120]
         parts.append(f'<div class="card" data-row="1" data-id="{ID}" data-s_{stage}="{row[stage]}">'
                      f'<div><a href="../track/{ID}.html">{ID}</a> {badge(row[stage])} '

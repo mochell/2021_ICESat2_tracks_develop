@@ -71,7 +71,9 @@ psd_blowup = 1e6             # diagnostics: stancils with max PSD above this are
 # ------------------------------------------------------------------ B03 spectra overview plots
 [B03]
 k_thresh = 0.085             # low-pass wavenumber for the reconstruction panel
-n_x_examples = 8             # number of x positions with reconstruction figures
+n_x_examples = 3             # number of x positions with reconstruction figures
+x_examples_mode = "first"    # "first": the first n stancils with data; "spread": n stancils spread over the track
+include_peak_example = false # also plot the stancil with the largest mean PSD
 rolling_k = 5                # rolling mean over k of the weighted-mean spectrogram (k_max search)
 rolling_k_x = [10, 3]        # rolling medians over (k, x) of the weighted mean (colour levels + panel)
 rolling_k_spec = 10          # rolling mean over k of the per-beam spectra in the reconstruction figure

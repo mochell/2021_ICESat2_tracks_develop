@@ -20,7 +20,7 @@ import datetime as dt
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # analysis_db_claude/
 
-from pipeline_config import mconfig, np, pd, plt, MT, paths_for, save_fig
+from pipeline_config import HERE, mconfig, np, pd, plt, MT, paths_for, save_fig
 from pipeline_status import StageRun, SkipTrack
 from pipeline_params import load_batch, load_params, materialize
 import ICEsat2_SI_tools.sliderule_converter_tools as sct
@@ -73,6 +73,21 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
     ax.set_rgrids(r_of(lat_ticks), labels=[f'{int(l)}°' for l in lat_ticks], angle=0, fontsize=7)
     ax.grid(alpha=0.4)
 
+    # coastline (Natural Earth 50 m, analysis_db_claude/support/), clipped to the hemisphere
+    try:
+        import geopandas as gpd
+        coast = gpd.read_file(str(HERE / 'support' / 'ne_50m_coastline.zip'))
+        for geom in coast.geometry:
+            lines = geom.geoms if geom.geom_type == 'MultiLineString' else [geom]
+            for ln in lines:
+                lon, lat = np.asarray(ln.coords).T
+                keep = (sign * lat) > (90 - r_max)
+                if keep.any():
+                    lat = np.where(keep, lat, np.nan)          # break lines at the map edge
+                    ax.plot(th_of(lon), r_of(lat), '-', color='0.35', linewidth=0.5, zorder=1)
+    except Exception as e:
+        print('coastline not drawn:', repr(e))
+
     # RGT ground-track points inside the box (thinned) and their start points
     if len(Gtrack):
         g = Gtrack.iloc[::20]
@@ -90,10 +105,10 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
         bb += list(np.linspace(lats[i], lats[i + 1], 50))
     ax.plot(th_of(bl), r_of(bb), '-', color='tab:green', linewidth=2, label='batch polygon')
 
-    ax.set_title(f"{batch['batch']['key']}  ({hemis}, r = 90-|lat|, no coastline available)\n"
+    ax.set_title(f"{batch['batch']['key']}  ({hemis}, polar view, r = 90-|lat|)\n"
                  f"lat {poly['lats'][0]}..{poly['lats'][1]}  lon {poly['lons'][0]}..{poly['lons'][1]}",
                  fontsize=9, loc='left')
-    ax.legend(loc='lower left', fontsize=7, bbox_to_anchor=(-0.15, -0.12))
+    ax.legend(loc='lower right', fontsize=7, bbox_to_anchor=(1.15, -0.12))
 
     sel = tracks[tracks.selected]
     txt = (f"time      : {batch['time']['t0']} .. {batch['time']['t1']}  ({len(chunks)} chunk(s))\n"

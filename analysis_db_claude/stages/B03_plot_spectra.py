@@ -220,8 +220,17 @@ def run_stage(ID, batch_key, prm, run):
     # position of the largest mean PSD; argmax runs over the non-nan subset, so map it back to the
     # full x index (the old script used the subset index directly -> empty figure when leading x are nan)
     x_pos_max = x_pos_sel[Gk.mean('beam').mean('k').gFT_PSD_data[~np.isnan(Gk.mean('beam').mean('k').gFT_PSD_data)].argmax().data]
-    xpp = x_pos_sel[[int(i) for i in np.round(np.linspace(0, x_pos_sel.size - 1, prm['n_x_examples']))]]
-    xpp = np.insert(xpp, 0, x_pos_max)
+    # remove reconstruction figures of an earlier run (the set of x positions may change)
+    import glob as _glob, os as _os
+    for _f in _glob.glob(P.plot_track + 'B03_spectra/B03_freq_reconst_x*'):
+        _os.remove(_f)
+    n_ex = min(prm['n_x_examples'], x_pos_sel.size)
+    if prm.get('x_examples_mode', 'first') == 'first':      # the first n stancils with data
+        xpp = x_pos_sel[:n_ex]
+    else:                                                    # n stancils spread over the track
+        xpp = x_pos_sel[[int(i) for i in np.round(np.linspace(0, x_pos_sel.size - 1, n_ex))]]
+    if prm.get('include_peak_example', False) and x_pos_max not in xpp:
+        xpp = np.insert(xpp, 0, x_pos_max)
 
     n_reconst_figs = 0
     for i in xpp:
