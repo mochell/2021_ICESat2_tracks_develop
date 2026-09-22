@@ -155,7 +155,13 @@ def run_stage(ID, batch_key, prm, run):
         with threadpool_limits(limits=prm['n_threads'], user_api='blas'):
             S = gFT.wavenumber_spectrogram_gFT(np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk,
                                                data_error=dd_error_no_nans, ov=None)
-            GG, GG_x, Params = S.cal_spectrogram(xlims=xlims, max_nfev=prm['max_nfev'], plot_flag=False)
+            try:
+                GG, GG_x, Params = S.cal_spectrogram(xlims=xlims, max_nfev=prm['max_nfev'], plot_flag=False)
+            except StopIteration:
+                # generalized_FT raises this when not a single stancil of the beam produced a fit
+                print('------------------- no stancil converged in beam', k, '; skip beam')
+                beams_skipped.append(k)
+                continue
 
         S.parceval(add_attrs=True, weight_data=False)
 
