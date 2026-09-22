@@ -34,8 +34,10 @@ tools/run_batch.sh SH_dev_small -f ../data/work/SH_dev_small/status/B04/SH_20190
 python gallery.py SH_dev_small                 # (re)build the HTML pages (also done automatically at the end of a run)
 ```
 
-Environment: `JOBS` (heavy jobs, default 4) and `CORES` (default 16) for `run_batch.sh`. Each job caps
-its BLAS threads (`OMP_NUM_THREADS` from the rule's `threads`).
+Environment for `run_batch.sh`: `JOBS` (concurrent heavy jobs: B01/B02/B04/B06, default 4), `CORES` (total
+thread budget, default 16), `SL_JOBS` (concurrent SlideRule chunk downloads, default 1), `TDS_JOBS`
+(concurrent THREDDS prior downloads, default 2). Each job caps its BLAS threads (`OMP_NUM_THREADS` from
+the rule's `threads`). B01 chunk jobs also count against `JOBS`.
 
 Single stage by hand (e.g. while debugging):
 ```bash

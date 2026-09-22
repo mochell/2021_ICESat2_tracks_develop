@@ -4,7 +4,8 @@
 #   tools/run_batch.sh SH_dev_small                    # everything up to C01 + index
 #   tools/run_batch.sh SH_dev_small --until B04
 #   tools/run_batch.sh SH_dev_small -n        # dry run
-# Environment: JOBS (heavy jobs, default 4), CORES (default 16)
+# Environment: JOBS (heavy jobs, default 4), CORES (default 16),
+#              SL_JOBS (concurrent SlideRule downloads, default 1), TDS_JOBS (concurrent THREDDS prior downloads, default 2)
 set -u
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 BATCH="$1"; shift
@@ -15,5 +16,5 @@ else
 fi
 cd "$HERE"
 exec "$SM" --snakefile Snakefile --config batch="$BATCH" \
-  --cores "${CORES:-16}" --resources heavy="${JOBS:-4}" sliderule=1 thredds=2 \
+  --cores "${CORES:-16}" --resources heavy="${JOBS:-4}" sliderule="${SL_JOBS:-1}" thredds="${TDS_JOBS:-2}" \
   --keep-going --rerun-incomplete --printshellcmds "$@"
