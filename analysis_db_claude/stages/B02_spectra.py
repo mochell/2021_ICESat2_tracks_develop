@@ -120,7 +120,7 @@ def run_stage(ID, batch_key, prm, run):
 
     # %% per-beam gFT and FFT
     G_gFT, G_gFT_x, G_rar_fft, Pars_optm = dict(), dict(), dict(), dict()
-    beams_skipped = []
+    beams_skipped, spike_remover_failed = [], []
     hkey, hkey_sigma = 'h_mean', 'h_sigma'
 
     for k in all_beams:
@@ -143,13 +143,26 @@ def run_stage(ID, batch_key, prm, run):
         dd_error[np.isnan(dd_error)] = prm['dd_error_fill']
 
         # slope spectra
+        if dd.size < prm['min_points_beam']:
+            print('------------------- too few points in beam', k, dd.size, '; skip beam')
+            beams_skipped.append(k)
+            continue
         dd = np.gradient(dd)
-        dd, _ = spicke_remover.spicke_remover(dd, spreed=prm['spike_spreed'], verbose=False)
+        try:
+            dd, _ = spicke_remover.spicke_remover(dd, spreed=prm['spike_spreed'], verbose=False)
+        except (ValueError, IndexError) as e:
+            # spicke_remover cannot handle spikes at the very end / very short series; keep the raw slopes
+            print('spike remover failed for beam', k, repr(e), '; using unfiltered slopes')
+            spike_remover_failed.append(k)
         dd_nans = (np.isnan(dd)) + (Gd_cut['N_photos'] <= prm['N_photos_min'])
 
         dd_no_nans = dd[~dd_nans]
         x_no_nans = x[~dd_nans]
         dd_error_no_nans = dd_error[~dd_nans]
+        if dd_no_nans.size < prm['min_points_beam']:
+            print('------------------- too few valid points in beam', k, dd_no_nans.size, '; skip beam')
+            beams_skipped.append(k)
+            continue
 
         print('gFT', k)
         with threadpool_limits(limits=prm['n_threads'], user_api='blas'):
@@ -201,7 +214,13 @@ def run_stage(ID, batch_key, prm, run):
         print('FFT', k)
         dd[dd_nans] = 0
         S = spec.wavenumber_spectrogram(x, dd, Lpoints)
-        G = S.cal_spectrogram()
+        try:
+            G = S.cal_spectrogram()
+        except ValueError as e:               # 'must supply at least one object to concatenate': beam shorter than one FFT chunk
+            print('FFT failed for beam', k, repr(e), '; skip beam')
+            G_gFT.pop(k), G_gFT_x.pop(k), Pars_optm.pop(k)
+            beams_skipped.append(k)
+            continue
         S.mean_spectral_error()
         S.parceval(add_attrs=True)
         G.coords['beam'] = str(k)
@@ -230,7 +249,7 @@ def run_stage(ID, batch_key, prm, run):
     Gd.close()
     if not G_gFT:
         raise SkipTrack('no beam with enough data', beams_skipped=beams_skipped)
-    run.info(beams_skipped=beams_skipped, n_x=int(list(G_gFT.values())[0].x.size))
+    run.info(beams_skipped=beams_skipped, spike_remover_failed=spike_remover_failed, n_x=int(list(G_gFT.values())[0].x.size))
 
     # %% fill missing beams with nan dummies, save
     MT.save_pandas_table(Pars_optm, save_name + '_params', save_path)

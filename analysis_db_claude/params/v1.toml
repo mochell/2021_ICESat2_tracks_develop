@@ -62,6 +62,7 @@ max_nfev = 8000
 max_nan_fraction = 0.95      # mean nan fraction over beams above this -> skip
 beam_ratio_max = 10          # beam-pair size ratio outside [1/r, r] -> skip
 min_data_fraction_beam = 0.005  # beam with less coverage is skipped (was a commented-out `continue`)
+min_points_beam = 100        # beams with fewer (valid) points are skipped
 N_photos_min = 5             # points with N_photos <= this are treated as nan
 dd_error_fill = 100
 spike_spreed = 10            # spicke_remover

@@ -112,6 +112,9 @@ def run_stage(ID, batch_key, prm, run):
     G_fft_wmean = (Gfft.where(~np.isnan(Gfft), 0) * Gfft['N_per_stancil']).sum('beam') / Gfft['N_per_stancil'].sum('beam')
     G_fft_wmean['N_per_stancil'] = Gfft['N_per_stancil'].sum('beam')
 
+    if not np.isfinite(G_gFT_wmean.data).any():
+        raise SkipTrack('weighted mean spectrum is all nan (no usable stancil)')
+
     # %% peak wavenumber from the first x stancils
     Gmean = G_gFT_wmean.rolling(k=prm['rolling_k'], center=True).mean()
     band = prm['k_max_band']

@@ -565,6 +565,8 @@ def run_stage(ID, batch_key, prm, run):
     run.info(n_dummy=n_dummy, n_wavenumbers_used=n_wavenumbers_used, runtime_per_instance_s=runtime_s)
 
     # %% save
+    if not L_collect:                      # every (group, x) instance was a dummy; the merge below would fail
+        raise SkipTrack('no data in any beam group / x position', n_dummy=n_dummy)
     # explicit join/compat = the current xarray defaults (they change in a future release)
     MM = xr.merge(Marginals.values(), join='outer', compat='no_conflicts')
     MM = xr.merge([MM, Prior_smth], join='outer', compat='no_conflicts')

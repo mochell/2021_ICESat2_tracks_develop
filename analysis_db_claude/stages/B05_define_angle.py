@@ -29,6 +29,17 @@ import ICEsat2_SI_tools.lanczos as lanczos
 
 STAGE = 'B05'
 
+
+def _increasing_levels(clevs, data, n=21):
+    """contourf needs strictly increasing levels; degenerate (constant / nan) data gives equal levels"""
+    clevs = np.asarray(clevs, dtype=float)
+    if clevs.size > 1 and np.all(np.diff(clevs) > 0):
+        return clevs
+    lo, hi = np.nanmin(data), np.nanmax(data)
+    if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
+        lo, hi = (0.0, 1.0) if not np.isfinite(lo) else (lo - 0.5, lo + 0.5)
+    return np.linspace(lo, hi, n)
+
 col.colormaps2(21)
 col_dict = col.rels
 
@@ -102,6 +113,7 @@ class plot_polarspectra(object):
 
         grid = ax.grid(color='k', alpha=.5, linestyle='-', linewidth=.5)
 
+        self.clevs = _increasing_levels(self.clevs, self.data)
         if self.data_type == 'fraction':
             cm = plt.cm.RdYlBu_r
             colorax = ax.contourf(self.thetas, self.k, self.data, self.clevs, cmap=cm, zorder=1)

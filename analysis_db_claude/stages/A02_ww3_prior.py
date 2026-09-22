@@ -155,8 +155,11 @@ def run_stage(ID, batch_key, prm, run):
         lats.sort(reverse=True)
         # find 1st latitude that is completely full with sea ice.
         ice_lat_pos = next((i for i, j in enumerate((ice_mask.sum('longitude') == ice_mask.longitude.size).sel(latitude=lats)) if j), None)
-        # recreate lat mask based on this criteria
-        lat_mask = lats < lats[ice_lat_pos]
+        # recreate lat mask based on this criteria; no fully ice-covered row -> nothing masked
+        # (the old code crashed here with lats[None])
+        lats = np.array(lats)
+        lat_mask = lats < lats[ice_lat_pos] if ice_lat_pos is not None else np.zeros(lats.size, dtype=bool)
+        run.info(ice_edge_row_found=ice_lat_pos is not None)
         lat_mask = xr.DataArray(lat_mask.repeat(ice_mask.longitude.size).reshape(ice_mask.shape), dims=ice_mask.dims, coords=ice_mask.coords)
         lat_mask['latitude'] = lats
 
