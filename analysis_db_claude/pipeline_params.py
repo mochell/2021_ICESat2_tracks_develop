@@ -50,6 +50,41 @@ def load_batch(batch_key):
     return b
 
 
+def region_polygon(batch):
+    """
+    Region of a batch as the dict sct.create_polygons() returns:
+    {'list': [{'lat','lon'}, ... closed ring], 'shapely': Polygon, 'lons': [min,max], 'lats': [min,max]}.
+
+    [region] accepts either
+        lat = [lat0, lat1]; lon = [lon0, lon1]                       axis-aligned box
+    or  polygon = [[lon, lat], [lon, lat], ...]                       any simple polygon (tilted box,
+                                                                      quadrilateral, ...), >= 3 vertices,
+                                                                      closing vertex optional
+    The ring is oriented counter-clockwise (CMR convention) and closed.
+    """
+    from shapely.geometry import Polygon
+    from shapely.geometry.polygon import orient
+    reg = batch['region']
+    if reg.get('polygon'):
+        pts = [(float(p[0]), float(p[1])) for p in reg['polygon']]
+        if len(pts) < 3:
+            raise ValueError('[region] polygon needs at least 3 [lon, lat] vertices')
+        pg = Polygon(pts)
+        if not pg.is_valid:
+            raise ValueError(f'[region] polygon is not a valid simple polygon: {pg.is_valid_reason() if hasattr(pg, "is_valid_reason") else ""}')
+    else:
+        lat = sorted(float(v) for v in reg['lat'])
+        lon = sorted(float(v) for v in reg['lon'])
+        pg = Polygon([(lon[1], lat[1]), (lon[0], lat[1]), (lon[0], lat[0]), (lon[1], lat[0])])
+    pg = orient(pg, sign=1.0)                       # counter-clockwise
+    ring = list(pg.exterior.coords)                 # closed (first == last)
+    lons, lats = [c[0] for c in ring], [c[1] for c in ring]
+    return {'list': [{'lat': la, 'lon': lo} for lo, la in ring],
+            'shapely': pg,
+            'lons': [min(lons), max(lons)], 'lats': [min(lats), max(lats)],
+            'kind': 'polygon' if reg.get('polygon') else 'box'}
+
+
 def load_params(batch_key=None, version=None):
     """all stage sections of params/<version>.toml (version taken from the batch if not given)"""
     if version is None:

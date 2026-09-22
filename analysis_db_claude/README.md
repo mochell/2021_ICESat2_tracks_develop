@@ -15,6 +15,8 @@ gallery.py           plots/<hemis>/<batch>/index.html + per-track / per-stage pa
 stages/              B00_discover, B01_sliderule_load, A02_ww3_prior, B02_spectra, B03_plot_spectra,
                      B04_angle, B05_define_angle, B06_correct, C01_collect, C01_index
 batches/*.toml       batch definitions (region, time, chunking, selection, sliderule nodes)
+                     region: `lat = [..]; lon = [..]` (box) or `polygon = [[lon, lat], ...]` (any simple
+                     polygon, e.g. a tilted box; closed and oriented automatically)
 params/v1.toml       per-stage processing parameters (hashed into every status record)
 tools/               run_batch.sh, discover.sh, serve_gallery.sh, tunnel.sh, sync_groundtracks.sh
 ```

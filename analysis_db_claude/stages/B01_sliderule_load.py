@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipeline_config import mconfig, np, pd, plt, M, MT, col, paths_for, save_fig, font_for_pres
 from pipeline_status import StageRun, SkipTrack, write_status, read_status
-from pipeline_params import load_batch, load_params
+from pipeline_params import load_batch, load_params, region_polygon
 import ICEsat2_SI_tools.sliderule_converter_tools as sct
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.beam_stats as beam_stats
@@ -157,7 +157,7 @@ def run_stage(batch_key, chunk, prm, run):
         raise SkipTrack('no selected granules in chunk')
 
     Gtrack_lowest = gpd.read_file(P.batch_work + 'rgt_start_points.geojson')
-    poly = sct.create_polygons(list(batch['region']['lat']), list(batch['region']['lon']))
+    poly = region_polygon(batch)
 
     # %% SlideRule request: one call for all granules of the chunk, clipped to the polygon
     sl = batch['sliderule']

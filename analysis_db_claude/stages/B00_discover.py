@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))   # analysis_db_cla
 
 from pipeline_config import HERE, mconfig, np, pd, plt, MT, paths_for, save_fig
 from pipeline_status import StageRun, SkipTrack
-from pipeline_params import load_batch, load_params, materialize
+from pipeline_params import load_batch, load_params, materialize, region_polygon
 import ICEsat2_SI_tools.sliderule_converter_tools as sct
 
 STAGE = 'B00'
@@ -106,7 +106,7 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
     ax.plot(th_of(bl), r_of(bb), '-', color='tab:green', linewidth=2, label='batch polygon')
 
     ax.set_title(f"{batch['batch']['key']}  ({hemis}, polar view, r = 90-|lat|)\n"
-                 f"lat {poly['lats'][0]}..{poly['lats'][1]}  lon {poly['lons'][0]}..{poly['lons'][1]}",
+                 f"{poly.get('kind', 'box')}: lat {poly['lats'][0]:.2f}..{poly['lats'][1]:.2f}  lon {poly['lons'][0]:.2f}..{poly['lons'][1]:.2f}",
                  fontsize=9, loc='left')
     ax.legend(loc='lower right', fontsize=7, bbox_to_anchor=(1.15, -0.12))
 
@@ -135,7 +135,7 @@ def run_stage(batch_key, run):
     t1 = dt.datetime.fromisoformat(str(batch['time']['t1']))
 
     # %% polygon and CMR granule list
-    poly = sct.create_polygons(list(batch['region']['lat']), list(batch['region']['lon']))
+    poly = region_polygon(batch)
     print('polygon:', poly['list'])
     granules = earthdata.cmr(short_name='ATL03', polygon=poly['list'],
                              time_start=t0.strftime('%Y-%m-%dT%H:%M:%S'), time_end=t1.strftime('%Y-%m-%dT%H:%M:%S'))
