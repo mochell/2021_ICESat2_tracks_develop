@@ -30,7 +30,7 @@ LOG_TAIL = 60
 GRID_STAGES = ['B01'] + TRACK_STAGES
 
 CSS = """
-body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:13px;margin:16px;color:#222}
+body{font-family:-apple-system,Helvetica,Arial,sans-serif;font-size:13px;margin:16px;color:#222;background:#fff;color-scheme:light}
 h1{font-size:20px;margin:4px 0} h2{font-size:16px;margin:18px 0 6px}
 table{border-collapse:collapse} td,th{padding:3px 6px;border:1px solid #ddd;vertical-align:top}
 th{background:#f5f5f5;text-align:left}
