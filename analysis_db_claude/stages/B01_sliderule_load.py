@@ -54,6 +54,13 @@ def make_B01_dict(table_data, split_by_beam=True, to_hdf5=False):
     return B01b
 
 
+def _utc_posix(t):
+    """POSIX seconds of a tz-naive UTC timestamp (SlideRule times are UTC; the old code used
+    datetime.timestamp() on a naive value, i.e. the machine's local time zone)"""
+    t = pd.Timestamp(t)
+    return float((t if t.tzinfo else t.tz_localize('UTC')).timestamp())
+
+
 def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     """
     absolute x coordinate, per-beam tables, h5 + json + figures for one (rgt, cycle) track.
@@ -120,10 +127,10 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
                    'x_reference_m': x_ref,
                    'start': {'longitude': float(table_data.lons[start_pos]), 'latitude': float(table_data.lats[start_pos]),
                              'seg_dist_x': float(table_data.x[start_pos]),
-                             'delta_time': datetime.datetime.timestamp(table_time[start_pos])},
+                             'delta_time': _utc_posix(table_time[start_pos])},
                    'end': {'longitude': float(table_data.lons[end_pos]), 'latitude': float(table_data.lats[end_pos]),
                            'seg_dist_x': float(table_data.x[end_pos]),
-                           'delta_time': datetime.datetime.timestamp(table_time[end_pos])}}}
+                           'delta_time': _utc_posix(table_time[end_pos])}}}
     MT.json_save2(name='A01b_ID_' + ID, path=save_path_json, data=DD)
 
     n_points = {b: int(Ti[b].shape[0]) for b in BEAMS}
