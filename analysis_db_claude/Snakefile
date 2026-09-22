@@ -19,6 +19,7 @@ import pandas as pd
 sys.path.insert(0, workflow.basedir)
 from pipeline_config import paths_for
 from pipeline_params import materialize, load_batch
+from pipeline_status import read_status
 from pipeline_dag import DEPS, SCRIPT, THREADS, THREADS_DEFAULT, RESOURCES, TRACK_STAGES
 
 BATCH = config['batch']
@@ -98,14 +99,21 @@ def chunk_of(ID):
             return c
     raise ValueError(f'{ID} not in tracks.csv')
 
-# per-track B01 sentinel: written by the chunk job; this rule only checks it exists
+# per-track B01 sentinel: the chunk job writes status/B01/<ID>.json for every expected track;
+# this rule turns a usable record (success/skip/blocked) into the .ok Snakemake target
+# (Snakemake removes the output before running the rule, so the .ok cannot simply be pre-existing)
 rule B01_track:
     input:
         lambda wc: P.status + f'B01/chunk{chunk_of(wc.ID)}.ok'
     output:
         ok('B01')
-    shell:
-        'test -f {output} && touch {output}'
+    run:
+        st = read_status(BATCH, 'B01', wildcards.ID)
+        if st and st['status'] in ('success', 'skip', 'blocked'):
+            open(output[0], 'w').close()
+        else:
+            raise ValueError(f"B01 {wildcards.ID}: status {st['status'] if st else 'missing'} "
+                                f"({(st or {}).get('reason') or (st or {}).get('error_msg') or ''}); rerun with -R B01")
 
 
 # ------------------------------------------------------------------ per-track stages
