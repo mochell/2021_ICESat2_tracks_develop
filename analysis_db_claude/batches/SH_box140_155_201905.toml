@@ -1,0 +1,25 @@
+# First milestone batch: Wilkes Land box, May 2019 (the box from analysis_db/B01_SL_load_batch.py)
+[batch]
+key            = "SH_box140_155_201905"     # must start with "<HEMIS>_"
+hemis          = "SH"
+description    = "Wilkes Land box 140-155E, 62-67.2S, 2019-05-01..05-20"
+params_version = "v1"                       # -> params/v1.toml
+
+[region]
+lat = [-67.2, -62.0]
+lon = [140.0, 155.0]
+
+[time]
+t0 = "2019-05-01T00:00:00"
+t1 = "2019-05-20T00:00:00"
+chunk_days = 10                             # one SlideRule request per chunk; 0 = whole window
+
+[selection]
+max_tracks   = 20                           # 0 = all; first N by time
+include_ids  = []
+exclude_ids  = []
+require_rgt  = true                         # drop granules whose RGT is not in the shapefile subset
+
+[sliderule]
+desired_nodes = 3
+time_to_live  = 120                         # minutes; nodes take ~2-3 min to come up

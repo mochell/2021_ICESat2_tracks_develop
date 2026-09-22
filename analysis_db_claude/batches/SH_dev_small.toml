@@ -1,0 +1,25 @@
+# Small development batch for the laptop: same box, first 5 days, at most 10 tracks, one chunk.
+[batch]
+key            = "SH_dev_small"
+hemis          = "SH"
+description    = "dev: Wilkes Land box, 2019-05-01..05-05, <= 10 tracks"
+params_version = "v1"
+
+[region]
+lat = [-67.2, -62.0]
+lon = [140.0, 155.0]
+
+[time]
+t0 = "2019-05-01T00:00:00"
+t1 = "2019-05-05T00:00:00"
+chunk_days = 0
+
+[selection]
+max_tracks   = 10
+include_ids  = []
+exclude_ids  = []
+require_rgt  = true
+
+[sliderule]
+desired_nodes = 3
+time_to_live  = 120
