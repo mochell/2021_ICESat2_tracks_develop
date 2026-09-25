@@ -73,6 +73,15 @@ B01 runs per time chunk (`chunk_days` in the batch file): `status/B01/chunk<n>.j
 download job and one record per expected track. A track that failed inside a chunk is retried only
 with `-R B01` (re-downloads the chunk).
 
+## Optional angle
+
+B06 and C01 only *wait* for B05 (any final status) and use its angle pdf when B05 succeeded. Without
+it (typically B04 skip: no complete beam pair) B06 still writes the spectra, cut-off wavenumbers,
+attenuation figures and the `_gFT_k_corrected.nc` file — with `k_corrected`/`x_corrected` all nan and
+`angle_applied = 0` in its attrs — and C01 records `theta_applied = 0` and `angle_reason`. Filter the
+database by `theta_applied` when the correction matters. `ORDER_AFTER` in `pipeline_dag.py` holds
+these wait-only dependencies; `DEPS` the hard ones.
+
 ## Reruns
 
 - Edit `params/v1.toml` → `materialize()` rewrites `work/<batch>/params/<stage>.json` only if that

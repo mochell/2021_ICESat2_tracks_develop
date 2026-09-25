@@ -59,6 +59,22 @@ function setCardSize(px){
 }
 document.addEventListener('DOMContentLoaded',()=>{ let px=380; try{ px=+localStorage.getItem('gallery_card_w')||380; }catch(e){} setCardSize(px); });
 """
+JS_SORT = """
+function sortCards(mode){
+  const grid=document.querySelector('.grid'); if(!grid) return;
+  const cards=Array.from(grid.children);
+  const key=c=>mode==='id'?c.dataset.id:(c.dataset.mtime||'');
+  cards.sort((a,b)=>{ const ka=key(a), kb=key(b); return mode==='newest' ? (kb>ka?1:kb<ka?-1:0) : (ka>kb?1:ka<kb?-1:0); });
+  cards.forEach(c=>grid.appendChild(c));
+  try{ localStorage.setItem('gallery_sort', mode); }catch(e){}
+  const sel=document.getElementById('f_sort'); if(sel) sel.value=mode;
+}
+document.addEventListener('DOMContentLoaded',()=>{ let m='id'; try{ m=localStorage.getItem('gallery_sort')||'id'; }catch(e){} sortCards(m); });
+"""
+SORTBAR = ('<span class="sizebar">order: <select id="f_sort" onchange="sortCards(this.value)">'
+           '<option value="id">track ID</option><option value="newest">newest first</option>'
+           '<option value="oldest">oldest first</option></select></span>')
+
 SIZEBAR = ('<div class="sizebar">image size: ' + ''.join(
     f'<button data-px="{px}" onclick="setCardSize({px})">{lab}</button>'
     for lab, px in (('S', 240), ('M', 380), ('L', 600), ('XL', 900), ('XXL', 1400))) + '</div>')
@@ -215,8 +231,8 @@ def track_page(P, batch_key, ID, recs, row):
 def stage_page(P, batch_key, stage, rows, recs):
     pattern = KEY_FIGURE.get(stage)
     parts = [f'<html><head><meta charset="utf-8"><title>{batch_key} {stage}</title><style>{CSS}</style>'
-             f'<script>{JS_FILTER}</script><script>{JS_SIZE}</script></head><body>',
-             f'<a href="../../index.html">&larr; {batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>', SIZEBAR,
+             f'<script>{JS_FILTER}</script><script>{JS_SIZE}</script><script>{JS_SORT}</script></head><body>',
+             f'<a href="../../index.html">&larr; {batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>', SIZEBAR + SORTBAR,
              '<div class="filters">status <select id="f_status"><option value="">all</option>'
              + ''.join(f'<option>{s}</option>' for s in STATUS_ORDER) + '</select>'
              '<input type="hidden" id="f_stage" value="' + stage + '"><input type="hidden" id="f_err" value="">'
@@ -234,9 +250,10 @@ def stage_page(P, batch_key, stage, rows, recs):
             if thumb(P.plot_batch + ID + '/' + fig, P.plot_batch + '_gallery/thumbs/' + ID + '/' + fig.replace('/', '__') + '.jpg'):
                 img = f'<a href="../../{ID}/{fig}"><img src="{th_rel}" data-thumb="{th_rel}" data-full="../../{ID}/{fig}" loading="lazy"></a>'
         note = esc(row.get(stage + '_reason', ''))[:120]
-        parts.append(f'<div class="card" data-row="1" data-id="{ID}" data-s_{stage}="{row[stage]}">'
+        mtime = esc((r or {}).get('t_end') or (r or {}).get('t_start') or '')
+        parts.append(f'<div class="card" data-row="1" data-id="{ID}" data-s_{stage}="{row[stage]}" data-mtime="{mtime}">'
                      f'<div><a href="../track/{ID}.html">{ID}</a> {badge(row[stage])} '
-                     f'<span class="small">{esc((r or {}).get("runtime_s") or "")} s</span></div>{img}'
+                     f'<span class="small">{esc((r or {}).get("runtime_s") or "")} s · {mtime[:16].replace("T", " ")}</span></div>{img}'
                      f'<div class="small">{note}</div></div>')
     parts.append('</div></body></html>')
     out = P.plot_batch + '_gallery/stage/' + stage + '.html'

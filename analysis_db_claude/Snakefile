@@ -20,7 +20,7 @@ sys.path.insert(0, workflow.basedir)
 from pipeline_config import paths_for
 from pipeline_params import materialize, load_batch
 from pipeline_status import read_status
-from pipeline_dag import DEPS, SCRIPT, THREADS, THREADS_DEFAULT, RESOURCES, TRACK_STAGES
+from pipeline_dag import DEPS, ORDER_AFTER, SCRIPT, THREADS, THREADS_DEFAULT, RESOURCES, TRACK_STAGES
 
 BATCH = config['batch']
 P = paths_for(BATCH)
@@ -124,7 +124,7 @@ def make_track_rule(stage):
         input:
             script = SD + '/' + SCRIPT[stage],
             prm = lambda wc: PRM[stage],
-            up = [ok(d) for d in DEPS[stage]],
+            up = [ok(d) for d in DEPS[stage] + ORDER_AFTER.get(stage, [])],   # .ok exists for any final status
         output:
             ok(stage)
         log:

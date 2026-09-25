@@ -13,9 +13,13 @@ DEPS = {
     'B03': ['B02'],
     'B04': ['B02', 'A02'],
     'B05': ['B04'],
-    'B06': ['B02', 'B05'],
-    'C01': ['B06', 'B05', 'A02'],
+    'B06': ['B02'],            # B05 angle is optional (see ORDER_AFTER)
+    'C01': ['B06', 'A02'],     # B05 angle is optional
 }
+
+# stages that must have *finished* (any status) before a stage runs, without being required to
+# succeed: B06 / C01 use the B05 angle when it exists and otherwise write uncorrected products
+ORDER_AFTER = {'B06': ['B05'], 'C01': ['B05']}
 
 # per-track stages (B00 and B01 run per batch / per chunk)
 TRACK_STAGES = ['A02', 'B02', 'B03', 'B04', 'B05', 'B06', 'C01']

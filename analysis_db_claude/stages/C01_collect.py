@@ -29,12 +29,14 @@ PRIOR_SCALARS = ['hs', 'fp', 'dir', 'dp', 'spr', 't01', 't02', 'ice', 'lon', 'la
 
 def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B06', 'B05', 'A02'])
+    require_upstream(run, ['B06', 'A02'])     # B05 angle optional
     save_path = P.stage_dir('C01_database')
 
     # %% load
     Gk = xr.open_dataset(P.stage_dir('B06_corrected_separated') + f'B06_{ID}_gFT_k_corrected.nc')
-    Ga = xr.open_dataset(P.stage_dir('B04_angle') + f'B05_{ID}_angle_pdf.nc')
+    angle_file = P.stage_dir('B04_angle') + f'B05_{ID}_angle_pdf.nc'
+    b05 = read_status(batch_key, 'B05', ID) or {}
+    Ga = xr.open_dataset(angle_file) if (b05.get('status') == 'success' and os.path.exists(angle_file)) else None
     Prior = MT.load_pandas_table_dict('/A02_' + ID, P.stage_dir('A02_prior'))['priors_hindcast']
     with open(P.stage_dir('A01b_ID') + f'A01b_ID_{ID}.json') as f:
         IDj = json.load(f)
@@ -52,10 +54,11 @@ def run_stage(ID, batch_key, prm, run):
     D = D.transpose('x', 'beam', 'k', missing_dims='ignore')
 
     # %% angle PDF on its own x axis
-    A = xr.Dataset({'angle_PDF': Ga.weighted_angle_PDF.rename({'x': 'x_angle'}),
-                    'angle_PDF_smth': Ga.weighted_angle_PDF_smth.rename({'x': 'x_angle'})})
-    A.coords['N_data_angle'] = Ga.N_data.rename({'x': 'x_angle'})
-    D = xr.merge([D, A])
+    if Ga is not None:
+        A = xr.Dataset({'angle_PDF': Ga.weighted_angle_PDF.rename({'x': 'x_angle'}),
+                        'angle_PDF_smth': Ga.weighted_angle_PDF_smth.rename({'x': 'x_angle'})})
+        A.coords['N_data_angle'] = Ga.N_data.rename({'x': 'x_angle'})
+        D = xr.merge([D, A])
 
     # %% scalars and metadata
     theta = float(Gk.attrs.get('best_guess_incident_angle', np.nan))
@@ -73,6 +76,7 @@ def run_stage(ID, batch_key, prm, run):
         'start_time': dt.datetime.fromtimestamp(IDj['pars']['start']['delta_time'], dt.UTC).replace(tzinfo=None).isoformat(),
         'best_guess_incident_angle_rad': theta, 'best_guess_incident_angle_deg': float(np.rad2deg(theta)),
         'theta_applied': int(bool(b06.get('theta_applied', not np.isnan(theta)))),
+        'angle_status': b05.get('status', 'not_run'), 'angle_reason': b05.get('reason') or '',
         'L': float(Gk.attrs.get('L', np.nan)), 'Lpoints': int(Gk.attrs.get('Lpoints', 0)),
         'created': dt.datetime.now().isoformat(),
     }
@@ -98,7 +102,7 @@ def run_stage(ID, batch_key, prm, run):
     D.to_netcdf(out, encoding=enc)
     size_mb = os.path.getsize(out) / 1e6
     print(f'saved {out} ({size_mb:.2f} MB)')
-    run.info(size_mb=round(size_mb, 2), n_x=int(D.x.size), n_k=int(D.k.size), n_x_angle=int(D.x_angle.size),
+    run.info(size_mb=round(size_mb, 2), n_x=int(D.x.size), n_k=int(D.k.size), n_x_angle=int(D.x_angle.size) if 'x_angle' in D.dims else 0,
              theta_deg=attrs['best_guess_incident_angle_deg'], prior_hs=attrs.get('prior_hs'), prior_dir=attrs.get('prior_dir'))
 
 

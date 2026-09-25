@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipeline_config import (mconfig, np, pd, xr, plt, GridSpec, M, MT, col, lstrings, fig_sizes,
                              font_for_print, font_for_pres, paths_for, save_fig, cli_args)
-from pipeline_status import StageRun, SkipTrack, require_upstream
+from pipeline_status import StageRun, SkipTrack, require_upstream, read_status
 from pipeline_params import load_params
 
 import h5py
@@ -183,7 +183,7 @@ def save_pandas_table_overwrite(table_dict, name, save_path):
 # ----------------------------------------------------------------------------- stage
 def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B02', 'B05'])
+    require_upstream(run, ['B02'])            # B05 (angle) is optional, see below
     ID_name = ID
 
     all_beams = mconfig['beams']['all_beams']
@@ -208,9 +208,14 @@ def run_stage(ID, batch_key, prm, run):
     Gx = xr.open_dataset(load_file + '_gFT_x.nc')
     Gfft = xr.open_dataset(load_file + '_FFT.nc')
 
+    # the angle correction needs the B05 angle pdf; without it (no beam pairs in B04, ...) the
+    # spectra, cut-off wavenumbers and attenuation figures are still produced, uncorrected
     angle_file = load_path_angle + 'B05_' + ID_name + '_angle_pdf.nc'
-    if not os.path.exists(angle_file):
-        raise SkipTrack('no B05 angle pdf', angle_file=angle_file)
+    b05 = read_status(batch_key, 'B05', ID_name) or {}
+    have_angle = b05.get('status') == 'success' and os.path.exists(angle_file)
+    if not have_angle:
+        print('no B05 angle pdf (B05 status:', b05.get('status', 'missing'), ') -> no angle correction')
+    run.upstream['B05'] = b05.get('status', 'not_run')
 
     col.colormaps2(31, gamma=1)
     col_dict = col.rels
@@ -453,44 +458,47 @@ def run_stage(ID, batch_key, prm, run):
 
         B3_v2[bb] = T3
 
-    # %% wave incident direction from the B05 angle pdf
-    G_angle = xr.open_dataset(angle_file)
+    # %% wave incident direction from the B05 angle pdf (optional)
+    theta, theta_flag = np.nan, False
+    G_angle = xr.open_dataset(angle_file) if have_angle else None
+    if G_angle is None:
+        run.info(theta_deg=np.nan, theta_applied=False, angle_reason=b05.get('reason') or ('B05 ' + b05.get('status', 'missing')))
+    else:
 
-    Ga_abs = (G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle > 0).data + G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle < 0).data[:, ::-1]) / 2
-    # Ga_abs is (x, angle); use explicit dims, Dataset.dims ordering is not guaranteed in recent xarray
-    Ga_abs = xr.DataArray(data=Ga_abs, dims=('x', 'angle'), coords=G_angle.isel(angle=G_angle.angle > 0).coords)
+        Ga_abs = (G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle > 0).data + G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle < 0).data[:, ::-1]) / 2
+        # Ga_abs is (x, angle); use explicit dims, Dataset.dims ordering is not guaranteed in recent xarray
+        Ga_abs = xr.DataArray(data=Ga_abs, dims=('x', 'angle'), coords=G_angle.isel(angle=G_angle.angle > 0).coords)
 
-    Ga_abs_front = Ga_abs.isel(x=slice(0, prm['angle_front_x']))
-    Ga_best = ((Ga_abs_front * Ga_abs_front.N_data).sum('x') / Ga_abs_front.N_data.sum('x'))
+        Ga_abs_front = Ga_abs.isel(x=slice(0, prm['angle_front_x']))
+        Ga_best = ((Ga_abs_front * Ga_abs_front.N_data).sum('x') / Ga_abs_front.N_data.sum('x'))
 
-    theta = Ga_best.angle[np.argmax(Ga_best.data)].data     # flat index; DataArray.argmax() without dim is deprecated
-    theta_flag = True
-    run.info(theta_deg=float(theta * 180 / np.pi), theta_applied=bool(theta_flag))
+        theta = Ga_best.angle[np.argmax(Ga_best.data)].data     # flat index; DataArray.argmax() without dim is deprecated
+        theta_flag = True
+        run.info(theta_deg=float(theta * 180 / np.pi), theta_applied=bool(theta_flag))
 
-    font_for_print()
-    F = M.figure_axis_xy(3, 5, view_scale=0.7)
+        font_for_print()
+        F = M.figure_axis_xy(3, 5, view_scale=0.7)
 
-    plt.subplot(2, 1, 1)
-    plt.pcolor(Ga_abs)
-    plt.xlabel('abs angle')
-    plt.ylabel('x')
+        plt.subplot(2, 1, 1)
+        plt.pcolor(Ga_abs)
+        plt.xlabel('abs angle')
+        plt.ylabel('x')
 
-    ax = plt.subplot(2, 1, 2)
-    Ga_best.plot()
-    plt.title('angle front ' + str(theta * 180 / np.pi), loc='left')
-    ax.axvline(theta, color='red')
-    save_fig(F, plot_path, 'B06_angle_def', pdf=False)
+        ax = plt.subplot(2, 1, 2)
+        Ga_best.plot()
+        plt.title('angle front ' + str(theta * 180 / np.pi), loc='left')
+        ax.axvline(theta, color='red')
+        save_fig(F, plot_path, 'B06_angle_def', pdf=False)
 
     # %% corrected wavenumber and distance axes
     lam_p = 2 * np.pi / Gk.k
-    lam = lam_p * np.cos(theta)
-
     if theta_flag:
+        lam = lam_p * np.cos(theta)
         k_corrected = 2 * np.pi / lam
         x_corrected = Gk.x * np.cos(theta)
-    else:
-        k_corrected = 2 * np.pi / lam * np.nan
-        x_corrected = Gk.x * np.cos(theta) * np.nan
+    else:                                  # no angle: corrected axes are nan, the rest is still written
+        k_corrected = Gk.k * np.nan
+        x_corrected = Gk.x * np.nan
 
     # %% spectral save
     G5 = G_gFT_wmean.expand_dims(dim='beam', axis=1)
@@ -503,7 +511,8 @@ def run_stage(ID, batch_key, prm, run):
 
     Gk_v2 = Gk_v2.assign_coords(x_corrected=("x", x_corrected.data)).assign_coords(k_corrected=("k", k_corrected.data))
 
-    Gk_v2.attrs['best_guess_incident_angle'] = theta
+    Gk_v2.attrs['best_guess_incident_angle'] = float(theta)
+    Gk_v2.attrs['angle_applied'] = int(theta_flag)
 
     Gk_v2.to_netcdf(save_path + 'B06_' + ID_name + '_gFT_k_corrected.nc')
 
