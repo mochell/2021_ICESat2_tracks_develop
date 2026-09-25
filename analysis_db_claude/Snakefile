@@ -153,8 +153,10 @@ rule gallery:
     shell:
         f'{ENV} {PY} {SD}/gallery.py {BATCH}'
 
+# the index rule needs every track's C01; after a run with failures it is not reached, so the
+# index and the gallery are always refreshed at the end of a run
 onsuccess:
-    shell(f'{ENV} {PY} {SD}/gallery.py {BATCH} || true')
+    shell(f'{ENV} {PY} {SD}/stages/C01_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')
 
 onerror:
-    shell(f'{ENV} {PY} {SD}/gallery.py {BATCH} || true')
+    shell(f'{ENV} {PY} {SD}/stages/C01_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')
