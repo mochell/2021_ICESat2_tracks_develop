@@ -380,7 +380,9 @@ def run_stage(ID, batch_key, prm, run):
         N_data = x_concat.size
 
         mean_dist = (nu_2d.isel(beam=0) - nu_2d.isel(beam=1)).mean().data
-        k_upper_lim = 2 * np.pi / (mean_dist * 1)
+        # abs(): the across-track beam offset is negative when the pair is ordered the other way
+        # (flipped orientation); the old code then selected no wavenumber at all ('no good k found')
+        k_upper_lim = 2 * np.pi / abs(mean_dist)
         if N_data == 0 or not np.isfinite(k_upper_lim):
             print('no finite data/positions in this beam pair, fill with dummy')
             Marginals[ikey] = make_fake_data(xi, group)
