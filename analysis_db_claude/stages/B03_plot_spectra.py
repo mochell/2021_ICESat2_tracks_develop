@@ -118,11 +118,18 @@ def run_stage(ID, batch_key, prm, run):
     # %% peak wavenumber from the first x stancils
     Gmean = G_gFT_wmean.rolling(k=prm['rolling_k'], center=True).mean()
     band = prm['k_max_band']
-    try:
-        k_max = Gmean.k[Gmean.isel(x=slice(0, prm['k_max_first_x'][0])).mean('x').argmax().data].data
-    except Exception as e:
-        print('k_max from first', prm['k_max_first_x'][0], 'stancils failed, using', prm['k_max_first_x'][1], ':', repr(e))
-        k_max = Gmean.k[Gmean.isel(x=slice(0, prm['k_max_first_x'][1])).mean('x').argmax().data].data
+    # peak of the mean over the first N stancils; on tracks whose data start later the mean is all
+    # nan (argmax raises), so widen to the fallback N and finally to the whole track
+    k_max = None
+    for n_first in list(prm['k_max_first_x']) + [None]:
+        Gsub = Gmean.isel(x=slice(0, n_first)).mean('x')
+        if np.isfinite(Gsub.data).any():
+            k_max = Gmean.k[int(Gsub.argmax().data)].data
+            if n_first != prm['k_max_first_x'][0]:
+                print('k_max taken from the first', n_first or 'all', 'stancils (earlier ones are all nan)')
+            break
+    if k_max is None:
+        raise SkipTrack('weighted mean spectrum is all nan at every x')
     k_max_range = k_max * band[0], k_max * 1, k_max * band[1]
 
     # %% spectrogram overview figure

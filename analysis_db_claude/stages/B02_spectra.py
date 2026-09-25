@@ -185,7 +185,11 @@ def run_stage(ID, batch_key, prm, run):
 
         x_coord_no_gaps = linear_gap_fill(Gd_cut, 'x', 'x')
         y_coord_no_gaps = linear_gap_fill(Gd_cut, 'x', 'y')
-        mapped_coords = spec.sub_sample_coords(Gd_cut['x'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter, map_func=None)
+        mapped_coords = np.atleast_2d(spec.sub_sample_coords(Gd_cut['x'], x_coord_no_gaps, y_coord_no_gaps, S.stancil_iter, map_func=None))
+        if mapped_coords.ndim != 2 or mapped_coords.shape[1] != 3 or mapped_coords.shape[0] != GG.x.size:
+            print('------------------- stancil/coordinate mismatch in beam', k, mapped_coords.shape, '; skip beam')
+            beams_skipped.append(k)
+            continue
         GG.coords['x_coord'] = GG_x.coords['x_coord'] = (('x', 'beam'), np.expand_dims(mapped_coords[:, 1], 1))
         GG.coords['y_coord'] = GG_x.coords['y_coord'] = (('x', 'beam'), np.expand_dims(mapped_coords[:, 2], 1))
 
