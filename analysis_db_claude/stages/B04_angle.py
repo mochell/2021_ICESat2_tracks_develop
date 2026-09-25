@@ -289,8 +289,12 @@ def run_stage(ID, batch_key, prm, run):
     data_mask = Gk.gFT_PSD_data.mean('k')
     data_mask.coords['beam_group'] = ('beam', ['beam_group' + g[2] for g in data_mask.beam.data])
     data_mask_group = data_mask.groupby('beam_group').mean(skipna=False)
-    # these stancils are actually used
-    data_sel_mask = data_mask_group.sum('beam_group') != 0
+    # stancils that are actually usable: at least min_groups_with_data beam pairs have a finite
+    # spectrum there (the old code took any stancil where *some* pair had data and then found no
+    # data for the other pairs -> all-dummy tracks on sparse / ice-covered tracks)
+    n_groups_with_data = (~np.isnan(data_mask_group)).sum('beam_group')
+    data_sel_mask = n_groups_with_data >= prm.get('min_groups_with_data', 1)
+    run.info(n_x_any_group=int((n_groups_with_data > 0).sum()), n_x_selected=int(data_sel_mask.sum()))
 
     x_list = data_sel_mask.x[data_sel_mask]  # iterate over these x posistions
     x_list_flag = ~np.isnan(data_mask_group.sel(x=x_list))  # flag that is False if there is no data

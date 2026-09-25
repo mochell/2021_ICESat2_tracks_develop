@@ -90,6 +90,7 @@ N_sample_chain_burn = 30
 max_wavenumbers = 25
 max_x_pos = 8
 x_pos_jump = 2
+min_groups_with_data = 2     # a stancil is used only if >= this many beam pairs have a spectrum there (1 = old behaviour)
 alpha_range = [-0.85, 0.85]  # times pi/2
 alpha_walkers = 5
 phase_walkers = 10
