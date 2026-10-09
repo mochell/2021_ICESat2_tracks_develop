@@ -9,6 +9,7 @@ Writes plots/<hemis>/<batch>/index.html                      track x stage grid,
        plots/<hemis>/<batch>/_gallery/stage/<stage>.html      key figure of one stage for all tracks
        plots/<hemis>/<batch>/_gallery/thumbs/<ID>/*.jpg       360 px thumbnails (PIL)
        plots/<hemis>/<batch>/status.csv, status_summary.json
+       plots/index.html                                       overview of all batches (also: python gallery.py --overview)
 
 Serve the plots root with `tools/serve_gallery.sh` (cerberus) and open it through `tools/tunnel.sh`.
 """
@@ -333,9 +334,45 @@ def build(batch_key):
         json.dump({'batch': batch_key, 'generated': dt.datetime.now().isoformat(), 'n_tracks': len(rows), 'counts': counts}, f, indent=2)
     print(f'gallery: {len(rows)} tracks -> {P.plot_batch}index.html')
     print(pd.DataFrame(counts).T[STATUS_ORDER].to_string())
+    build_overview()
     return P.plot_batch + 'index.html'
+
+
+# ----------------------------------------------------------------------------- overview of all batches
+def build_overview():
+    """plots/index.html: one card per batch (name, description, B00 polar map, C01 count) linking to its page."""
+    root = paths_for('XX_overview').plot
+    cards = []
+    for summ in sorted(glob.glob(root + '*/*/status_summary.json')):
+        bdir = os.path.dirname(summ) + '/'
+        rel = os.path.relpath(bdir, root) + '/'
+        s = json.load(open(summ))
+        batch_key = s.get('batch', os.path.basename(bdir[:-1]))
+        meta = {}
+        bj = paths_for(batch_key).batch_work + 'batch.json'
+        if os.path.exists(bj):
+            meta = json.load(open(bj))
+        reg, tim = meta.get('region', {}), meta.get('time', {})
+        region = (f'lat {esc(reg.get("lat"))} lon {esc(reg.get("lon"))}' if 'lat' in reg
+                  else f'polygon, {len(reg.get("polygon", []))} vertices' if reg.get('polygon') else '')
+        c01 = s.get('counts', {}).get('C01', {})
+        img = (f'<a href="{rel}index.html"><img src="{rel}_batch/B00_overview.png" loading="lazy"></a>'
+               if os.path.exists(bdir + '_batch/B00_overview.png') else '<div class="small">no B00 overview</div>')
+        cards.append(f'<div class="card"><h2 style="margin:2px 0"><a href="{rel}index.html">{esc(batch_key)}</a></h2>'
+                     f'<div class="small">{esc(meta.get("batch", {}).get("description", ""))}</div>'
+                     f'<div class="small">{esc(tim.get("t0", ""))[:10]} .. {esc(tim.get("t1", ""))[:10]} — {region}</div>'
+                     f'<div class="small">{s.get("n_tracks", "?")} tracks, {c01.get("success", 0)} in C01 database — '
+                     f'updated {esc(s.get("generated", ""))[:16].replace("T", " ")}</div>{img}</div>')
+    page = (f'<html><head><meta charset="utf-8"><title>ICESat-2 batches</title><style>{CSS}</style></head><body>'
+            f'<h1>ICESat-2 wave-spectra batches</h1><div class="small">{len(cards)} batches — generated {dt.datetime.now():%Y-%m-%d %H:%M}</div>'
+            f'<div class="grid" style="margin-top:10px">{"".join(cards)}</div></body></html>')
+    Path(root + 'index.html').write_text(page)
+    print(f'overview: {len(cards)} batches -> {root}index.html')
 
 
 if __name__ == '__main__':
     args = [a for a in sys.argv[1:] if not a.startswith('-')]
-    build(args[0] if args else 'SH_dev_small')
+    if '--overview' in sys.argv:
+        build_overview()
+    else:
+        build(args[0] if args else 'SH_dev_small')
