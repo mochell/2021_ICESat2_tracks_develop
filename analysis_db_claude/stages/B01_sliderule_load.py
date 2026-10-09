@@ -54,6 +54,28 @@ def make_B01_dict(table_data, split_by_beam=True, to_hdf5=False):
     return B01b
 
 
+def classify_beams(n_beam, min_points, allow_missing_weak):
+    """
+    Which beams are usable. Every pair (gtNl, gtNr) has one strong and one weak beam and all strong
+    beams sit on the same side, which flips with the spacecraft orientation -> the strong side is the
+    one with more points. Thin weak beams are tolerated (B02/B03/B06 run on the strong beams; B04
+    then has no complete pair and skips, B06 runs without the angle). A thin strong beam -> skip.
+    """
+    side_n = {s: sum(n_beam[f'gt{i}{s}'] for i in (1, 2, 3)) for s in 'lr'}
+    strong_side = 'l' if side_n['l'] >= side_n['r'] else 'r'
+    strong = [f'gt{i}{strong_side}' for i in (1, 2, 3)]
+    thin = [b for b in BEAMS if n_beam[b] < min_points]
+    info = {'strong_side': strong_side, 'beams_thin': thin, 'beams_ok': [b for b in BEAMS if b not in thin]}
+    if not thin:
+        return dict(info, beam_mode='all')
+    thin_strong = [b for b in thin if b in strong]
+    if thin_strong:
+        raise SkipTrack(f'strong beams with < {min_points} points: {thin_strong}', n_points=n_beam, **info)
+    if not allow_missing_weak:
+        raise SkipTrack(f'weak beams with < {min_points} points: {thin}', n_points=n_beam, **info)
+    return dict(info, beam_mode='strong_only' if len(thin) == 3 else 'weak_partial')
+
+
 def _utc_posix(t):
     """POSIX seconds of a tz-naive UTC timestamp (SlideRule times are UTC; the old code used
     datetime.timestamp() on a naive value, i.e. the machine's local time zone)"""
@@ -86,9 +108,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
 
     Ti = make_B01_dict(table_data, split_by_beam=True, to_hdf5=True)
     n_beam = {b: int(Ti[b].shape[0]) for b in BEAMS}
-    thin = [b for b, n in n_beam.items() if n < prm['min_points_per_beam']]
-    if thin:
-        raise SkipTrack(f'beams with < {prm["min_points_per_beam"]} points: {thin}', n_points=n_beam)
+    beams = classify_beams(n_beam, prm['min_points_per_beam'], prm.get('allow_missing_weak_beams', False))
     for kk in Ti.keys():
         Ti[kk]['dist'] = Ti[kk]['x'].copy()
         Ti[kk]['heights_c_weighted_mean'] = Ti[kk]['h_mean'].copy()
@@ -134,7 +154,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     MT.json_save2(name='A01b_ID_' + ID, path=save_path_json, data=DD)
 
     n_points = {b: int(Ti[b].shape[0]) for b in BEAMS}
-    return {'n_points': n_points, 'n_points_total': int(sum(n_points.values())), 'ascending': bool(ascending),
+    return {'n_points': n_points, 'n_points_total': int(sum(n_points.values())), 'ascending': bool(ascending), **beams,
             'beam_stats_ok': beam_stats_ok,
             'x_reference_m': x_ref, 'x_min_km': float(table_data.x.min() / 1e3), 'x_max_km': float(table_data.x.max() / 1e3),
             'N_photos_median': {b: float(Ti[b].N_photos.median()) if len(Ti[b]) else np.nan for b in BEAMS}}

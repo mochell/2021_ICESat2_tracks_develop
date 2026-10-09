@@ -17,6 +17,7 @@ import os
 import sys
 import json
 import html
+import re
 import glob
 import datetime as dt
 from pathlib import Path
@@ -166,6 +167,30 @@ def collect(batch_key):
     return P, tracks, recs, ids, batch_jobs, rows
 
 
+def _info(r):
+    i = (r or {}).get('info')
+    if isinstance(i, str):
+        try:
+            i = json.loads(i)
+        except ValueError:
+            i = None
+    return i if isinstance(i, dict) else {}
+
+
+def b01_stats(rows, recs):
+    """B01 skip reasons (numbers and beam lists generalized) and beam modes of the kept tracks"""
+    skips, modes = {}, {}
+    for r in rows:
+        if r['B01'] == 'skip':
+            key = re.sub(r'\[[^\]]*\]', '[..]', r['B01_reason'] or '')
+            key = re.sub(r'\d+(\.\d+)?', 'N', key)
+            skips[key] = skips.get(key, 0) + 1
+        elif r['B01'] == 'success':
+            m = _info(recs.get(('B01', r['ID']))).get('beam_mode', 'all')
+            modes[m] = modes.get(m, 0) + 1
+    return dict(sorted(skips.items(), key=lambda kv: -kv[1])), modes
+
+
 def summary_counts(rows):
     out = {}
     for s in GRID_STAGES:
@@ -262,7 +287,7 @@ def stage_page(P, batch_key, stage, rows, recs):
     Path(out).write_text('\n'.join(parts))
 
 
-def index_page(P, batch_key, rows, recs, batch_jobs, counts):
+def index_page(P, batch_key, rows, recs, batch_jobs, counts, skips=None, modes=None, n_all=None):
     batch = {}
     if os.path.exists(P.batch_work + 'batch.json'):
         batch = json.load(open(P.batch_work + 'batch.json'))
@@ -283,6 +308,16 @@ def index_page(P, batch_key, rows, recs, batch_jobs, counts):
         parts.append(f'<tr><th><a href="_gallery/stage/{s}.html">{s}</a></th>'
                      + ''.join(f'<td>{counts[s][k] or ""}</td>' for k in STATUS_ORDER) + '</tr>')
     parts.append('</table>')
+
+    # B01 outcome: skipped tracks are not listed below, only counted here
+    if skips or modes:
+        n_skip = sum((skips or {}).values())
+        parts.append(f'<h2>B01 data screening</h2><div class="small">{n_all} tracks in the batch, {n_skip} skipped by B01 '
+                     f'(not listed below), {len(rows)} listed</div><table><tr><th>B01 skip reason</th><th>tracks</th></tr>')
+        parts += [f'<tr><td>{esc(k)}</td><td>{v}</td></tr>' for k, v in (skips or {}).items()]
+        parts.append('<tr><th>beam mode of kept tracks</th><th></th></tr>')
+        parts += [f'<tr><td>{esc(k)}</td><td>{v}</td></tr>' for k, v in (modes or {}).items()]
+        parts.append('</table>')
 
     # batch-level jobs
     if batch_jobs:
@@ -321,18 +356,21 @@ def index_page(P, batch_key, rows, recs, batch_jobs, counts):
 def build(batch_key):
     P, tracks, recs, ids, batch_jobs, rows = collect(batch_key)
     MT.mkdirs_r(P.plot_batch + '_gallery/')
-    counts = summary_counts(rows)
-    for row in rows:
+    counts = summary_counts(rows)                     # statistics over all tracks, B01 skips included
+    skips, modes = b01_stats(rows, recs)
+    shown = [r for r in rows if r['B01'] != 'skip']   # no usable data in the box -> not in the gallery
+    for row in shown:
         track_page(P, batch_key, row['ID'], recs, row)
     for s in GRID_STAGES:
-        stage_page(P, batch_key, s, rows, recs)
-    index_page(P, batch_key, rows, recs, batch_jobs, counts)
+        stage_page(P, batch_key, s, shown, recs)
+    index_page(P, batch_key, shown, recs, batch_jobs, counts, skips, modes, len(rows))
 
     st = iter_status(batch_key)
     if len(st):
         st.drop(columns=['info', 'figures', 'outputs']).to_csv(P.plot_batch + 'status.csv', index=False)
     with open(P.plot_batch + 'status_summary.json', 'w') as f:
-        json.dump({'batch': batch_key, 'generated': dt.datetime.now().isoformat(), 'n_tracks': len(rows), 'counts': counts}, f, indent=2)
+        json.dump({'batch': batch_key, 'generated': dt.datetime.now().isoformat(), 'n_tracks': len(rows),
+                   'n_tracks_shown': len(shown), 'counts': counts, 'B01_skip_reasons': skips, 'B01_beam_modes': modes}, f, indent=2)
     print(f'gallery: {len(rows)} tracks -> {P.plot_batch}index.html')
     print(pd.DataFrame(counts).T[STATUS_ORDER].to_string())
     build_overview()
@@ -362,7 +400,7 @@ def build_overview():
         cards.append(f'<div class="card"><h2 style="margin:2px 0"><a href="{rel}index.html">{esc(batch_key)}</a></h2>'
                      f'<div class="small">{esc(meta.get("batch", {}).get("description", ""))}</div>'
                      f'<div class="small">{esc(tim.get("t0", ""))[:10]} .. {esc(tim.get("t1", ""))[:10]} — {region}</div>'
-                     f'<div class="small">{s.get("n_tracks", "?")} tracks, {c01.get("success", 0)} in C01 database — '
+                     f'<div class="small">{s.get("n_tracks", "?")} tracks, {s.get("n_tracks_shown", "?")} with data, {c01.get("success", 0)} in C01 database — '
                      f'updated {esc(s.get("generated", ""))[:16].replace("T", " ")}</div>{img}</div>')
     page = (f'<html><head><meta charset="utf-8"><title>ICESat-2 batches</title><style>{CSS}</style></head><body>'
             f'<h1>ICESat-2 wave-spectra batches</h1><div class="small">{len(cards)} batches — generated {dt.datetime.now():%Y-%m-%d %H:%M}</div>'

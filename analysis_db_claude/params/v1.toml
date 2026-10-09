@@ -10,7 +10,8 @@ maximum_height = 30          # m, |h_mean - dem_h| above this is removed (sct.co
 beam_stats_Lmeter = 12500    # m, window for beam_stats.derive_beam_statistics
 beam_stats_dx = 10           # m
 min_points_per_track = 1000  # fewer points in the box -> skip 'too few points'
-min_points_per_beam = 200    # any beam with fewer points -> skip the track
+min_points_per_beam = 200    # a strong beam with fewer points -> skip the track
+allow_missing_weak_beams = true  # thin weak beams only -> keep the track (B02/B03/B06 on the strong beams, no angle)
 
 [B01.sliderule]              # icesat2.atl06p request (params_yapc in B01_SL_load_single_file.py)
 srt = 1                      # ocean surface type
@@ -60,8 +61,10 @@ oversample = 2               # dlambda = Lmeters * oversample
 k_stride = 2                 # kk = kk[::k_stride]   ("reduced frequency resolution")
 max_nfev = 8000
 max_nan_fraction = 0.95      # mean nan fraction over beams above this -> skip
-beam_ratio_max = 10          # beam-pair size ratio outside [1/r, r] -> skip
-min_data_fraction_beam = 0.005  # beam with less coverage is skipped (was a commented-out `continue`)
+beam_ratio_max = 10          # beam-pair size ratio outside [1/r, r] -> drop the weak beam of that pair
+min_dense_segments = 4       # a beam needs this many dense L-segments (25 km) ...
+dense_window_km = 200        # ... inside one window of this length, otherwise the beam is skipped
+segment_fill_min = 0.4       # a segment is dense when >= this fraction of its dx slots have a point (gFT drops stancils < 0.4)
 min_points_beam = 100        # beams with fewer (valid) points are skipped
 N_photos_min = 5             # points with N_photos <= this are treated as nan
 dd_error_fill = 100

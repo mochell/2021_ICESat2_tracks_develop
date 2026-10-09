@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from pipeline_config import mconfig, np, pd, xr, plt, M, MT, col, paths_for, cli_args
-from pipeline_status import StageRun, SkipTrack, require_upstream
+from pipeline_status import StageRun, SkipTrack, require_upstream, read_status
 from pipeline_params import load_params
 
 import h5py
@@ -48,6 +48,21 @@ def repack_attributes(DD):
     return DD
 
 
+def dense_segments(x, xlims, Lmeters, dx, fill_min, window_m):
+    """
+    Largest number of 'dense' L-segments inside any window of window_m along the track.
+    The track [xlims] is cut into consecutive segments of Lmeters; a segment is dense when at least
+    fill_min of its dx slots hold a point (the gFT itself drops stancils below 40 %).
+    """
+    edges = np.arange(xlims[0], xlims[1] + Lmeters, Lmeters)
+    if edges.size < 2 or x.size == 0:
+        return 0
+    counts, _ = np.histogram(x, edges)
+    dense = (counts / (Lmeters / dx) >= fill_min).astype(int)
+    n_win = max(int(window_m // Lmeters), 1)
+    return int(np.convolve(dense, np.ones(n_win, dtype=int), mode='valid').max()) if dense.size >= n_win else int(dense.sum())
+
+
 def make_dummy_beam(GG, beam):
     dummy = GG.copy(deep=True)
     for var in list(dummy.var()):
@@ -60,6 +75,10 @@ def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
     require_upstream(run, ['B01'])
     all_beams = mconfig['beams']['all_beams']
+    # beams B01 found usable (thin weak beams are left out; older B01 records have no list -> all)
+    b01_info = (read_status(batch_key, 'B01', ID) or {}).get('info') or {}
+    beams_ok = [b for b in all_beams if b in b01_info.get('beams_ok', all_beams)]
+    run.info(beams_ok=beams_ok, beam_mode=b01_info.get('beam_mode', 'all'))
 
     load_path = P.stage_dir('B01_regrid')
     save_path = P.stage_dir('B02_spectra')
@@ -69,28 +88,31 @@ def run_stage(ID, batch_key, prm, run):
     Gd = h5py.File(load_path + ID + '_B01_binned.h5', 'r')
 
     nan_fraction = list()
-    for k in all_beams:
+    for k in beams_ok:
         xk = io.get_beam_var_hdf_store(Gd[k], 'x')
         nan_fraction.append(np.sum(np.isnan(xk)) / max(xk.shape[0], 1))
     nan_fraction = float(np.array(nan_fraction).mean())
 
-    bad_ratio_flag = False
-    ratios = {}
+    # strong/weak point ratio per complete pair; outside [1/r, r] the weak beam is too sparse -> drop it
+    # (the track continues on the remaining beams, like a thin weak beam in B01)
+    ratios, beams_dropped_ratio = {}, []
     for group in mconfig['beams']['groups']:
+        if not set(group) <= set(beams_ok):       # incomplete pair (thin weak beam): nothing to compare
+            continue
         na, nb = Gd[group[0]]['x'][:].size, Gd[group[1]]['x'][:].size
         ratio = na / nb if nb else np.inf
         ratios['/'.join(group)] = ratio
         if (ratio > prm['beam_ratio_max']) | (ratio < 1 / prm['beam_ratio_max']):
-            print('bad data ratio ', group, ratio)
-            bad_ratio_flag = True
-    run.info(nan_fraction=nan_fraction, beam_ratios=ratios)
+            weak = group[1] if na >= nb else group[0]
+            print('bad data ratio ', group, ratio, '-> drop', weak)
+            beams_dropped_ratio.append(weak)
+    beams_ok = [b for b in beams_ok if b not in beams_dropped_ratio]
+    run.info(nan_fraction=nan_fraction, beam_ratios=ratios, beams_dropped_ratio=beams_dropped_ratio, beams_used=beams_ok)
     if nan_fraction > prm['max_nan_fraction']:
         raise SkipTrack(f'nan fraction {nan_fraction:.2f} > {prm["max_nan_fraction"]}', nan_fraction=nan_fraction)
-    if bad_ratio_flag:
-        raise SkipTrack('beam pair size ratio out of range', beam_ratios=ratios)
 
     # %% spectral limits
-    dist = io.get_beam_var_hdf_store(Gd[list(Gd.keys())[0]], 'x')
+    dist = io.get_beam_var_hdf_store(Gd[beams_ok[0]], 'x')
     T_max = prm['T_max']
     k_0 = (2 * np.pi / T_max) ** 2 / 9.81
     x = np.array(dist).squeeze()
@@ -110,26 +132,30 @@ def run_stage(ID, batch_key, prm, run):
 
     # %% global xlims over beams
     dist_list = np.array([np.nan, np.nan])
-    for k in all_beams:
+    for k in beams_ok:
         xk = Gd[k + '/x'][:]
         dist_list = np.vstack([dist_list, [xk[0], xk[-1]]])
     xlims = np.nanmin(dist_list[:, 0]) - dx, np.nanmin(dist_list[:, 1])
     print('xlims: ', xlims)
     run.info(dx=float(dx), Lmeters=float(Lmeters), Lpoints=int(Lpoints), n_k=int(kk.size),
              x_range_km=[float(xlims[0] / 1e3), float(xlims[1] / 1e3)])
+    if xlims[1] - xlims[0] < Lmeters:
+        raise SkipTrack(f'common x range {(xlims[1] - xlims[0]) / 1e3:.1f} km shorter than one stancil ({Lmeters / 1e3:.0f} km)')
 
     # %% per-beam gFT and FFT
     G_gFT, G_gFT_x, G_rar_fft, Pars_optm = dict(), dict(), dict(), dict()
-    beams_skipped, spike_remover_failed = [], []
+    beams_skipped, spike_remover_failed = [b for b in all_beams if b not in beams_ok], []
+    dense_count = {}
     hkey, hkey_sigma = 'h_mean', 'h_sigma'
 
-    for k in all_beams:
+    for k in beams_ok:
         Gi = io.get_beam_hdf_store(Gd[k])
         x_mask = (Gi['x'] > xlims[0]) & (Gi['x'] < xlims[1])
-        data_fraction = sum(x_mask) / (xlims[1] - xlims[0])
-        print(k, 'data fraction', data_fraction)
-        if data_fraction < prm['min_data_fraction_beam']:
-            print('------------------- no data in beam found; skip beam', k)
+        n_dense = dense_segments(np.asarray(Gi['x'][x_mask]), xlims, Lmeters, dx, prm['segment_fill_min'], prm['dense_window_km'] * 1e3)
+        dense_count[k] = n_dense
+        print(k, 'dense segments in best window', n_dense)
+        if n_dense < prm['min_dense_segments']:
+            print('------------------- too few dense segments in beam; skip beam', k)
             beams_skipped.append(k)
             continue
 
@@ -170,8 +196,11 @@ def run_stage(ID, batch_key, prm, run):
                                                data_error=dd_error_no_nans, ov=None)
             try:
                 GG, GG_x, Params = S.cal_spectrogram(xlims=xlims, max_nfev=prm['max_nfev'], plot_flag=False)
-            except StopIteration:
-                # generalized_FT raises this when not a single stancil of the beam produced a fit
+            except (StopIteration, ValueError) as e:
+                # generalized_FT: not a single stancil of the beam produced a fit (StopIteration, or with
+                # newer xarray a ValueError 'must supply at least one object to concatenate')
+                if isinstance(e, ValueError) and 'at least one object' not in str(e):
+                    raise
                 print('------------------- no stancil converged in beam', k, '; skip beam')
                 beams_skipped.append(k)
                 continue
@@ -251,8 +280,10 @@ def run_stage(ID, batch_key, prm, run):
         plt.close('all')
 
     Gd.close()
+    run.info(dense_segments=dense_count)
     if not G_gFT:
-        raise SkipTrack('no beam with enough data', beams_skipped=beams_skipped)
+        raise SkipTrack(f'no beam with {prm["min_dense_segments"]} dense segments in {prm["dense_window_km"]} km',
+                        beams_skipped=beams_skipped, dense_segments=dense_count)
     run.info(beams_skipped=beams_skipped, spike_remover_failed=spike_remover_failed, n_x=int(list(G_gFT.values())[0].x.size))
 
     # %% fill missing beams with nan dummies, save

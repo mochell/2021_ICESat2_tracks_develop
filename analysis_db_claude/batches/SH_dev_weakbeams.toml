@@ -1,0 +1,27 @@
+# Dev batch for thin weak beams: Ross polygon, 2020-01-03..08, six hand-picked tracks
+# (3 with thin r beams, 1 normal, 2 without data) -> B01 'strong_only'/'weak_partial' and gallery hiding.
+[batch]
+key            = "SH_dev_weakbeams"
+hemis          = "SH"
+description    = "dev: thin weak beams (Ross polygon, 2020-01-03..08, 6 tracks)"
+params_version = "v1"
+
+[region]
+polygon = [[-161.24,-78.12],[-192.41,-75.54],[-176.10,-59.08],[-144.93,-64.45],[-161.24,-78.12]]
+
+[time]
+t0 = "2020-01-03T00:00:00"
+t1 = "2020-01-08T00:00:00"
+chunk_days = 0
+
+[selection]
+max_tracks   = 0
+include_ids  = ["SH_20200103_01140612", "SH_20200103_01210610", "SH_20200104_01360610",
+                "SH_20200105_01440612", "SH_20200106_01590612", "SH_20200107_01820610"]
+exclude_ids  = []
+require_rgt  = true
+
+[sliderule]
+user_service  = false        # public cluster (dedicated-node provisioner returned 500 on 2026-10-08)
+desired_nodes = 3
+time_to_live  = 120

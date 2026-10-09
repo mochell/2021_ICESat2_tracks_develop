@@ -64,6 +64,10 @@ def run_stage(ID, batch_key, prm, run):
     theta = float(Gk.attrs.get('best_guess_incident_angle', np.nan))
     st = {s: read_status(batch_key, s, ID) for s in TRACK_STAGES}
     b06 = (st.get('B06') or {}).get('info', {})
+    b01 = (read_status(batch_key, 'B01', ID) or {}).get('info') or {}
+    beams_data = [str(b) for b in Gk.beam.values if b != 'weig' and bool(Gk.gFT_PSD_data.sel(beam=b).notnull().any())]
+    weak = [f'gt{i}{"r" if b01.get("strong_side", "l") == "l" else "l"}' for i in (1, 2, 3)]
+    beam_mode = 'all' if len(beams_data) == 6 else 'strong_only' if not set(weak) & set(beams_data) else 'partial'
     attrs = {
         'ID': ID, 'batch_key': batch_key, 'hemis': P.hemis,
         'granules': json.dumps(IDj['tracks'].get('ATL03')),
@@ -77,6 +81,9 @@ def run_stage(ID, batch_key, prm, run):
         'best_guess_incident_angle_rad': theta, 'best_guess_incident_angle_deg': float(np.rad2deg(theta)),
         'theta_applied': int(bool(b06.get('theta_applied', not np.isnan(theta)))),
         'angle_status': b05.get('status', 'not_run'), 'angle_reason': b05.get('reason') or '',
+        # beams B01 kept: 'all', or 'strong_only' / 'weak_partial' when thin weak beams were left out
+        # beams with a spectrum: 'all' six, 'strong_only' (no weak beam left, no angle possible) or 'partial'
+        'beam_mode': beam_mode, 'beams_with_data': json.dumps(beams_data), 'strong_side': b01.get('strong_side', ''),
         'L': float(Gk.attrs.get('L', np.nan)), 'Lpoints': int(Gk.attrs.get('Lpoints', 0)),
         'created': dt.datetime.now().isoformat(),
     }

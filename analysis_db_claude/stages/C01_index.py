@@ -29,7 +29,7 @@ def build(batch_key):
             psd = D['gFT_PSD_data'].sel(beam='weig') if 'weig' in D.beam.values else D['gFT_PSD_data'].mean('beam')
             row = {k: a.get(k) for k in ('ID', 'batch_key', 'hemis', 'date', 'rgt', 'cycle', 'segment', 'ascending',
                                           'start_lon', 'start_lat', 'end_lon', 'end_lat', 'start_time',
-                                          'best_guess_incident_angle_deg', 'theta_applied',
+                                          'best_guess_incident_angle_deg', 'theta_applied', 'beam_mode',
                                           'prior_hs', 'prior_fp', 'prior_dir', 'prior_spr', 'prior_ice')}
             row.update(n_x=int(D.x.size), n_k=int(D.k.size),
                        x_min_km=float(D.x.min() / 1e3), x_max_km=float(D.x.max() / 1e3),
