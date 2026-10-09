@@ -194,7 +194,7 @@ def track_page(P, batch_key, ID, recs, row):
     rel_track = '../../' + ID + '/'
     figs = figures_of(P, ID)
     parts = [f'<html><head><meta charset="utf-8"><title>{ID}</title><style>{CSS}</style><script>{JS_SIZE}</script></head><body>',
-             f'<a href="../../index.html">&larr; {batch_key}</a>', SIZEBAR,
+             f'<a href="../../../../index.html">&larr; all batches</a> / <a href="../../index.html">{batch_key}</a>', SIZEBAR,
              f'<h1>{ID}</h1><div class="small">rgt {row.get("rgt")} cycle {row.get("cycle")} date {row.get("date")} '
              f'chunk {row.get("chunk")} granule {esc(row.get("granule"))}</div>',
              '<p>' + ' '.join(f'<a href="#{s}">{badge(row[s], s + ": " + row[s])}</a>' for s in GRID_STAGES) + '</p>']
@@ -233,7 +233,7 @@ def stage_page(P, batch_key, stage, rows, recs):
     pattern = KEY_FIGURE.get(stage)
     parts = [f'<html><head><meta charset="utf-8"><title>{batch_key} {stage}</title><style>{CSS}</style>'
              f'<script>{JS_FILTER}</script><script>{JS_SIZE}</script><script>{JS_SORT}</script></head><body>',
-             f'<a href="../../index.html">&larr; {batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>', SIZEBAR + SORTBAR,
+             f'<a href="../../../../index.html">&larr; all batches</a> / <a href="../../index.html">{batch_key}</a><h1>{stage} — {esc(pattern or "no key figure")}</h1>', SIZEBAR + SORTBAR,
              '<div class="filters">status <select id="f_status"><option value="">all</option>'
              + ''.join(f'<option>{s}</option>' for s in STATUS_ORDER) + '</select>'
              '<input type="hidden" id="f_stage" value="' + stage + '"><input type="hidden" id="f_err" value="">'
@@ -269,6 +269,7 @@ def index_page(P, batch_key, rows, recs, batch_jobs, counts):
     errs = sorted({e for r in rows for e in r['errors']})
     parts = [f'<html><head><meta charset="utf-8"><title>{batch_key}</title><style>{CSS}</style>'
              f'<script>{JS_FILTER}</script></head><body>',
+             f'<a href="../../index.html">&larr; all batches</a>'
              f'<h1>{batch_key}</h1><div class="small">{esc(batch.get("batch", {}).get("description", ""))} — '
              f'region lat {esc(batch.get("region", {}).get("lat"))} lon {esc(batch.get("region", {}).get("lon"))} — '
              f'time {esc(batch.get("time", {}).get("t0"))} .. {esc(batch.get("time", {}).get("t1"))} — '
