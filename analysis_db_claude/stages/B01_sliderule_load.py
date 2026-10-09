@@ -161,8 +161,14 @@ def run_stage(batch_key, chunk, prm, run):
 
     # %% SlideRule request: one call for all granules of the chunk, clipped to the polygon
     sl = batch['sliderule']
-    print(f"sliderule.init(desired_nodes={sl['desired_nodes']}, time_to_live={sl['time_to_live']}) ... nodes take ~2-3 min")
-    sliderule.init(desired_nodes=sl['desired_nodes'], time_to_live=sl['time_to_live'], verbose=True, user_service=True)
+    if sl.get('user_service', True):
+        print(f"sliderule.init(desired_nodes={sl['desired_nodes']}, time_to_live={sl['time_to_live']}) ... nodes take ~2-3 min")
+        ok = sliderule.init(desired_nodes=sl['desired_nodes'], time_to_live=sl['time_to_live'], verbose=True, user_service=True)
+    else:
+        print('sliderule.init() on the public cluster (user_service = false)')
+        ok = sliderule.init(verbose=True)
+    if not ok:                                       # fail (retried next run), not a 'no data' skip
+        raise RuntimeError('sliderule.init failed (login / provisioning / version check), see log above')
     params = dict(prm['sliderule'])
     params['t0'], params['t1'] = str(ch.t0), str(ch.t1)
     t_req = datetime.datetime.now()

@@ -21,5 +21,6 @@ exclude_ids  = []
 require_rgt  = true
 
 [sliderule]
+user_service  = false        # public cluster (dedicated-node provisioner returned 500 on 2026-10-08)
 desired_nodes = 3
 time_to_live  = 120
