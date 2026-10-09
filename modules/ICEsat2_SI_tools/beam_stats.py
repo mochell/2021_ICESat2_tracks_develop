@@ -209,7 +209,7 @@ def plot_ATL06_track_data( G2, cdict):
     ax6 = plt.subplot(gs[2, 2])
 
     for sp in G2['spot'].unique():
-        Gc = G2[G2['spot'] == 1]
+        Gc = G2[G2['spot'] == sp]
 
         Gc['h_mean_gradient'] = np.gradient(Gc['h_mean'])
         ts_config = {'marker': '.', 'markersize': 0.2, 'linestyle': 'none', 'color': cdict[sp], 'alpha': 0.3}

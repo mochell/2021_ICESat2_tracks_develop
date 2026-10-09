@@ -24,6 +24,10 @@ def build(batch_key):
 
     rows = []
     for f in sorted(glob.glob(d + 'C01_*.nc')):
+        ID = os.path.basename(f)[4:-3]
+        # files of tracks that no longer reach C01 (earlier runs with other parameters) stay on disk but not in the index
+        if len(status_wide) and 'C01' in status_wide and status_wide['C01'].get(ID) != 'success':
+            continue
         with xr.open_dataset(f) as D:
             a = dict(D.attrs)
             psd = D['gFT_PSD_data'].sel(beam='weig') if 'weig' in D.beam.values else D['gFT_PSD_data'].mean('beam')

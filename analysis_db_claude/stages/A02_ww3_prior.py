@@ -113,6 +113,8 @@ def run_stage(ID, batch_key, prm, run):
     G1 = dict()
     for b in all_beams:
         Gi = io.get_beam_hdf_store(Gd[b])
+        if len(Gi) == 0:                               # thin weak beam B01 kept the track without
+            continue
         G1[b] = Gi.iloc[abs(Gi['lats']).argmin()]      # equatorward end of the beam
     Gd.close()
     G1 = pd.DataFrame.from_dict(G1).T

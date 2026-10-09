@@ -56,16 +56,16 @@ def make_B01_dict(table_data, split_by_beam=True, to_hdf5=False):
 
 def classify_beams(n_beam, min_points, allow_missing_weak):
     """
-    Which beams are usable. Every pair (gtNl, gtNr) has one strong and one weak beam and all strong
-    beams sit on the same side, which flips with the spacecraft orientation -> the strong side is the
-    one with more points. Thin weak beams are tolerated (B02/B03/B06 run on the strong beams; B04
-    then has no complete pair and skips, B06 runs without the angle). A thin strong beam -> skip.
+    Which beams are usable. Beams are named by SlideRule's ATL03 spot number (spot 1..6 -> BEAMS,
+    see make_B01_dict); spots 1, 3, 5 are always the strong lasers, so gt1l/gt2l/gt3l are the strong
+    and gt1r/gt2r/gt3r the weak beams here, whatever the spacecraft orientation (the gt labels are
+    therefore not the ATL03 ground-track labels in forward orientation). Thin weak beams are
+    tolerated (B02/B03/B06 run on the strong beams; B04 then has no complete pair and skips, B06 runs
+    without the angle). A thin strong beam -> skip.
     """
-    side_n = {s: sum(n_beam[f'gt{i}{s}'] for i in (1, 2, 3)) for s in 'lr'}
-    strong_side = 'l' if side_n['l'] >= side_n['r'] else 'r'
-    strong = [f'gt{i}{strong_side}' for i in (1, 2, 3)]
+    strong = [b for b in BEAMS if b.endswith('l')]
     thin = [b for b in BEAMS if n_beam[b] < min_points]
-    info = {'strong_side': strong_side, 'beams_thin': thin, 'beams_ok': [b for b in BEAMS if b not in thin]}
+    info = {'strong_side': 'l', 'beams_thin': thin, 'beams_ok': [b for b in BEAMS if b not in thin]}
     if not thin:
         return dict(info, beam_mode='all')
     thin_strong = [b for b in thin if b in strong]
@@ -116,12 +116,17 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     io.write_track_to_HDF5(Ti, ID + '_B01_binned', save_path)
 
     # figures
-    cdict = {s: col.rels[b] for s, b in zip([1, 2, 3, 4, 5, 6], BEAMS)}
+    # only the usable beams (a thin weak beam may hold a single point -> np.gradient fails)
+    cdict = {s: col.rels[b] for s, b in zip([1, 2, 3, 4, 5, 6], BEAMS) if b in beams['beams_ok']}
     font_for_pres()
     F_atl06 = M.figure_axis_xy(6.5, 5, view_scale=0.6)
     F_atl06.fig.suptitle(ID)
-    beam_stats.plot_ATL06_track_data(gdf_track, cdict)
-    save_fig(F_atl06, plot_path, 'B01b_ATL06_corrected', pdf=False)
+    try:
+        beam_stats.plot_ATL06_track_data(gdf_track[gdf_track.spot.isin(list(cdict))], cdict)
+        save_fig(F_atl06, plot_path, 'B01b_ATL06_corrected', pdf=False)
+    except Exception as e:                  # diagnostics only
+        print(f'  ATL06 figure failed for {ID}: {e!r}')
+        plt.close('all')
 
     beam_stats_ok = True
     try:

@@ -282,8 +282,10 @@ def run_stage(ID, batch_key, prm, run):
     Gd.close()
     run.info(dense_segments=dense_count)
     if not G_gFT:
-        raise SkipTrack(f'no beam with {prm["min_dense_segments"]} dense segments in {prm["dense_window_km"]} km',
-                        beams_skipped=beams_skipped, dense_segments=dense_count)
+        dense_ok = [k for k, n in dense_count.items() if n >= prm['min_dense_segments']]
+        reason = (f'no beam with {prm["min_dense_segments"]} dense segments in {prm["dense_window_km"]} km' if not dense_ok
+                  else 'no beam produced a gFT spectrum (dense beams failed later: too few valid points / no stancil fit)')
+        raise SkipTrack(reason, beams_skipped=beams_skipped, dense_segments=dense_count)
     run.info(beams_skipped=beams_skipped, spike_remover_failed=spike_remover_failed, n_x=int(list(G_gFT.values())[0].x.size))
 
     # %% fill missing beams with nan dummies, save
