@@ -23,5 +23,6 @@ exclude_ids  = []
 require_rgt  = true                         # drop granules whose RGT is not in the shapefile subset
 
 [sliderule]
+user_service  = false        # public cluster (dedicated-node provisioner returned 500 on 2026-10-08)
 desired_nodes = 5
 time_to_live  = 120                         # minutes; nodes take ~2-3 min to come up
