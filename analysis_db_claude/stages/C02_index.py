@@ -1,9 +1,9 @@
 """
-C01 index: one row per track over all C01_<ID>.nc files of a batch (+ status of every stage).
+C02 index: one row per track over all C02_<ID>.nc files of a batch (+ status of every stage).
 
-    python stages/C01_index.py <batch_key>
+    python stages/C02_index.py <batch_key>
 
-Writes work/<batch>/C01_database/index.csv and index.parquet
+Writes work/<batch>/C02_database/index.csv and index.parquet
 """
 import sys
 import glob
@@ -18,15 +18,15 @@ from pipeline_dag import TRACK_STAGES
 
 def build(batch_key):
     P = paths_for(batch_key)
-    d = P.stage_dir('C01_database')
+    d = P.stage_dir('C02_database')
     st = iter_status(batch_key)
     status_wide = st.pivot_table(index='ID', columns='stage', values='status', aggfunc='first') if len(st) else pd.DataFrame()
 
     rows = []
-    for f in sorted(glob.glob(d + 'C01_*.nc')):
+    for f in sorted(glob.glob(d + 'C02_*.nc')):
         ID = os.path.basename(f)[4:-3]
-        # files of tracks that no longer reach C01 (earlier runs with other parameters) stay on disk but not in the index
-        if len(status_wide) and 'C01' in status_wide and status_wide['C01'].get(ID) != 'success':
+        # files of tracks that no longer reach C02 (earlier runs with other parameters) stay on disk but not in the index
+        if len(status_wide) and 'C02' in status_wide and status_wide['C02'].get(ID) != 'success':
             continue
         with xr.open_dataset(f) as D:
             a = dict(D.attrs)

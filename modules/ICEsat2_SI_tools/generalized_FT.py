@@ -261,7 +261,7 @@ class wavenumber_spectrogram_gFT(object):
 
             #print(stancil[1])
             x = X[x_mask]
-            if x.size/Lpoints < 0.40: # if there are not enough photos set results to nan
+            if x.size/Lpoints < getattr(self, 'min_fill', 0.40): # if there are not enough photos set results to nan
                 #return stancil[1], self.k*np.nan, np.fft.rfftfreq( int(self.Lpoints), d=self.dx)*np.nan,  x.size
                 #return stancil[1], np.concatenate([self.k*np.nan , self.k*np.nan]), np.nan,  np.nan, np.nan, x.size, False, False
                 print(' -- data density to low, skip stancil')

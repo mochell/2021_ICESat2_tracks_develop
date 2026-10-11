@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from pipeline_config import mconfig, np, pd, xr, plt, M, MT, col, paths_for, cli_args
 from pipeline_status import StageRun, SkipTrack, require_upstream, read_status
 from pipeline_params import load_params
+from beam_screening import stancil_length
 
 import h5py
 from threadpoolctl import threadpool_limits
@@ -48,21 +49,6 @@ def repack_attributes(DD):
     return DD
 
 
-def dense_segments(x, xlims, Lmeters, dx, fill_min, window_m):
-    """
-    Largest number of 'dense' L-segments inside any window of window_m along the track.
-    The track [xlims] is cut into consecutive segments of Lmeters; a segment is dense when at least
-    fill_min of its dx slots hold a point (the gFT itself drops stancils below 40 %).
-    """
-    edges = np.arange(xlims[0], xlims[1] + Lmeters, Lmeters)
-    if edges.size < 2 or x.size == 0:
-        return 0
-    counts, _ = np.histogram(x, edges)
-    dense = (counts / (Lmeters / dx) >= fill_min).astype(int)
-    n_win = max(int(window_m // Lmeters), 1)
-    return int(np.convolve(dense, np.ones(n_win, dtype=int), mode='valid').max()) if dense.size >= n_win else int(dense.sum())
-
-
 def make_dummy_beam(GG, beam):
     dummy = GG.copy(deep=True)
     for var in list(dummy.var()):
@@ -75,7 +61,7 @@ def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
     require_upstream(run, ['B01'])
     all_beams = mconfig['beams']['all_beams']
-    # beams B01 found usable (thin weak beams are left out; older B01 records have no list -> all)
+    # beams B01 found usable (beam_screening; older B01 records have no list -> all)
     b01_info = (read_status(batch_key, 'B01', ID) or {}).get('info') or {}
     beams_ok = [b for b in all_beams if b in b01_info.get('beams_ok', all_beams)]
     run.info(beams_ok=beams_ok, beam_mode=b01_info.get('beam_mode', 'all'))
@@ -84,42 +70,17 @@ def run_stage(ID, batch_key, prm, run):
     save_path = P.stage_dir('B02_spectra')
     save_name = 'B02_' + ID
 
-    # %% load and quality tests
+    # %% load (beam usability was decided in B01)
     Gd = h5py.File(load_path + ID + '_B01_binned.h5', 'r')
-
-    nan_fraction = list()
-    for k in beams_ok:
-        xk = io.get_beam_var_hdf_store(Gd[k], 'x')
-        nan_fraction.append(np.sum(np.isnan(xk)) / max(xk.shape[0], 1))
-    nan_fraction = float(np.array(nan_fraction).mean())
-
-    # strong/weak point ratio per complete pair; outside [1/r, r] the weak beam is too sparse -> drop it
-    # (the track continues on the remaining beams, like a thin weak beam in B01)
-    ratios, beams_dropped_ratio = {}, []
-    for group in mconfig['beams']['groups']:
-        if not set(group) <= set(beams_ok):       # incomplete pair (thin weak beam): nothing to compare
-            continue
-        na, nb = Gd[group[0]]['x'][:].size, Gd[group[1]]['x'][:].size
-        ratio = na / nb if nb else np.inf
-        ratios['/'.join(group)] = ratio
-        if (ratio > prm['beam_ratio_max']) | (ratio < 1 / prm['beam_ratio_max']):
-            weak = group[1] if na >= nb else group[0]
-            print('bad data ratio ', group, ratio, '-> drop', weak)
-            beams_dropped_ratio.append(weak)
-    beams_ok = [b for b in beams_ok if b not in beams_dropped_ratio]
-    run.info(nan_fraction=nan_fraction, beam_ratios=ratios, beams_dropped_ratio=beams_dropped_ratio, beams_used=beams_ok)
-    if nan_fraction > prm['max_nan_fraction']:
-        raise SkipTrack(f'nan fraction {nan_fraction:.2f} > {prm["max_nan_fraction"]}', nan_fraction=nan_fraction)
+    gft = prm['gft']
 
     # %% spectral limits
     dist = io.get_beam_var_hdf_store(Gd[beams_ok[0]], 'x')
-    T_max = prm['T_max']
-    k_0 = (2 * np.pi / T_max) ** 2 / 9.81
+    k_0 = (2 * np.pi / gft['T_max']) ** 2 / 9.81
     x = np.array(dist).squeeze()
     dx = np.round(np.median(np.diff(x)), 1)
-    min_datapoint = 2 * np.pi / k_0 / dx
-    Lpoints = int(np.round(min_datapoint) * prm['L_factor'])
-    Lmeters = Lpoints * dx
+    Lpoints, Lmeters = stancil_length(gft['T_max'], gft['L_factor'], dx)
+    min_valid = int(np.ceil(round(gft['segment_fill_min'] * Lpoints, 6)))   # at least one stancil the gFT accepts
     print('L number of gridpoint:', Lpoints, ' L length in km:', Lmeters / 1e3)
 
     T_min = prm['T_min']
@@ -135,29 +96,21 @@ def run_stage(ID, batch_key, prm, run):
     for k in beams_ok:
         xk = Gd[k + '/x'][:]
         dist_list = np.vstack([dist_list, [xk[0], xk[-1]]])
-    xlims = np.nanmin(dist_list[:, 0]) - dx, np.nanmin(dist_list[:, 1])
+    # union of the usable beams (was earliest start .. earliest end, which cut a beam's dense stretch
+    # when another beam ended early); beams are nan outside their own coverage
+    xlims = np.nanmin(dist_list[:, 0]) - dx, np.nanmax(dist_list[:, 1])
     print('xlims: ', xlims)
     run.info(dx=float(dx), Lmeters=float(Lmeters), Lpoints=int(Lpoints), n_k=int(kk.size),
              x_range_km=[float(xlims[0] / 1e3), float(xlims[1] / 1e3)])
-    if xlims[1] - xlims[0] < Lmeters:
-        raise SkipTrack(f'common x range {(xlims[1] - xlims[0]) / 1e3:.1f} km shorter than one stancil ({Lmeters / 1e3:.0f} km)')
 
     # %% per-beam gFT and FFT
     G_gFT, G_gFT_x, G_rar_fft, Pars_optm = dict(), dict(), dict(), dict()
     beams_skipped, spike_remover_failed = [b for b in all_beams if b not in beams_ok], []
-    dense_count = {}
     hkey, hkey_sigma = 'h_mean', 'h_sigma'
 
     for k in beams_ok:
         Gi = io.get_beam_hdf_store(Gd[k])
         x_mask = (Gi['x'] > xlims[0]) & (Gi['x'] < xlims[1])
-        n_dense = dense_segments(np.asarray(Gi['x'][x_mask]), xlims, Lmeters, dx, prm['segment_fill_min'], prm['dense_window_km'] * 1e3)
-        dense_count[k] = n_dense
-        print(k, 'dense segments in best window', n_dense)
-        if n_dense < prm['min_dense_segments']:
-            print('------------------- too few dense segments in beam; skip beam', k)
-            beams_skipped.append(k)
-            continue
 
         Gd_cut = Gi[x_mask]
         x = Gd_cut['x']
@@ -169,7 +122,7 @@ def run_stage(ID, batch_key, prm, run):
         dd_error[np.isnan(dd_error)] = prm['dd_error_fill']
 
         # slope spectra
-        if dd.size < prm['min_points_beam']:
+        if dd.size < min_valid:
             print('------------------- too few points in beam', k, dd.size, '; skip beam')
             beams_skipped.append(k)
             continue
@@ -180,12 +133,12 @@ def run_stage(ID, batch_key, prm, run):
             # spicke_remover cannot handle spikes at the very end / very short series; keep the raw slopes
             print('spike remover failed for beam', k, repr(e), '; using unfiltered slopes')
             spike_remover_failed.append(k)
-        dd_nans = (np.isnan(dd)) + (Gd_cut['N_photos'] <= prm['N_photos_min'])
+        dd_nans = (np.isnan(dd)) + (Gd_cut['N_photos'] <= gft['N_photos_min'])
 
         dd_no_nans = dd[~dd_nans]
         x_no_nans = x[~dd_nans]
         dd_error_no_nans = dd_error[~dd_nans]
-        if dd_no_nans.size < prm['min_points_beam']:
+        if dd_no_nans.size < min_valid:
             print('------------------- too few valid points in beam', k, dd_no_nans.size, '; skip beam')
             beams_skipped.append(k)
             continue
@@ -194,6 +147,7 @@ def run_stage(ID, batch_key, prm, run):
         with threadpool_limits(limits=prm['n_threads'], user_api='blas'):
             S = gFT.wavenumber_spectrogram_gFT(np.array(x_no_nans), np.array(dd_no_nans), Lmeters, dx, kk,
                                                data_error=dd_error_no_nans, ov=None)
+            S.min_fill = gft['segment_fill_min']          # same stancil minimum as the B01 screening
             try:
                 GG, GG_x, Params = S.cal_spectrogram(xlims=xlims, max_nfev=prm['max_nfev'], plot_flag=False)
             except (StopIteration, ValueError) as e:
@@ -280,12 +234,8 @@ def run_stage(ID, batch_key, prm, run):
         plt.close('all')
 
     Gd.close()
-    run.info(dense_segments=dense_count)
     if not G_gFT:
-        dense_ok = [k for k, n in dense_count.items() if n >= prm['min_dense_segments']]
-        reason = (f'no beam with {prm["min_dense_segments"]} dense segments in {prm["dense_window_km"]} km' if not dense_ok
-                  else 'no beam produced a gFT spectrum (dense beams failed later: too few valid points / no stancil fit)')
-        raise SkipTrack(reason, beams_skipped=beams_skipped, dense_segments=dense_count)
+        raise SkipTrack('no beam produced a gFT spectrum (too few valid points / no stancil fit)', beams_skipped=beams_skipped)
     run.info(beams_skipped=beams_skipped, spike_remover_failed=spike_remover_failed, n_x=int(list(G_gFT.values())[0].x.size))
 
     # %% fill missing beams with nan dummies, save

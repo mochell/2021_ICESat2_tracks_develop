@@ -124,6 +124,11 @@ def region_polygon(batch):
             'kind': kind, 'crosses_antimeridian': bool(crosses)}
 
 
+# tables shared by several stages: copied into each listed stage section under the table name,
+# so they are part of those stages' params hashes (a change reruns every stage that uses them)
+SHARED = {'gft': ['B01', 'B02']}
+
+
 def load_params(batch_key=None, version=None):
     """all stage sections of params/<version>.toml (version taken from the batch if not given)"""
     if version is None:
@@ -131,6 +136,11 @@ def load_params(batch_key=None, version=None):
     p = PARAMS_DIR / f'{version}.toml'
     prm = _read_toml(p)
     prm.setdefault('version', version)
+    for table, stages in SHARED.items():
+        shared = prm.pop(table, None)
+        if shared is not None:
+            for s in stages:
+                prm.setdefault(s, {})[table] = dict(shared)
     return prm
 
 

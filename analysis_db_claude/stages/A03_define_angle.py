@@ -1,17 +1,17 @@
 # %%
 """
-B05: weighted angle PDF per x position from the B04 marginals.
+A03: weighted angle PDF per x position from the A02 marginals.
 
-    python stages/B05_define_angle.py <ID> <batch_key>
+    python stages/A03_define_angle.py <ID> <batch_key>
 
 Reads  work/<batch>/B02_spectra/B02_<ID>_gFT_k.nc                              (B02, overview plot only)
-       work/<batch>/B04_angle/B04_<ID>_marginals.nc                            (B04)
-Writes work/<batch>/B04_angle/B05_<ID>_angle_pdf.nc      (kept in B04_angle/, B06 reads it there)
-       status/B05/<ID>.json
-       figures B05_angle/B05_weighted_marginals_x<km>, B05_dir_ov
+       work/<batch>/A02_angle/A02_<ID>_marginals.nc                            (A02)
+Writes work/<batch>/A02_angle/A03_<ID>_angle_pdf.nc      (kept in A02_angle/, C01 reads it there)
+       status/A03/<ID>.json
+       figures A03_angle/A03_weighted_marginals_x<km>, A03_dir_ov
 
-Port of analysis_db/B05_define_angle.py: same algorithm, parameters from params/<v>.toml [B05],
-exit() -> SkipTrack. The A02 prior table was loaded but never used and is not read any more.
+Port of analysis_db/B05_define_angle.py: same algorithm, parameters from params/<v>.toml [A03],
+exit() -> SkipTrack. The A01a prior table was loaded but never used and is not read any more.
 """
 import sys
 from pathlib import Path
@@ -27,7 +27,7 @@ import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.spectral_estimates as spec
 import ICEsat2_SI_tools.lanczos as lanczos
 
-STAGE = 'B05'
+STAGE = 'A03'
 
 
 def _increasing_levels(clevs, data, n=21):
@@ -163,18 +163,18 @@ class plot_polarspectra(object):
 def run_stage(ID, batch_key, prm, run):
     track_name = ID
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B04'])
+    require_upstream(run, ['A02'])
 
-    plot_path = P.track_plot_dir('B05_angle')      # per-x figures
-    plot_path_track = P.plot_track                 # B05_dir_ov
-    save_path = P.stage_dir('B04_angle')           # B06 reads B05_<ID>_angle_pdf.nc from here
+    plot_path = P.track_plot_dir('A03_angle')      # per-x figures
+    plot_path_track = P.plot_track                 # A03_dir_ov
+    save_path = P.stage_dir('A02_angle')           # C01 reads A03_<ID>_angle_pdf.nc from here
 
     # %% load
     load_path = P.stage_dir('B02_spectra')
     Gk = xr.load_dataset(load_path + 'B02_' + track_name + '_gFT_k.nc')
 
-    load_path = P.stage_dir('B04_angle')
-    Marginals = xr.load_dataset(load_path + 'B04_' + track_name + '_marginals.nc')
+    load_path = P.stage_dir('A02_angle')
+    Marginals = xr.load_dataset(load_path + 'A02_' + track_name + '_marginals.nc')
 
     # %% cut out data at the boundary and redistibute variance
     angle_mask = Marginals.angle * 0 == 0
@@ -298,7 +298,7 @@ def run_stage(ID, batch_key, prm, run):
         if np.isfinite(final_data_smth).any():
             best_angle_deg[x_str + 'km'] = round(float(x_angle[0:-1][final_data_smth.argmax()] * 180 / np.pi), 1)
 
-        save_fig(F, plot_path, 'B05_weighted_marginals_x' + x_str)
+        save_fig(F, plot_path, 'A03_weighted_marginals_x' + x_str)
 
     M_final.name = 'weighted_angle_PDF'
     M_final_smth.name = 'weighted_angle_PDF_smth'
@@ -410,10 +410,10 @@ def run_stage(ID, batch_key, prm, run):
             FP.clevs = np.linspace(np.nanpercentile(plot_data.data, 1), np.round(float(plot_data.max()), 4), 21)
             FP.linear(ax=ax3, cbar_flag=False)
 
-    save_fig(F, plot_path_track, 'B05_dir_ov')
+    save_fig(F, plot_path_track, 'A03_dir_ov')
 
     # %% save data
-    Gpdf.to_netcdf(save_path + 'B05_' + track_name + '_angle_pdf.nc')
+    Gpdf.to_netcdf(save_path + 'A03_' + track_name + '_angle_pdf.nc')
     print('saved and done')
 
 

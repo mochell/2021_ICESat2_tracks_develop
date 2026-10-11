@@ -7,9 +7,9 @@ into tracks with an absolute along-track coordinate.
 
 Reads  work/<batch>/tracks.csv, chunks.csv, rgt_start_points.geojson   (from B00)
 Writes work/<batch>/B01_regrid/<ID>_B01_binned.h5       one h5py group per beam
-       work/<batch>/A01b_ID/A01b_ID_<ID>.json           track metadata used by A02
+       work/<batch>/B01_ID/B01_ID_<ID>.json           track metadata used by A01a
        plots/<hemis>/<batch>/<ID>/B01b_ATL06_corrected.png, B01b_beam_statistics.png, B01_track.png
-       work/<batch>/A01b_ID/<batch>_chunk<n>_point_density.html
+       work/<batch>/B01_ID/<batch>_chunk<n>_point_density.html
        status/B01/<ID>.json for every expected ID of the chunk (success, or skip 'no data in box')
        status/B01/chunk<n>.json for the download job itself
 """
@@ -26,6 +26,7 @@ from pipeline_params import load_batch, load_params, region_polygon
 import ICEsat2_SI_tools.sliderule_converter_tools as sct
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.beam_stats as beam_stats
+from beam_screening import dense_segments_per_beam, stancil_length
 
 STAGE = 'B01'
 BEAMS = ['gt1l', 'gt1r', 'gt2l', 'gt2r', 'gt3l', 'gt3r']
@@ -54,26 +55,33 @@ def make_B01_dict(table_data, split_by_beam=True, to_hdf5=False):
     return B01b
 
 
-def classify_beams(n_beam, min_points, allow_missing_weak):
+def screen_beams(Ti, prm):
     """
-    Which beams are usable. Beams are named by SlideRule's ATL03 spot number (spot 1..6 -> BEAMS,
-    see make_B01_dict); spots 1, 3, 5 are always the strong lasers, so gt1l/gt2l/gt3l are the strong
-    and gt1r/gt2r/gt3r the weak beams here, whatever the spacecraft orientation (the gt labels are
-    therefore not the ATL03 ground-track labels in forward orientation). Thin weak beams are
-    tolerated (B02/B03/B06 run on the strong beams; B04 then has no complete pair and skips, B06 runs
-    without the angle). A thin strong beam -> skip.
+    Which beams are usable (beam_screening: >= min_dense_segments dense gFT windows inside
+    dense_window_km after the photon filter); at least one usable beam keeps the track.
+    Beams are named by SlideRule's ATL03 spot number (spot 1..6 -> BEAMS, see make_B01_dict); spots
+    1, 3, 5 are always the strong lasers, so gt*l are the strong and gt*r the weak beams here,
+    whatever the spacecraft orientation (the gt labels are therefore not the ATL03 ground-track
+    labels in forward orientation). Without a complete strong/weak pair A02 skips and C01 runs
+    without the angle.
     """
-    strong = [b for b in BEAMS if b.endswith('l')]
-    thin = [b for b in BEAMS if n_beam[b] < min_points]
-    info = {'strong_side': 'l', 'beams_thin': thin, 'beams_ok': [b for b in BEAMS if b not in thin]}
-    if not thin:
-        return dict(info, beam_mode='all')
-    thin_strong = [b for b in thin if b in strong]
-    if thin_strong:
-        raise SkipTrack(f'strong beams with < {min_points} points: {thin_strong}', n_points=n_beam, **info)
-    if not allow_missing_weak:
-        raise SkipTrack(f'weak beams with < {min_points} points: {thin}', n_points=n_beam, **info)
-    return dict(info, beam_mode='strong_only' if len(thin) == 3 else 'weak_partial')
+    gft = prm['gft']
+    dense = dense_segments_per_beam(Ti, BEAMS, gft, prm['sliderule']['res'])
+    ok = [b for b in BEAMS if dense[b] >= gft['min_dense_segments']]
+    info = {'strong_side': 'l', 'dense_segments': dense, 'beams_ok': ok,
+            'beams_dropped': [b for b in BEAMS if b not in ok]}
+    if not ok:
+        raise SkipTrack(f'no beam with {gft["min_dense_segments"]} dense segments in {gft["dense_window_km"]} km', **info)
+    weak = [b for b in BEAMS if b.endswith('r')]
+    mode = 'all' if len(ok) == len(BEAMS) else 'strong_only' if not set(ok) & set(weak) else 'partial'
+    return dict(info, beam_mode=mode)
+
+
+def min_points_for_track(prm):
+    """fewest points a track can have and still hold one usable beam (cheap pre-check)"""
+    gft = prm['gft']
+    Lpoints, _ = stancil_length(gft['T_max'], gft['L_factor'], prm['sliderule']['res'])
+    return int(np.ceil(round(gft['min_dense_segments'] * gft['segment_fill_min'] * Lpoints, 6)))
 
 
 def _utc_posix(t):
@@ -91,7 +99,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     plot_path = P.plot_batch + ID + '/'
     MT.mkdirs_r(plot_path)
     save_path = P.stage_dir('B01_regrid')
-    save_path_json = P.stage_dir('A01b_ID')
+    save_path_json = P.stage_dir('B01_ID')
 
     table_data = copy.copy(gdf_track)
     ascending = sct.ascending_test_distance(table_data)
@@ -100,15 +108,11 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     table_data.sort_values(by='x', inplace=True)
     table_data.reset_index(inplace=True)           # 'time' index -> column
     x_ref = float(abs(table_data['x_atc'].iloc[0] - table_data['x'].iloc[0]))   # reference distance from the equator
-    x_extent = float(table_data['x'].max() - table_data['x'].min())
-    if x_extent < 2 * prm['beam_stats_Lmeter']:
-        raise SkipTrack(f'track too short in box ({x_extent/1e3:.1f} km)', x_extent_km=x_extent / 1e3)
     table_time = table_data['time']
     table_data.drop(columns=['time'], inplace=True)
 
     Ti = make_B01_dict(table_data, split_by_beam=True, to_hdf5=True)
-    n_beam = {b: int(Ti[b].shape[0]) for b in BEAMS}
-    beams = classify_beams(n_beam, prm['min_points_per_beam'], prm.get('allow_missing_weak_beams', False))
+    beams = screen_beams(Ti, prm)
     for kk in Ti.keys():
         Ti[kk]['dist'] = Ti[kk]['x'].copy()
         Ti[kk]['heights_c_weighted_mean'] = Ti[kk]['h_mean'].copy()
@@ -116,8 +120,8 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     io.write_track_to_HDF5(Ti, ID + '_B01_binned', save_path)
 
     # figures
-    # only the usable beams (a thin weak beam may hold a single point -> np.gradient fails)
-    cdict = {s: col.rels[b] for s, b in zip([1, 2, 3, 4, 5, 6], BEAMS) if b in beams['beams_ok']}
+    # every beam with data, also dropped ones (a beam with < 2 points breaks np.gradient)
+    cdict = {s: col.rels[b] for s, b in zip([1, 2, 3, 4, 5, 6], BEAMS) if len(Ti[b]) >= 2}
     font_for_pres()
     F_atl06 = M.figure_axis_xy(6.5, 5, view_scale=0.6)
     F_atl06.fig.suptitle(ID)
@@ -144,7 +148,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
     plt.title(ID + '\nascending =' + str(ascending), loc='left')
     save_fig(plt.gcf(), plot_path, 'B01_track', pdf=False)
 
-    # A01b json (read by A02 via io.init_data)
+    # B01_ID json (read by A01a via io.init_data)
     start_pos = abs(table_data.lats).argmin()
     end_pos = abs(table_data.lats).argmax()
     DD = {'case_ID': ID, 'tracks': {'ATL03': granules},
@@ -156,7 +160,7 @@ def track_products(ID, gdf_track, granules, P, prm, Gtrack_lowest):
                    'end': {'longitude': float(table_data.lons[end_pos]), 'latitude': float(table_data.lats[end_pos]),
                            'seg_dist_x': float(table_data.x[end_pos]),
                            'delta_time': _utc_posix(table_time[end_pos])}}}
-    MT.json_save2(name='A01b_ID_' + ID, path=save_path_json, data=DD)
+    MT.json_save2(name='B01_ID_' + ID, path=save_path_json, data=DD)
 
     n_points = {b: int(Ti[b].shape[0]) for b in BEAMS}
     return {'n_points': n_points, 'n_points_total': int(sum(n_points.values())), 'ascending': bool(ascending), **beams,
@@ -226,8 +230,9 @@ def run_stage(batch_key, chunk, prm, run):
             continue
         ID = id_of.loc[key]
         print(f'  {ID}: {len(tmp)} rows')
-        if len(tmp) < prm['min_points_per_track']:
-            _write_track_status(run, ID, 'skip', f'too few points in box ({len(tmp)} < {prm["min_points_per_track"]})')
+        if len(tmp) < min_points_for_track(prm):
+            _write_track_status(run, ID, 'skip', f'too few points in box ({len(tmp)} < {min_points_for_track(prm)} '
+                                                 f'for {prm["gft"]["min_dense_segments"]} dense segments)')
             continue
         try:
             info = track_products(ID, tmp, granules_of.loc[ID], P, prm, Gtrack_lowest)
@@ -251,7 +256,7 @@ def run_stage(batch_key, chunk, prm, run):
     if density:
         D = pd.concat(density, axis=1).T
         D['total'] = D.sum(axis=1)
-        D.to_html(P.stage_dir('A01b_ID') + f'{batch_key}_chunk{chunk}_point_density.html')
+        D.to_html(P.stage_dir('B01_ID') + f'{batch_key}_chunk{chunk}_point_density.html')
         print(D.to_string())
     run.info(n_expected=len(expected_ids), n_success=len(produced),
              n_skip=sum(1 for ID in expected_ids if (read_status(batch_key, STAGE, ID) or {}).get('status') == 'skip'),
@@ -264,7 +269,7 @@ def _write_track_status(run, ID, status, reason, info=None, error=None):
     rec.update({'ID': ID, 'status': status, 'reason': reason, 'info': info or {},
                 't_end': datetime.datetime.now().replace(microsecond=0).isoformat(),
                 'runtime_s': None, 'log': f'logs/{STAGE}/chunk{run.ID[5:]}.log' if run.ID.startswith('chunk') else None,
-                'outputs': [f'B01_regrid/{ID}_B01_binned.h5', f'A01b_ID/A01b_ID_{ID}.json'] if status == 'success' else [],
+                'outputs': [f'B01_regrid/{ID}_B01_binned.h5', f'B01_ID/B01_ID_{ID}.json'] if status == 'success' else [],
                 'figures': ['B01b_ATL06_corrected.png', 'B01b_beam_statistics.png', 'B01_track.png'] if status == 'success' else []})
     if error is not None:
         import traceback

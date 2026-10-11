@@ -4,14 +4,23 @@
 # so changing a value here reruns exactly that stage (and everything downstream).
 version = "v1"
 
+# ------------------------------------------------------------------ shared: gFT window and beam usability
+# Copied into the B01 and B02 sections (key 'gft', part of both params hashes; pipeline_params.SHARED).
+# B01 keeps a beam when, after the photon filter, it has >= min_dense_segments dense segments of one
+# gFT window length inside dense_window_km; a track is kept when at least one beam is usable.
+[gft]
+T_max = 40                   # s, longest period -> k_0; window = L_factor deep-water wavelengths of T_max
+L_factor = 10                # -> 25 km window for dx = 10 m
+segment_fill_min = 0.4       # a window/segment is dense when >= this fraction of its dx slots hold a point (also the gFT stancil minimum)
+min_dense_segments = 3       # a beam needs this many dense segments ...
+dense_window_km = 200        # ... inside one window of this length
+N_photos_min = 5             # points with N_photos <= this are treated as nan (B02) and not counted (B01)
+
 # ------------------------------------------------------------------ B01 SlideRule download
 [B01]
 maximum_height = 30          # m, |h_mean - dem_h| above this is removed (sct.correct_and_remove_height)
-beam_stats_Lmeter = 12500    # m, window for beam_stats.derive_beam_statistics
+beam_stats_Lmeter = 12500    # m, window for beam_stats.derive_beam_statistics (diagnostic figure only)
 beam_stats_dx = 10           # m
-min_points_per_track = 1000  # fewer points in the box -> skip 'too few points'
-min_points_per_beam = 200    # a strong beam with fewer points -> skip the track
-allow_missing_weak_beams = true  # thin weak beams only -> keep the track (B02/B03/B06 on the strong beams, no angle)
 
 [B01.sliderule]              # icesat2.atl06p request (params_yapc in B01_SL_load_single_file.py)
 srt = 1                      # ocean surface type
@@ -34,39 +43,30 @@ win_x = 11
 min_ph = 4
 score = 100
 
-# ------------------------------------------------------------------ A02 WW3 prior (IOWAGA THREDDS)
-[A02]
+# ------------------------------------------------------------------ A01a WW3 prior (IOWAGA THREDDS)
+[A01a]
 catalog_url = "https://tds3.ifremer.fr/thredds/IOWAGA-WW3-FORECAST/IOWAGA-WW3-FORECAST_GLOBMULTI_GLOB-30M.xml"
 dataset = "IOWAGA-WW3-FORECAST_GLOBMULTI_GLOB-30M_FIELD_NC_MARC_WW3-GLOB-30M"
 dtime_h = 4
 nan_frac_max = 0.3           # ice-mask nan fraction accepted in the prior box
 lat_shift_max_iter = 20      # cap on the prior-box latitude shifting loop (was unbounded)
 
-[A02.SH]
+[A01a.SH]
 dlon_deg = 1
 dlat_deg = [30, 5]
 dlat_deg_prior = [2, 1]
 
-[A02.NH]
+[A01a.NH]
 dlon_deg = 2
 dlat_deg = [20, 20]
 dlat_deg_prior = [2, 1]
 
 # ------------------------------------------------------------------ B02 gFT / FFT spectra
 [B02]
-T_max = 40                   # s, longest period -> k_0
-T_min = 6                    # s, shortest period -> lambda_min
-L_factor = 10                # Lpoints = round(2*pi/k_0/dx) * L_factor  (-> 25 km for dx = 10 m)
+T_min = 6                    # s, shortest period -> lambda_min  (T_max, L_factor: [gft])
 oversample = 2               # dlambda = Lmeters * oversample
 k_stride = 2                 # kk = kk[::k_stride]   ("reduced frequency resolution")
 max_nfev = 8000
-max_nan_fraction = 0.95      # mean nan fraction over beams above this -> skip
-beam_ratio_max = 10          # beam-pair size ratio outside [1/r, r] -> drop the weak beam of that pair
-min_dense_segments = 3       # a beam needs this many dense L-segments (25 km) ...
-dense_window_km = 200        # ... inside one window of this length, otherwise the beam is skipped
-segment_fill_min = 0.4       # a segment is dense when >= this fraction of its dx slots have a point (gFT drops stancils < 0.4)
-min_points_beam = 100        # beams with fewer (valid) points are skipped
-N_photos_min = 5             # points with N_photos <= this are treated as nan
 dd_error_fill = 100
 spike_spreed = 10            # spicke_remover
 n_threads = 4                # threadpool_limits for BLAS
@@ -86,8 +86,8 @@ k_max_band = [0.75, 1.25]    # k_max * band -> integration range for the 'Peak S
 xlim_pad_dx = 40             # reconstruction panels: xlim padding in units of the eta spacing
 eta_edge_points = 1000       # low-k reconstruction: xlim from eta[n] to eta[-n], n = min(this, len(eta)//4)
 
-# ------------------------------------------------------------------ B04 MCMC angle inversion
-[B04]
+# ------------------------------------------------------------------ A02 MCMC angle inversion
+[A02]
 N_sample_chain = 300
 N_sample_chain_burn = 30
 max_wavenumbers = 25
@@ -105,14 +105,14 @@ angle_gate_deg = 80          # all |prior angle| above this -> skip
 variance_frac = 0.20
 k_prime_max_test = 0.02
 
-# ------------------------------------------------------------------ B05 angle PDF
-[B05]
+# ------------------------------------------------------------------ A03 angle PDF
+[A03]
 lanczos_cutoff = 0.1
 min_x_segments = 2
 n_polar_chunks = 3
 
-# ------------------------------------------------------------------ B06 spectral correction
-[B06]
+# ------------------------------------------------------------------ C01 spectral correction
+[C01]
 smooth_k = 30
 smooth_k_lim_x = 3
 coverage_min = 0.1
@@ -120,11 +120,11 @@ n_breakpoints = 3
 n_breakpoints_max = 4
 tanh_sigma_g = 0.003
 angle_front_x = 3            # number of leading x stancils used for the front angle
-plot_smooth_k = 20           # rolling window (k) for the per-beam spectra in the B06_atten_ov figure (plot only)
+plot_smooth_k = 20           # rolling window (k) for the per-beam spectra in the C01_atten_ov figure (plot only)
 plot_smooth_x = 2            # rolling window (x) for the same figure (plot only)
 
-# ------------------------------------------------------------------ C01 database collector
-[C01]
+# ------------------------------------------------------------------ C02 database collector
+[C02]
 k_variables = ["gFT_PSD_data", "gFT_PSD_model", "N_per_stancil", "N_photons", "spec_adjust",
                "x_coord", "y_coord", "lon", "lat"]
 float32 = true

@@ -1,19 +1,19 @@
 # %%
 """
-A02: WW3 (IOWAGA THREDDS) wave prior around the equatorward end of the track.
+A01a: WW3 (IOWAGA THREDDS) wave prior around the equatorward end of the track.
 
-    python stages/A02_ww3_prior.py <ID> <batch_key>
+    python stages/A01a_ww3_prior.py <ID> <batch_key>
 
-Reads  work/<batch>/A01b_ID/A01b_ID_<ID>.json                  (track time)
+Reads  work/<batch>/B01_ID/B01_ID_<ID>.json                  (track time)
        work/<batch>/B01_regrid/<ID>_B01_binned.h5              (B01, first point per beam)
        IOWAGA-WW3-FORECAST GLOB-30M via OPeNDAP (siphon)
-Writes work/<batch>/A02_prior/A02_<ID>.h5   table 'priors_hindcast'  (read by B04/B05 with
-       MT.load_pandas_table_dict('/A02_'+ID, path)['priors_hindcast'])
-       plots/<hemis>/<batch>/<ID>/A02_hindcast_data, A02_hindcast_prior
-       status/A02/<ID>.json
+Writes work/<batch>/A01a_prior/A01a_<ID>.h5   table 'priors_hindcast'  (read by A02/A03 with
+       MT.load_pandas_table_dict('/A01a_'+ID, path)['priors_hindcast'])
+       plots/<hemis>/<batch>/<ID>/A01a_hindcast_data, A01a_hindcast_prior
+       status/A01a/<ID>.json
 
 Port of analysis_db/A02c_IOWAGA_thredds_prior.py: same algorithm, parameters from params/<v>.toml
-[A02] and [A02.<hemis>], no bare try/except (errors propagate to StageRun), the latitude-shifting
+[A01a] and [A01a.<hemis>], no bare try/except (errors propagate to StageRun), the latitude-shifting
 loop of the prior box is capped (-> SkipTrack), no _hindcast_success/_fail.json markers.
 """
 import sys
@@ -29,7 +29,7 @@ from siphon.catalog import TDSCatalog
 import ICEsat2_SI_tools.io as io
 import ICEsat2_SI_tools.wave_tools as waves
 
-STAGE = 'A02'
+STAGE = 'A01a'
 DATA_LABEL = 'LOPS WW3-GLOB-30M'     # figure label of the hindcast product
 
 VAR_LIST = ['dir', 'dp', 'fp', 'hs', 'ice', 'spr',
@@ -100,13 +100,13 @@ def run_stage(ID, batch_key, prm, run):
     hprm = prm[hemis]
     all_beams = mconfig['beams']['all_beams']
 
-    save_path = P.stage_dir('A02_prior')
+    save_path = P.stage_dir('A01a_prior')
     plot_path = P.track_plot_dir()
-    save_name = 'A02_' + track_name
+    save_name = 'A01a_' + track_name
     col.colormaps2(21)
 
-    # %% track time from the A01b ID file, first point per beam from B01
-    ID_json = MT.json_load('A01b_ID_' + track_name, P.stage_dir('A01b_ID', mkdir=False))
+    # %% track time from the B01_ID file, first point per beam from B01
+    ID_json = MT.json_load('B01_ID_' + track_name, P.stage_dir('B01_ID', mkdir=False))
 
     load_path = P.stage_dir('B01_regrid', mkdir=False)
     Gd = h5py.File(load_path + track_name + '_B01_binned.h5', 'r')
@@ -217,7 +217,7 @@ def run_stage(ID, batch_key, prm, run):
         cbar.set_ticks(np.round(cl_ticks, 3))
         cbar.set_ticklabels(np.round(cl_ticks, 2))
 
-    save_fig(F, plot_path, 'A02_hindcast_data')
+    save_fig(F, plot_path, 'A01a_hindcast_data')
 
     # %% derive prior: shift the prior box poleward until enough ice-free cells are inside
     ice_mask_prior = ice_mask.sel(latitude=G_prior.latitude)
@@ -313,9 +313,9 @@ def run_stage(ID, batch_key, prm, run):
         plt.title('Prior\n' + DATA_LABEL + '\n' + track_name + '\nIncident angle', loc='left')
         ax1.axis('equal')
 
-        save_fig(F, plot_path, 'A02_hindcast_prior')
+        save_fig(F, plot_path, 'A01a_hindcast_prior')
     except Exception as e:
-        print('2nd figure (A02_hindcast_prior) failed:', repr(e))
+        print('2nd figure (A01a_hindcast_prior) failed:', repr(e))
         plt.close('all')
 
     print('done')

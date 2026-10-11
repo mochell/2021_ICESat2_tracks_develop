@@ -3,10 +3,10 @@
 #   cd analysis_db_claude
 #   snakemake --cores 1 discover --config batch=SH_dev_small          # B00: tracks.csv (once per batch)
 #   snakemake --cores 16 --resources heavy=4 sliderule=1 thredds=2 \
-#             --keep-going --config batch=SH_dev_small                 # everything up to C01
-#   snakemake ... --until B04                                          # stop after a stage
-#   snakemake ... -R B04                                               # rerun a stage (+downstream) after editing it
-#   snakemake ... -f work/<batch>/status/B04/<ID>.ok                   # one track, one stage
+#             --keep-going --config batch=SH_dev_small                 # everything up to C02
+#   snakemake ... --until A02                                          # stop after a stage
+#   snakemake ... -R A02                                               # rerun a stage (+downstream) after editing it
+#   snakemake ... -f work/<batch>/status/A02/<ID>.ok                   # one track, one stage
 #   snakemake ... -n                                          # dry run: what and why
 #
 # Every per-track job writes work/<batch>/status/<stage>/<ID>.json and, for success/skip/blocked,
@@ -54,9 +54,9 @@ def launcher_log(stage, ID='{ID}'):
 # ------------------------------------------------------------------ targets
 rule all:
     input:
-        expand(ok('C01'), ID=TRACKS),
+        expand(ok('C02'), ID=TRACKS),
         expand(ok('B03'), ID=TRACKS),      # figures only, nothing depends on it
-        P.batch_work + 'C01_database/index.csv' if TRACKS else [],
+        P.batch_work + 'C02_database/index.csv' if TRACKS else [],
 
 for _s in TRACK_STAGES:
     rule:
@@ -143,20 +143,20 @@ for _s in TRACK_STAGES:
 # ------------------------------------------------------------------ batch-level products
 rule index:
     input:
-        expand(ok('C01'), ID=TRACKS)
+        expand(ok('C02'), ID=TRACKS)
     output:
-        P.batch_work + 'C01_database/index.csv'
+        P.batch_work + 'C02_database/index.csv'
     shell:
-        f'{ENV} {PY} {SD}/stages/C01_index.py {BATCH}'
+        f'{ENV} {PY} {SD}/stages/C02_index.py {BATCH}'
 
 rule gallery:
     shell:
         f'{ENV} {PY} {SD}/gallery.py {BATCH}'
 
-# the index rule needs every track's C01; after a run with failures it is not reached, so the
+# the index rule needs every track's C02; after a run with failures it is not reached, so the
 # index and the gallery are always refreshed at the end of a run
 onsuccess:
-    shell(f'{ENV} {PY} {SD}/stages/C01_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')
+    shell(f'{ENV} {PY} {SD}/stages/C02_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')
 
 onerror:
-    shell(f'{ENV} {PY} {SD}/stages/C01_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')
+    shell(f'{ENV} {PY} {SD}/stages/C02_index.py {BATCH} || true; {ENV} {PY} {SD}/gallery.py {BATCH} || true')

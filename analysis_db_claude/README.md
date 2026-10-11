@@ -1,8 +1,17 @@
 # analysis_db_claude — batch pipeline for ICESat-2 wave spectra
 
 Rewrite of `analysis_db/` as a batch pipeline: a batch is a lat/lon box × time window; every ATL03
-track in it is processed B01 → A02 → B02 → B03 → B04 → B05 → B06 → C01, with one status record
-per (stage, track), Snakemake as the scheduler and a static HTML gallery for screening.
+track in it is processed in three blocks, with one status record per (stage, track), Snakemake as the
+scheduler and a static HTML gallery for screening:
+
+| block | stages | needs |
+|---|---|---|
+| B: data and spectra | B00 discover, B01 SlideRule download + beam screening, B02 gFT spectra, B03 figures | – |
+| A: wave angle (optional) | A01a WW3 prior, A02 angle from beam pairs, A03 angle pdf | A01a: B01; A02: B02 + A01a |
+| C: correction and database | C01 correct, C02 collect (+ C02_index) | C01: B02; C02: C01 + A01a; both wait for A02/A03 |
+
+Stage names before 2026-10-10: A02 → A01a, B04 → A02, B05 → A03, B06 → C01, C01 → C02,
+`A01b_ID` → `B01_ID`; `tools/migrate_stage_names.py <batch>` renames an existing batch.
 
 ```
 pipeline_config.py   config pick (config/config.json on cerberus, config_local.json on the laptop),
@@ -12,8 +21,8 @@ pipeline_params.py   batches/<batch>.toml, params/<version>.toml, params_hash, m
 pipeline_dag.py      stage order, dependencies, threads/resources, key figure per stage
 Snakefile            per-track rules; outputs are the .ok sentinels
 gallery.py           plots/<hemis>/<batch>/index.html + per-track / per-stage pages
-stages/              B00_discover, B01_sliderule_load, A02_ww3_prior, B02_spectra, B03_plot_spectra,
-                     B04_angle, B05_define_angle, B06_correct, C01_collect, C01_index
+stages/              B00_discover, B01_sliderule_load, A01a_ww3_prior, B02_spectra, B03_plot_spectra,
+                     A02_angle, A03_define_angle, C01_correct, C02_collect, C02_index
 batches/*.toml       batch definitions (region, time, chunking, selection, sliderule nodes)
                      region: `lat = [..]; lon = [..]` (box) or `polygon = [[lon, lat], ...]` (any simple
                      polygon, e.g. a tilted box; closed and oriented automatically)
@@ -27,14 +36,14 @@ tools/               run_batch.sh, discover.sh, serve_gallery.sh, tunnel.sh, syn
 cd analysis_db_claude
 tools/discover.sh SH_dev_small                 # B00: CMR query -> work/<batch>/tracks.csv + overview map
 tools/run_batch.sh SH_dev_small -n    # dry run: what would run and why
-tools/run_batch.sh SH_dev_small                # everything (B01 per chunk, then per track up to C01, index)
-tools/run_batch.sh SH_dev_small --until B04    # stop after a stage
-tools/run_batch.sh SH_dev_small -R B04         # rerun a stage (+ downstream) after editing its script
-tools/run_batch.sh SH_dev_small -f ../data/work/SH_dev_small/status/B04/SH_20190502_05200310.ok   # one track
+tools/run_batch.sh SH_dev_small                # everything (B01 per chunk, then per track up to C02, index)
+tools/run_batch.sh SH_dev_small --until A02    # stop after a stage
+tools/run_batch.sh SH_dev_small -R A02         # rerun a stage (+ downstream) after editing its script
+tools/run_batch.sh SH_dev_small -f ../data/work/SH_dev_small/status/A02/SH_20190502_05200310.ok   # one track
 python gallery.py SH_dev_small                 # (re)build the HTML pages (also done automatically at the end of a run)
 ```
 
-Environment for `run_batch.sh`: `JOBS` (concurrent heavy jobs: B01/B02/B04/B06, default 4), `CORES` (total
+Environment for `run_batch.sh`: `JOBS` (concurrent heavy jobs: B01/B02/A02/C01, default 4), `CORES` (total
 thread budget, default 16), `SL_JOBS` (concurrent SlideRule chunk downloads, default 1), `TDS_JOBS`
 (concurrent THREDDS prior downloads, default 2). Each job caps its BLAS threads (`OMP_NUM_THREADS` from
 the rule's `threads`). B01 chunk jobs also count against `JOBS`.
@@ -42,7 +51,7 @@ the rule's `threads`). B01 chunk jobs also count against `JOBS`.
 Single stage by hand (e.g. while debugging):
 ```bash
 MPLBACKEND=Agg python stages/B02_spectra.py SH_20190502_05200310 SH_dev_small
-IS2_SKIP_UPSTREAM=1 ... python stages/B04_angle.py <ID> <batch>   # ignore missing upstream status records
+IS2_SKIP_UPSTREAM=1 ... python stages/A02_angle.py <ID> <batch>   # ignore missing upstream status records
 ```
 Interactive: open a stage script, run the cells inside `run_stage` with
 `run = StageRun.debug('B02', ID, batch_key); prm = load_params(batch_key)['B02']; P = paths_for(batch_key, ID)`.
@@ -75,10 +84,10 @@ with `-R B01` (re-downloads the chunk).
 
 ## Optional angle
 
-B06 and C01 only *wait* for B05 (any final status) and use its angle pdf when B05 succeeded. Without
-it (typically B04 skip: no complete beam pair) B06 still writes the spectra, cut-off wavenumbers,
+C01 and C02 only *wait* for A03 (any final status) and use its angle pdf when A03 succeeded. Without
+it (typically A02 skip: no complete beam pair) C01 still writes the spectra, cut-off wavenumbers,
 attenuation figures and the `_gFT_k_corrected.nc` file — with `k_corrected`/`x_corrected` all nan and
-`angle_applied = 0` in its attrs — and C01 records `theta_applied = 0` and `angle_reason`. Filter the
+`angle_applied = 0` in its attrs — and C02 records `theta_applied = 0` and `angle_reason`. Filter the
 database by `theta_applied` when the correction matters. `ORDER_AFTER` in `pipeline_dag.py` holds
 these wait-only dependencies; `DEPS` the hard ones.
 
@@ -92,6 +101,6 @@ these wait-only dependencies; `DEPS` the hard ones.
 
 ## Database
 
-`C01_collect` writes `work/<batch>/C01_database/C01_<ID>.nc` (corrected PSD(x, beam, k), angle PDF,
-prior scalars, metadata; float32, zlib, ~1 MB) and `C01_index.py` builds `index.csv`/`index.parquet`
+`C02_collect` writes `work/<batch>/C02_database/C02_<ID>.nc` (corrected PSD(x, beam, k), angle PDF,
+prior scalars, metadata; float32, zlib, ~1 MB) and `C02_index.py` builds `index.csv`/`index.parquet`
 over the batch.

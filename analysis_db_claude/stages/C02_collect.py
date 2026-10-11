@@ -1,15 +1,15 @@
 # %%
 """
-C01: collect the results of one track into a compact netCDF for the wave-spectra database.
+C02: collect the results of one track into a compact netCDF for the wave-spectra database.
 
-    python stages/C01_collect.py <ID> <batch_key>
+    python stages/C02_collect.py <ID> <batch_key>
 
-Reads  work/<batch>/B06_corrected_separated/B06_<ID>_gFT_k_corrected.nc   (B06)
-       work/<batch>/B04_angle/B05_<ID>_angle_pdf.nc                        (B05)
-       work/<batch>/A02_prior/A02_<ID>.h5                                   (A02)
-       work/<batch>/A01b_ID/A01b_ID_<ID>.json, tracks.csv                   (B01, B00)
+Reads  work/<batch>/C01_corrected_separated/C01_<ID>_gFT_k_corrected.nc   (C01)
+       work/<batch>/A02_angle/A03_<ID>_angle_pdf.nc                        (A03)
+       work/<batch>/A01a_prior/A01a_<ID>.h5                                   (A01a)
+       work/<batch>/B01_ID/B01_ID_<ID>.json, tracks.csv                   (B01, B00)
        status/*/<ID>.json                                                    (all stages)
-Writes work/<batch>/C01_database/C01_<ID>.nc   (~1 MB, float32 + zlib)
+Writes work/<batch>/C02_database/C02_<ID>.nc   (~1 MB, float32 + zlib)
 """
 import os
 import sys
@@ -23,22 +23,22 @@ from pipeline_status import StageRun, SkipTrack, require_upstream, read_status
 from pipeline_params import load_params
 from pipeline_dag import TRACK_STAGES
 
-STAGE = 'C01'
+STAGE = 'C02'
 PRIOR_SCALARS = ['hs', 'fp', 'dir', 'dp', 'spr', 't01', 't02', 'ice', 'lon', 'lat']
 
 
 def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B06', 'A02'])     # B05 angle optional
-    save_path = P.stage_dir('C01_database')
+    require_upstream(run, ['C01', 'A01a'])     # A03 angle optional
+    save_path = P.stage_dir('C02_database')
 
     # %% load
-    Gk = xr.open_dataset(P.stage_dir('B06_corrected_separated') + f'B06_{ID}_gFT_k_corrected.nc')
-    angle_file = P.stage_dir('B04_angle') + f'B05_{ID}_angle_pdf.nc'
-    b05 = read_status(batch_key, 'B05', ID) or {}
+    Gk = xr.open_dataset(P.stage_dir('C01_corrected_separated') + f'C01_{ID}_gFT_k_corrected.nc')
+    angle_file = P.stage_dir('A02_angle') + f'A03_{ID}_angle_pdf.nc'
+    b05 = read_status(batch_key, 'A03', ID) or {}
     Ga = xr.open_dataset(angle_file) if (b05.get('status') == 'success' and os.path.exists(angle_file)) else None
-    Prior = MT.load_pandas_table_dict('/A02_' + ID, P.stage_dir('A02_prior'))['priors_hindcast']
-    with open(P.stage_dir('A01b_ID') + f'A01b_ID_{ID}.json') as f:
+    Prior = MT.load_pandas_table_dict('/A01a_' + ID, P.stage_dir('A01a_prior'))['priors_hindcast']
+    with open(P.stage_dir('B01_ID') + f'B01_ID_{ID}.json') as f:
         IDj = json.load(f)
     tr = None
     if os.path.exists(P.batch_work + 'tracks.csv'):
@@ -63,7 +63,7 @@ def run_stage(ID, batch_key, prm, run):
     # %% scalars and metadata
     theta = float(Gk.attrs.get('best_guess_incident_angle', np.nan))
     st = {s: read_status(batch_key, s, ID) for s in TRACK_STAGES}
-    b06 = (st.get('B06') or {}).get('info', {})
+    b06 = (st.get('C01') or {}).get('info', {})
     b01 = (read_status(batch_key, 'B01', ID) or {}).get('info') or {}
     beams_data = [str(b) for b in Gk.beam.values if b != 'weig' and bool(Gk.gFT_PSD_data.sel(beam=b).notnull().any())]
     weak = [f'gt{i}{"r" if b01.get("strong_side", "l") == "l" else "l"}' for i in (1, 2, 3)]
@@ -105,7 +105,7 @@ def run_stage(ID, batch_key, prm, run):
         if prm.get('float32', True) and np.issubdtype(D[v].dtype, np.floating):
             e['dtype'] = 'float32'
         enc[v] = e
-    out = save_path + f'C01_{ID}.nc'
+    out = save_path + f'C02_{ID}.nc'
     D.to_netcdf(out, encoding=enc)
     size_mb = os.path.getsize(out) / 1e6
     print(f'saved {out} ({size_mb:.2f} MB)')

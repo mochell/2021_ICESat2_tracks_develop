@@ -1,16 +1,16 @@
 # %%
 """
-B04: MCMC inversion of the wave propagation angle per beam group and x position.
+A02: MCMC inversion of the wave propagation angle per beam group and x position.
 
-    python stages/B04_angle.py <ID> <batch_key>
+    python stages/A02_angle.py <ID> <batch_key>
 
 Reads  work/<batch>/B02_spectra/B02_<ID>_gFT_x.nc, _gFT_k.nc                 (B02)
-       work/<batch>/A02_prior/A02_<ID>.h5   table 'priors_hindcast'          (A02)
-Writes work/<batch>/B04_angle/B04_<ID>_marginals.nc, B04_<ID>_res_table.h5
-       status/B04/<ID>.json
-       figures B04_prior_angle, B04_data_avail, B04_marginal_distributions
+       work/<batch>/A01a_prior/A01a_<ID>.h5   table 'priors_hindcast'          (A01a)
+Writes work/<batch>/A02_angle/A02_<ID>_marginals.nc, A02_<ID>_res_table.h5
+       status/A02/<ID>.json
+       figures A02_prior_angle, A02_data_avail, A02_marginal_distributions
 
-Port of analysis_db/B04_angle.py: same algorithm, parameters from params/<v>.toml [B04],
+Port of analysis_db/B04_angle.py: same algorithm, parameters from params/<v>.toml [A02],
 exit() -> SkipTrack, serial loop over wavenumbers (the ProcessPoolExecutor variant was dead code).
 The B01 binned table was loaded but never used and is not read any more.
 """
@@ -26,7 +26,7 @@ from pipeline_params import load_params
 
 from ICEsat2_SI_tools import angle_optimizer
 
-STAGE = 'B04'
+STAGE = 'A02'
 
 col.colormaps2(21)
 col_dict = col.rels
@@ -135,12 +135,12 @@ def plot_instance(z_model, fargs, key, SM, non_dim=False, title_str=None, brute=
 def run_stage(ID, batch_key, prm, run):
     track_name = ID
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B02', 'A02'])
+    require_upstream(run, ['B02', 'A01a'])
 
     beam_groups = mconfig['beams']['groups']
 
-    save_path = P.stage_dir('B04_angle')
-    save_name = 'B04_' + track_name
+    save_path = P.stage_dir('A02_angle')
+    save_name = 'A02_' + track_name
     plot_path = P.plot_track
 
     # %% load B02 spectra
@@ -149,9 +149,9 @@ def run_stage(ID, batch_key, prm, run):
     Gk = xr.load_dataset(load_path + 'B02_' + track_name + '_gFT_k.nc')
 
     # %% load prior information
-    load_path = P.stage_dir('A02_prior')
+    load_path = P.stage_dir('A01a_prior')
     try:
-        Prior = MT.load_pandas_table_dict('/A02_' + track_name, load_path)['priors_hindcast']
+        Prior = MT.load_pandas_table_dict('/A01a_' + track_name, load_path)['priors_hindcast']
     except Exception as e:
         raise SkipTrack('prior table not found', error=str(e)[:200])
 
@@ -235,7 +235,7 @@ def run_stage(ID, batch_key, prm, run):
     plt.ylabel('Angle (deg)')
     plt.xlabel(r'wavenumber ($2 \pi/\lambda$)')
 
-    save_fig(F, plot_path, 'B04_prior_angle')
+    save_fig(F, plot_path, 'A02_prior_angle')
 
     # save
     dir_interp_smth = xr.DataArray(data=dir_interp_smth * np.pi / 180, dims='k', coords={'k': kk}, name='Prior_direction')
@@ -330,7 +330,7 @@ def run_stage(ID, batch_key, prm, run):
 
     plt.xlabel('Distance from Ice Edge')
 
-    save_fig(F, plot_path, 'B04_data_avail')
+    save_fig(F, plot_path, 'A02_data_avail')
 
     # %% MCMC loop over beam groups and x positions
     Marginals = dict()
@@ -662,7 +662,7 @@ def run_stage(ID, batch_key, prm, run):
     plt.title('unweighted margins', loc='left')
     plt.xlim(-90, 90)
 
-    save_fig(F, plot_path, 'B04_marginal_distributions')
+    save_fig(F, plot_path, 'A02_marginal_distributions')
     print('saved and done')
 
 

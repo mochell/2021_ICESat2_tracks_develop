@@ -302,17 +302,17 @@ if __name__ == '__main__':
     assert r2.status == 'skip' and ok_file(bk, 'B03', r.ID).exists()
     assert read_status(bk, 'B03', r.ID)['info']['nan_fraction'] == 0.97
 
-    with StageRun('B04', r.ID, bk, params={}, script=__file__) as r3:
+    with StageRun('A02', r.ID, bk, params={}, script=__file__) as r3:
         require_upstream(r3, ['B02', 'B03'])       # B03 is skip -> blocked
     assert r3.status == 'blocked' and 'B03 skip' in r3.reason
 
     try:
-        with StageRun('B05', r.ID, bk, params={}, script=__file__) as r4:
+        with StageRun('A03', r.ID, bk, params={}, script=__file__) as r4:
             raise ValueError('boom')
     except ValueError:
         pass
-    st = read_status(bk, 'B05', r.ID)
-    assert r4.status == 'fail' and st['error_type'] == 'ValueError' and not ok_file(bk, 'B05', r.ID).exists()
+    st = read_status(bk, 'A03', r.ID)
+    assert r4.status == 'fail' and st['error_type'] == 'ValueError' and not ok_file(bk, 'A03', r.ID).exists()
     assert 'hello from success' in log_file(bk, 'B02', r.ID).read_text()
     print(iter_status(bk)[['stage', 'ID', 'status', 'reason', 'error_type', 'runtime_s']])
     shutil.rmtree(P.batch_work, ignore_errors=True)

@@ -32,7 +32,7 @@ GRANULE_RX = re.compile(r'ATL03_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_(\d{4
 
 # rough data-volume estimates, from the test track SH_20190502_05180312 (2026-09-21)
 BYTES_PER_POINT_B01 = 120          # B01_binned.h5, all columns, one beam point
-MB_INTERMEDIATE_PER_TRACK = 150    # B02..B06 products per track (gFT_x/k.nc dominate)
+MB_INTERMEDIATE_PER_TRACK = 150    # B02..C01 products per track (gFT_x/k.nc dominate)
 
 
 def parse_granule(name):
@@ -132,8 +132,8 @@ def polar_overview(batch, poly, Gtrack, Gtrack_lowest, tracks, chunks, est, path
            f"tracks    : {sel.ID.nunique()} expected (unique rgt,cycle), {sel.rgt.nunique()} RGTs\n"
            f"RGTs in box (shapefile): {Gtrack_lowest.RGT.nunique() if len(Gtrack_lowest) else 0}\n"
            f"est. B01 download : {est['B01_MB']:.0f} MB  ({est['points_per_track']/1e3:.0f}k points/track)\n"
-           f"est. B02-B06 data : {est['intermediate_MB']/1e3:.1f} GB\n"
-           f"est. B02+B04 time : {est['cpu_hours']:.1f} CPU h (serial ~6 min/track)")
+           f"est. B02-C01 data : {est['intermediate_MB']/1e3:.1f} GB\n"
+           f"est. B02+A02 time : {est['cpu_hours']:.1f} CPU h (serial ~6 min/track)")
     fig.text(0.02, 0.01, txt, fontsize=8, family='monospace', va='bottom',
              bbox=dict(boxstyle='round', facecolor='white', alpha=0.9))
     save_fig(fig, path, 'B00_overview', pdf=False)

@@ -1,21 +1,21 @@
 # %%
 """
-B06: noise cut-off wavenumber per stancil, low-pass reconstruction of the gFT height model,
+C01: noise cut-off wavenumber per stancil, low-pass reconstruction of the gFT height model,
 residual heights and incident-angle correction of the wavenumber / distance axes.
 
-    python stages/B06_correct.py <ID> <batch_key>
+    python stages/C01_correct.py <ID> <batch_key>
 
 Reads  work/<batch>/B01_regrid/<ID>_B01_binned.h5                                  (B01)
        work/<batch>/B02_spectra/B02_<ID>_gFT_k.nc, _gFT_x.nc, _FFT.nc                (B02)
-       work/<batch>/B04_angle/B05_<ID>_angle_pdf.nc                                  (B05)
-Writes work/<batch>/B06_corrected_separated/B06_<ID>_gFT_k_corrected.nc, B06_<ID>_gFT_x_corrected.nc,
-       B06_<ID>_binned_resid.h5
-       status/B06/<ID>.json
-       plots/<hemis>/<batch>/<ID>/B06_correction/B06_k_cutoff, B06_atten_ov_simple, B06_atten_ov, B06_angle_def
+       work/<batch>/A02_angle/A03_<ID>_angle_pdf.nc                                  (A03)
+Writes work/<batch>/C01_corrected_separated/C01_<ID>_gFT_k_corrected.nc, C01_<ID>_gFT_x_corrected.nc,
+       C01_<ID>_binned_resid.h5
+       status/C01/<ID>.json
+       plots/<hemis>/<batch>/<ID>/C01_correction/C01_k_cutoff, C01_atten_ov_simple, C01_atten_ov, C01_angle_def
 
-Port of analysis_db/B06_correct_separate_var.py: same algorithm, parameters from params/<v>.toml [B06],
-missing B05 angle file -> SkipTrack (was a bare try/except that silently set theta = 0),
-B06_<ID>_B06_corrected_resid.h5 dropped (was always empty), B06_success.json dropped.
+Port of analysis_db/B06_correct_separate_var.py: same algorithm, parameters from params/<v>.toml [C01],
+missing A03 angle file -> SkipTrack (was a bare try/except that silently set theta = 0),
+C01_<ID>_C01_corrected_resid.h5 dropped (was always empty), C01_success.json dropped.
 """
 import os
 import sys
@@ -33,7 +33,7 @@ import piecewise_regression
 import ICEsat2_SI_tools.io as io
 import generalized_FT as gFT
 
-STAGE = 'B06'
+STAGE = 'C01'
 
 
 # ----------------------------------------------------------------------------- cut-off wavenumber
@@ -183,7 +183,7 @@ def save_pandas_table_overwrite(table_dict, name, save_path):
 # ----------------------------------------------------------------------------- stage
 def run_stage(ID, batch_key, prm, run):
     P = paths_for(batch_key, ID)
-    require_upstream(run, ['B02'])            # B05 (angle) is optional, see below
+    require_upstream(run, ['B02'])            # A03 (angle) is optional, see below
     ID_name = ID
 
     all_beams = mconfig['beams']['all_beams']
@@ -192,9 +192,9 @@ def run_stage(ID, batch_key, prm, run):
 
     load_path_regrid = P.stage_dir('B01_regrid')
     load_path_spectra = P.stage_dir('B02_spectra')
-    load_path_angle = P.stage_dir('B04_angle')
-    save_path = P.stage_dir('B06_corrected_separated')
-    plot_path = P.track_plot_dir('B06_correction')
+    load_path_angle = P.stage_dir('A02_angle')
+    save_path = P.stage_dir('C01_corrected_separated')
+    plot_path = P.track_plot_dir('C01_correction')
 
     # %% load data
     B3_hdf5 = h5py.File(load_path_regrid + ID_name + '_B01_binned.h5', 'r')
@@ -208,14 +208,14 @@ def run_stage(ID, batch_key, prm, run):
     Gx = xr.open_dataset(load_file + '_gFT_x.nc')
     Gfft = xr.open_dataset(load_file + '_FFT.nc')
 
-    # the angle correction needs the B05 angle pdf; without it (no beam pairs in B04, ...) the
+    # the angle correction needs the A03 angle pdf; without it (no beam pairs in A02, ...) the
     # spectra, cut-off wavenumbers and attenuation figures are still produced, uncorrected
-    angle_file = load_path_angle + 'B05_' + ID_name + '_angle_pdf.nc'
-    b05 = read_status(batch_key, 'B05', ID_name) or {}
+    angle_file = load_path_angle + 'A03_' + ID_name + '_angle_pdf.nc'
+    b05 = read_status(batch_key, 'A03', ID_name) or {}
     have_angle = b05.get('status') == 'success' and os.path.exists(angle_file)
     if not have_angle:
-        print('no B05 angle pdf (B05 status:', b05.get('status', 'missing'), ') -> no angle correction')
-    run.upstream['B05'] = b05.get('status', 'not_run')
+        print('no A03 angle pdf (A03 status:', b05.get('status', 'missing'), ') -> no angle correction')
+    run.upstream['A03'] = b05.get('status', 'not_run')
 
     col.colormaps2(31, gamma=1)
     col_dict = col.rels
@@ -290,7 +290,7 @@ def run_stage(ID, batch_key, prm, run):
     k_lim_smth.plot(c='r')
 
     plt.title('k_c filter', loc='left')
-    save_fig(F, plot_path, 'B06_k_cutoff', pdf=False)
+    save_fig(F, plot_path, 'C01_k_cutoff', pdf=False)
 
     G_gFT_smth['k_lim'] = k_lim_smth
     G_gFT_wmean.coords['k_lim'] = k_lim_smth
@@ -360,7 +360,7 @@ def run_stage(ID, batch_key, prm, run):
         else:
             ax0.tick_params(bottom=True, labelleft=False)
 
-    save_fig(F, plot_path, 'B06_atten_ov_simple', close=False)
+    save_fig(F, plot_path, 'C01_atten_ov_simple', close=False)
 
     # %% add mean displacement spectrogram and coverage panels
     pos = gs[5:, 0:2]
@@ -395,7 +395,7 @@ def run_stage(ID, batch_key, prm, run):
     ax9.axhline(prm['coverage_min'] * 100, linewidth=0.8, linestyle='--', color='black')
     plt.xlabel('X (km)')
 
-    save_fig(F, plot_path, 'B06_atten_ov')
+    save_fig(F, plot_path, 'C01_atten_ov')
 
     # %% reconstruct low-passed height model per stancil
     G_height_model = dict()
@@ -458,11 +458,11 @@ def run_stage(ID, batch_key, prm, run):
 
         B3_v2[bb] = T3
 
-    # %% wave incident direction from the B05 angle pdf (optional)
+    # %% wave incident direction from the A03 angle pdf (optional)
     theta, theta_flag = np.nan, False
     G_angle = xr.open_dataset(angle_file) if have_angle else None
     if G_angle is None:
-        run.info(theta_deg=np.nan, theta_applied=False, angle_reason=b05.get('reason') or ('B05 ' + b05.get('status', 'missing')))
+        run.info(theta_deg=np.nan, theta_applied=False, angle_reason=b05.get('reason') or ('A03 ' + b05.get('status', 'missing')))
     else:
 
         Ga_abs = (G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle > 0).data + G_angle.weighted_angle_PDF_smth.isel(angle=G_angle.angle < 0).data[:, ::-1]) / 2
@@ -488,7 +488,7 @@ def run_stage(ID, batch_key, prm, run):
         Ga_best.plot()
         plt.title('angle front ' + str(theta * 180 / np.pi), loc='left')
         ax.axvline(theta, color='red')
-        save_fig(F, plot_path, 'B06_angle_def', pdf=False)
+        save_fig(F, plot_path, 'C01_angle_def', pdf=False)
 
     # %% corrected wavenumber and distance axes
     lam_p = 2 * np.pi / Gk.k
@@ -514,11 +514,11 @@ def run_stage(ID, batch_key, prm, run):
     Gk_v2.attrs['best_guess_incident_angle'] = float(theta)
     Gk_v2.attrs['angle_applied'] = int(theta_flag)
 
-    Gk_v2.to_netcdf(save_path + 'B06_' + ID_name + '_gFT_k_corrected.nc')
+    Gk_v2.to_netcdf(save_path + 'C01_' + ID_name + '_gFT_k_corrected.nc')
 
     # %% save real space data
-    Gx.to_netcdf(save_path + 'B06_' + ID_name + '_gFT_x_corrected.nc')
-    save_pandas_table_overwrite(B3_v2, 'B06_' + ID_name + '_binned_resid', save_path)   # regridded heights + model + residual
+    Gx.to_netcdf(save_path + 'C01_' + ID_name + '_gFT_x_corrected.nc')
+    save_pandas_table_overwrite(B3_v2, 'C01_' + ID_name + '_binned_resid', save_path)   # regridded heights + model + residual
     print('saved and done')
 
 
