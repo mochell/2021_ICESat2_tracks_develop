@@ -21,6 +21,8 @@ N_photos_min = 5             # points with N_photos <= this are treated as nan (
 maximum_height = 30          # m, |h_mean - dem_h| above this is removed (sct.correct_and_remove_height)
 beam_stats_Lmeter = 12500    # m, window for beam_stats.derive_beam_statistics (diagnostic figure only)
 beam_stats_dx = 10           # m
+max_granules_per_request = 20  # granules per atl06p call (121 per call hit SlideRule's 600 s proxy timeout)
+max_request_attempts = 3     # rounds of re-requesting granules SlideRule did not report as processed
 
 [B01.sliderule]              # icesat2.atl06p request (params_yapc in B01_SL_load_single_file.py)
 srt = 1                      # ocean surface type

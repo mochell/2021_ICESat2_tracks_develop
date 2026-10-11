@@ -13,9 +13,11 @@ Writes work/<batch>/B01_regrid/<ID>_B01_binned.h5       one h5py group per beam
        status/B01/<ID>.json for every expected ID of the chunk (success, or skip 'no data in box')
        status/B01/chunk<n>.json for the download job itself
 """
+import re
 import sys
 import copy
 import json
+import logging
 import datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -82,6 +84,60 @@ def min_points_for_track(prm):
     gft = prm['gft']
     Lpoints, _ = stancil_length(gft['T_max'], gft['L_factor'], prm['sliderule']['res'])
     return int(np.ceil(round(gft['min_dense_segments'] * gft['segment_fill_min'] * Lpoints, 6)))
+
+
+class _GranuleLog(logging.Handler):
+    """granules SlideRule reports as processed (also those with 0 rows), plus its error alerts"""
+    DONE = re.compile(r'Successfully completed processing resource \[\d+ out of \d+\]: (\S+)')
+
+    def __init__(self):
+        super().__init__(level=logging.INFO)
+        self.done, self.alerts = set(), []
+
+    def emit(self, record):
+        msg = record.getMessage()
+        m = self.DONE.search(msg)
+        if m:
+            self.done.add(m.group(1))
+        elif record.levelno >= logging.ERROR:
+            self.alerts.append(msg[:200])
+
+
+def download(icesat2, params, granules, parts, max_per_request, max_attempts):
+    """
+    atl06p for every polygon part in requests of at most max_per_request granules; granules SlideRule
+    did not report as processed (e.g. 'timed-out after 600 seconds waiting for endpoint proxy', after
+    which atl06p returns the partial result without raising) are requested again, up to max_attempts.
+    returns (list of GeoDataFrames, granules still missing, alerts, number of requests)
+    """
+    log = _GranuleLog()
+    logger = logging.getLogger('sliderule')
+    if logger.getEffectiveLevel() > logging.INFO:
+        logger.setLevel(logging.INFO)
+    logger.addHandler(log)
+    pieces, missing, n_requests = [], set(), 0
+    try:
+        for ip, part in enumerate(parts):
+            p = dict(params, poly=part)
+            todo = list(granules)
+            for attempt in range(1, max_attempts + 1):
+                failed = []
+                for i in range(0, len(todo), max_per_request):
+                    batch = todo[i:i + max_per_request]
+                    log.done.clear()
+                    g = icesat2.atl06p(p, resources=batch)
+                    n_requests += 1
+                    if len(g):
+                        pieces.append(g)
+                    failed += [b for b in batch if b not in log.done]
+                print(f'  part {ip + 1}/{len(parts)} attempt {attempt}: {len(todo) - len(failed)}/{len(todo)} granules processed')
+                todo = failed
+                if not todo:
+                    break
+            missing |= set(todo)
+    finally:
+        logger.removeHandler(log)
+    return pieces, sorted(missing), log.alerts, n_requests
 
 
 def _utc_posix(t):
@@ -201,34 +257,45 @@ def run_stage(batch_key, chunk, prm, run):
     params = dict(prm['sliderule'])
     params['t0'], params['t1'] = str(ch.t0), str(ch.t1)
     t_req = datetime.datetime.now()
-    pieces = []
-    for ip, part in enumerate(poly['parts']):        # one request per part (regions cut at +-180)
-        params['poly'] = part
-        g = icesat2.atl06p(params, resources=granules)
-        print(f'  part {ip + 1}/{len(poly["parts"])}: atl06p returned {len(g)} rows')
-        if len(g):
-            pieces.append(g)
-    gdf = pd.concat(pieces) if pieces else pieces and pieces[0] or gpd.GeoDataFrame()
-    if len(pieces) > 1:
-        gdf = gdf.sort_index()                        # time index; rows of the two parts interleave
-    print(f'atl06p returned {len(gdf)} rows in {(datetime.datetime.now() - t_req).seconds}s')
-    run.info(n_rows_raw=int(len(gdf)), request_s=(datetime.datetime.now() - t_req).seconds)
-    if len(gdf) == 0:
+    # one request per polygon part (regions cut at +-180) and granule batch; unprocessed granules are retried
+    pieces, missing, alerts, n_requests = download(icesat2, params, granules, poly['parts'],
+                                                   prm['max_granules_per_request'], prm['max_request_attempts'])
+    gdf = pd.concat(pieces) if pieces else gpd.GeoDataFrame()
+    if len(pieces) > 1:                               # a retried granule may have streamed rows before its timeout
+        keys = [c for c in ('spot', 'rgt', 'cycle', 'x_atc') if c in gdf.columns]
+        gdf = gdf[~gdf.reset_index().duplicated(subset=[gdf.index.name or 'index'] + keys).values]
+        gdf = gdf.sort_index()                        # time index; rows of parts/batches interleave
+    print(f'atl06p returned {len(gdf)} rows in {(datetime.datetime.now() - t_req).seconds}s, '
+          f'{n_requests} requests, {len(missing)} granules not processed')
+    run.info(n_rows_raw=int(len(gdf)), request_s=(datetime.datetime.now() - t_req).seconds, n_requests=n_requests,
+             n_granules=len(granules), n_granules_missing=len(missing), granules_missing=missing, sliderule_alerts=alerts[:20])
+    if len(missing) == len(granules):
+        raise RuntimeError(f'SlideRule processed none of the {len(granules)} granules (alerts: {alerts[:3]})')
+    if len(gdf) == 0 and not missing:
         for ID in expected_ids:
             _write_track_status(run, ID, 'skip', 'no data returned for chunk')
         raise SkipTrack('atl06p returned no data')
-    gdf = sct.correct_and_remove_height(gdf, prm['maximum_height'])
+    if len(gdf):
+        gdf = sct.correct_and_remove_height(gdf, prm['maximum_height'])
+
+    # %% tracks with a granule SlideRule did not process are incomplete: fail (retried), never 'no data'
+    incomplete = set(todo[todo.granule.isin(missing)].ID)
+    for ID in sorted(incomplete):
+        _write_track_status(run, ID, 'fail', 'SlideRule did not process granule(s): '
+                            + ', '.join(sorted(todo[(todo.ID == ID) & todo.granule.isin(missing)].granule)))
 
     # %% split per (rgt, cycle) -> tracks
     id_of = todo.drop_duplicates('ID').set_index(['rgt', 'cycle'])['ID']
     granules_of = todo.groupby('ID')['granule'].apply(list)
     produced, density = {}, {}
-    for (rgt, cyc), tmp in gdf.groupby(['rgt', 'cycle']):
+    for (rgt, cyc), tmp in (gdf.groupby(['rgt', 'cycle']) if len(gdf) else []):
         key = (int(rgt), int(cyc))
         if key not in id_of.index:
             print(f'  rgt {rgt} cycle {cyc}: {len(tmp)} rows but not an expected track, skipped')
             continue
         ID = id_of.loc[key]
+        if ID in incomplete:
+            continue
         print(f'  {ID}: {len(tmp)} rows')
         if len(tmp) < min_points_for_track(prm):
             _write_track_status(run, ID, 'skip', f'too few points in box ({len(tmp)} < {min_points_for_track(prm)} '
@@ -261,6 +328,9 @@ def run_stage(batch_key, chunk, prm, run):
     run.info(n_expected=len(expected_ids), n_success=len(produced),
              n_skip=sum(1 for ID in expected_ids if (read_status(batch_key, STAGE, ID) or {}).get('status') == 'skip'),
              n_fail=sum(1 for ID in expected_ids if (read_status(batch_key, STAGE, ID) or {}).get('status') == 'fail'))
+    if missing:                                       # chunk fails -> no .ok -> the next run retries the chunk
+        raise RuntimeError(f'{len(missing)} of {len(granules)} granules not processed by SlideRule after '
+                           f'{prm["max_request_attempts"]} attempts ({len(incomplete)} tracks incomplete)')
 
 
 def _write_track_status(run, ID, status, reason, info=None, error=None):
