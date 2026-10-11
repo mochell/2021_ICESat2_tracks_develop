@@ -23,11 +23,12 @@ import getpass
 import platform
 import traceback
 import subprocess
+import re
 import datetime as dt
 from pathlib import Path
 
 from pipeline_config import ROOT, paths_for, MT
-from pipeline_dag import STAGE_DIR, DEPS
+from pipeline_dag import STAGE_DIR, DEPS, ORDER_AFTER
 
 SCHEMA_VERSION = 1
 STATUS_VALUES = ('success', 'fail', 'skip', 'blocked', 'running', 'not_run')
@@ -62,6 +63,9 @@ def _git_state():
         return None, None
 
 
+TRACK_ID = re.compile(r'^[NS]H_\d{8}_\d{8}$')      # per-track records (not B00 batch / B01 chunk jobs)
+
+
 def status_file(batch_key, stage, ID):
     return Path(paths_for(batch_key).status) / stage / f'{ID}.json'
 
@@ -82,8 +86,34 @@ def read_status(batch_key, stage, ID):
         return json.load(f)
 
 
+def downstream_of(stage):
+    """every stage that depends on `stage`, directly or transitively (hard or wait-only)"""
+    out, todo = set(), [stage]
+    while todo:
+        s = todo.pop()
+        for t, ups in DEPS.items():
+            if t not in out and s in ups + ORDER_AFTER.get(t, []):
+                out.add(t)
+                todo.append(t)
+    return out
+
+
+def invalidate_downstream(batch_key, stage, ID):
+    """
+    Remove the status records and .ok files of every downstream stage of one track. Called whenever a
+    stage (re)writes a track's record: if the stage then fails or skips, no result of an earlier run
+    survives below it (Snakemake would see those .ok files as present and never retry the chain).
+    """
+    for s in downstream_of(stage):
+        for p in (status_file(batch_key, s, ID), ok_file(batch_key, s, ID)):
+            if p.exists():
+                p.unlink()
+
+
 def write_status(rec):
     """write a record dict (used by StageRun and by B01 for the tracks it produces)"""
+    if TRACK_ID.match(str(rec['ID'])):
+        invalidate_downstream(rec['batch_key'], rec['stage'], rec['ID'])
     p = status_file(rec['batch_key'], rec['stage'], rec['ID'])
     MT.mkdirs_r(str(p.parent))
     tmp = p.with_suffix('.json.tmp')
