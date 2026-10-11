@@ -392,7 +392,10 @@ def run_stage(ID, batch_key, prm, run):
         i_dir = corrected_marginals.sel(x=slice(x_range[0], x_range[-1]))
 
         dir_data = (i_dir * i_dir.N_data).sum(['beam_group', 'x']) / i_dir.N_data.sum(['beam_group', 'x'])
-        lims = dir_data.k[(dir_data.sum('angle') != 0)][0].data, dir_data.k[(dir_data.sum('angle') != 0)][-1].data
+        k_with_data = dir_data.k[(dir_data.sum('angle') != 0)]
+        if k_with_data.size == 0:                  # no angle estimate in this x range: leave the polar panel empty
+            continue
+        lims = k_with_data[0].data, k_with_data[-1].data
 
         N_angle = i_dir.angle.size
         dir_data2 = dir_data
